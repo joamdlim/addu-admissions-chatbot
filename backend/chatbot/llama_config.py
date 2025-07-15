@@ -5,7 +5,7 @@ Adjusted for maximum speed performance.
 """
 
 # Model path
-MODEL_PATH = "D:/Joash/models/llama-2-7b-chat.Q4_K_M.gguf"
+MODEL_PATH = "model/llama-2-7b-chat.Q4_K_M.gguf"
 
 # Model loading parameters - optimized for speed
 MODEL_CONFIG = {
@@ -56,4 +56,4 @@ WORD_PREDICTION_CONFIG = {
     "top_p": 0.9,
     "top_k": 10,
     "mirostat_mode": 2
-} 
+}

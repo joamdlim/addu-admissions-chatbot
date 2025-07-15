@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import preprocess
 try:
-    from preprocess import preprocess_text
+    from chatbot.preprocess import preprocess_text
 except ImportError:
     # Simplified preprocessing if import fails
     def preprocess_text(text):
@@ -37,7 +37,7 @@ except ImportError:
 try:
     from chatbot.llama_interface_optimized import generate_response, correct_typos, stream_response
 except ImportError:
-    from llama_interface_optimized import generate_response, correct_typos, stream_response
+    from chatbot.llama_interface_optimized import generate_response, correct_typos, stream_response
 
 def sparse_to_array(sparse_matrix):
     """Convert sparse matrix to numpy array safely"""

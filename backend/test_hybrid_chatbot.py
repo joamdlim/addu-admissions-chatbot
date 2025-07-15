@@ -11,7 +11,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import preprocess directly
-from preprocess import preprocess_text
+from chatbot.preprocess import preprocess_text
 
 # Make a modified version of the needed functions from vectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -41,7 +41,7 @@ from chatbot.llama_interface import llm, correct_typos, extract_response_text
 try:
     from chatbot.llama_config import GENERATION_CONFIG
 except ImportError:
-    from llama_config import GENERATION_CONFIG
+    from chatbot.llama_config import GENERATION_CONFIG
 
 class TestHybridChatbot:
     def __init__(self, embeddings_dir="../embeddings", processed_dir="../processed"):

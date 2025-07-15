@@ -26,15 +26,15 @@ def main():
     # Import the appropriate chatbot based on mode
     if args.mode == "original":
         print("🤖 Running original chatbot...")
-        from test_hybrid_chatbot import test_hybrid_chatbot_interactive
+        from backend.test_hybrid_chatbot import test_hybrid_chatbot_interactive
         test_hybrid_chatbot_interactive()
     elif args.mode == "fast":
         print("⚡ Running fast optimized chatbot...")
-        from test_optimized_chatbot import test_optimized_chatbot
+        from backend.test_optimized_chatbot import test_optimized_chatbot
         test_optimized_chatbot()
     else:  # hybrid mode
         print("⚡🔍 Running fast hybrid chatbot...")
-        from fast_hybrid_chatbot import FastHybridChatbot
+        from backend.fast_hybrid_chatbot import FastHybridChatbot
         
         # Create and run the fast hybrid chatbot
         chatbot = FastHybridChatbot()

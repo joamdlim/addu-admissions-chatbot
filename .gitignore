@@ -77,3 +77,6 @@ htmlcov/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Model
+backend/model/*.gguf

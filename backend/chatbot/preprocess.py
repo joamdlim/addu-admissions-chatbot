@@ -1,3 +1,6 @@
+"""
+To apply Lowercasing, Tokenization, Punctuation Removal, Stopword Removal, and Stemming.
+"""
 import nltk
 from nltk.tokenize import PunktSentenceTokenizer, word_tokenize
 from nltk.corpus import stopwords

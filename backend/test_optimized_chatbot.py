@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from chatbot.llama_interface_optimized import llm, generate_fast_response
 except ImportError:
-    from llama_interface_optimized import llm, generate_fast_response
+    from chatbot.llama_interface_optimized import llm, generate_fast_response
 
 class FastChatbot:
     """Ultra-optimized chatbot for maximum speed"""
