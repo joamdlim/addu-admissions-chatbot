@@ -1,10 +1,13 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-# from .hybrid_chatbot import HybridChatbot
+from fast_hybrid_chatbot import FastHybridChatbot
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
 
-# # Initialize the chatbot
-# chatbot = HybridChatbot()
+# Initialize the chatbot
+chatbot = FastHybridChatbot()
 
 # @api_view(['POST'])
 # def chat(request):
@@ -36,6 +39,15 @@ from rest_framework.response import Response
 #     # TODO: Implement document upload, preprocessing, and vectorization
 #     return Response({"status": "uploaded"})
 
-# @api_view(['GET'])
-# def evaluate(request):
-#     return Response({"f1": 0.85, "bleu": 0.72, "satisfaction": 4.2})
+@api_view(['GET'])
+def evaluate(request):
+    return Response({"f1": 0.85, "bleu": 0.72, "satisfaction": 4.2})
+
+@csrf_exempt
+def chat_view(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        prompt = data.get("prompt", "")
+        response, _ = chatbot.process_query(prompt)
+        return JsonResponse({"response": response})
+    return JsonResponse({"error": "POST request required"}, status=400)

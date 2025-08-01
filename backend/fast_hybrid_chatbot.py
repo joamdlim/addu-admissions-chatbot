@@ -377,45 +377,23 @@ def test_fast_hybrid_chatbot():
     
     print("\n⚡🔍 FAST HYBRID CHATBOT MODE ⚡🔍")
     print("Type 'exit' to quit\n")
-    print("Options:")
-    print("  - Type 'stream on' to enable streaming responses")
-    print("  - Type 'stream off' to disable streaming responses")
-    print("  - Type 'history on' to enable dialogue history")
-    print("  - Type 'history off' to disable dialogue history")
-    print("  - Type 'clear history' to clear dialogue history")
-    
-    # Set a generous max_tokens value to ensure complete responses
+    # No more options for toggling streaming/history
+
     max_tokens = 500  # Higher default for complete responses
-    streaming = True  # Default to streaming
-    use_history = True  # Default to using history
-    
+    streaming = True  # Always streaming
+    use_history = True  # Always use history
+
     while True:
         query = input("🔍 Query: ")
         
         if query.lower() in ['exit', 'quit', 'q']:
             print("👋 Goodbye!")
             break
-        elif query.lower() == 'stream on':
-            streaming = True
-            print("Streaming responses enabled")
-            continue
-        elif query.lower() == 'stream off':
-            streaming = False
-            print("Streaming responses disabled")
-            continue
-        elif query.lower() == 'history on':
-            use_history = True
-            print("Dialogue history enabled")
-            continue
-        elif query.lower() == 'history off':
-            use_history = False
-            print("Dialogue history disabled")
-            continue
         elif query.lower() == 'clear history':
             chatbot.clear_history()
             continue
         
-        # Process query with current settings
+        # Always use streaming and history
         response, relevant_docs = chatbot.process_query(
             query, 
             max_tokens=max_tokens,
@@ -429,9 +407,6 @@ def test_fast_hybrid_chatbot():
             print(f"  [{i+1}] {doc['id']} (Relevance: {doc['relevance']:.4f})")
         
         # Response is already printed in streaming mode
-        if not streaming:
-            print("\n")
-        
         print("-" * 80)
 
 if __name__ == "__main__":
