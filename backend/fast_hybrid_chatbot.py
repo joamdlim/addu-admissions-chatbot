@@ -73,10 +73,26 @@ def compute_word2vec_vector(tokens, model=None, dim=300):
 class FastHybridChatbot:
     """Fast hybrid chatbot that combines TF-IDF, Word2Vec, and optimized LLM"""
     
-    def __init__(self, embeddings_dir="../embeddings", processed_dir="../processed", 
-                 word2vec_path="D:/Joash/models/GoogleNews-vectors-negative300.bin"):
+    def __init__(self, embeddings_dir=None, processed_dir=None, 
+                 word2vec_path=None):
+        # Get the current script's directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Set default paths relative to the current script
+        if embeddings_dir is None:
+            embeddings_dir = os.path.join(current_dir, "embeddings")
+        if processed_dir is None:
+            processed_dir = os.path.join(current_dir, "processed")
+        if word2vec_path is None:
+            word2vec_path = os.path.join(current_dir, "model", "GoogleNews-vectors-negative300.bin")
+        
         self.vectors_path = os.path.join(embeddings_dir, "hybrid_vectors.npy")
         self.metadata_path = os.path.join(embeddings_dir, "metadata.json")
+        
+        # Debug information
+        print(f"Looking for metadata at: {self.metadata_path}")
+        print(f"Looking for vectors at: {self.vectors_path}")
+        
         self.documents = []
         self.vectors = None
         self.tfidf_vectorizer = None
@@ -108,13 +124,34 @@ class FastHybridChatbot:
         """Load vectors and metadata with optimizations"""
         try:
             # Load metadata
+            print(f"Attempting to load metadata from: {self.metadata_path}")
+            print(f"Current working directory: {os.getcwd()}")
+            
             if os.path.exists(self.metadata_path):
                 with open(self.metadata_path, 'r', encoding='utf-8') as f:
                     self.documents = json.load(f)
                 print(f"✅ Loaded metadata for {len(self.documents)} documents")
             else:
-                print("⚠️ Metadata file not found")
-                return
+                print(f"⚠️ Metadata file not found at: {self.metadata_path}")
+                # Try alternative locations
+                alt_paths = [
+                    os.path.join(os.getcwd(), "embeddings", "metadata.json"),
+                    os.path.join(os.path.dirname(os.getcwd()), "embeddings", "metadata.json"),
+                    os.path.join(os.getcwd(), "backend", "embeddings", "metadata.json")
+                ]
+                
+                for path in alt_paths:
+                    print(f"Trying alternative path: {path}")
+                    if os.path.exists(path):
+                        print(f"Found metadata at: {path}")
+                        with open(path, 'r', encoding='utf-8') as f:
+                            self.documents = json.load(f)
+                        print(f"✅ Loaded metadata for {len(self.documents)} documents")
+                        self.metadata_path = path  # Update the path
+                        break
+                else:
+                    print("❌ Could not find metadata.json in any location")
+                    return
             
             # Load vectors if they exist
             if os.path.exists(self.vectors_path):

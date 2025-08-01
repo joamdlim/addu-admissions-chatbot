@@ -29,7 +29,7 @@ except ImportError:
 # Add additional speed optimizations
 SPEED_OPTIMIZED_CONFIG = MODEL_CONFIG.copy()
 SPEED_OPTIMIZED_CONFIG.update({
-    "n_ctx": 512,          # Even smaller context window
+    "n_ctx": 1024,          # Even smaller context window
     "n_batch": 1024,       # Maximum batch size
     "n_threads": 12,       # Use more threads
     "rope_freq_base": 10000,  # Adjust RoPE frequency base
