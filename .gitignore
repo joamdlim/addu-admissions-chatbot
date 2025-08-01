@@ -34,9 +34,9 @@ media/
 
 # Frontend
 node_modules/
-/addu-chatbot-frontend/dist
-/addu-chatbot-frontend/dist-ssr
-/addu-chatbot-frontend/*.local
+/frontend/dist
+/frontend/dist-ssr
+/frontend/*.local
 
 # Large files and models
 *.bin
