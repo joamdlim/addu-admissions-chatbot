@@ -5,6 +5,7 @@ from fast_hybrid_chatbot import FastHybridChatbot
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
+from .chroma_connection import ChromaService
 
 # Initialize the chatbot
 chatbot = FastHybridChatbot()
@@ -51,3 +52,26 @@ def chat_view(request):
         response, _ = chatbot.process_query(prompt)
         return JsonResponse({"response": response})
     return JsonResponse({"error": "POST request required"}, status=400)
+
+
+def chroma_test_add(request):
+    collection = ChromaService.get_collection()
+    
+    # Dummy embedding
+    collection.add(
+        ids=["test-id"],
+        documents=["Hello Chroma from Django"],
+        embeddings=[[0.1, 0.2, 0.3, 0.4]]
+    )
+    
+    return JsonResponse({"status": "Document added"})
+
+def chroma_test_query(request):
+    collection = ChromaService.get_collection()
+    
+    results = collection.query(
+        query_embeddings=[[0.1, 0.2, 0.3, 0.4]],
+        n_results=1
+    )
+    
+    return JsonResponse({"results": results})
