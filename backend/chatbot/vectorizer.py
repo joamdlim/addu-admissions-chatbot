@@ -4,7 +4,7 @@ import numpy as np
 from typing import List, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models import KeyedVectors
-from chatbot.preprocess import preprocess_text
+from preprocess import preprocess_text
 
 # Check if Word2Vec model exists, otherwise use a simple fallback
 WORD2VEC_PATH = "chatbot/embeddings/GoogleNews-vectors-negative300.bin"
