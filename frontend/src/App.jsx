@@ -1,4 +1,4 @@
-import React from "react";
+import "./App.css";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { ChatPage } from "./pages/ChatPage";
 import AdminPage from "./pages/AdminPage";

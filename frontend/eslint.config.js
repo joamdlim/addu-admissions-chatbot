@@ -1,51 +1,29 @@
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
 
-import globals from 'globals';
-import js from '@eslint/js';
-import react from 'eslint-plugin-react';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
-
-export default [
-  // Ignore specific files/directories
+export default defineConfig([
+  globalIgnores(['dist']),
   {
-    ignores: ['dist'],
-  },
-  // Basic JavaScript rules
-  js.configs.recommended,
-  // React plugin rules
-  {
-    files: ['**/*.{js,jsx}'], // Target JavaScript and JSX files
-    plugins: {
-      react,
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
-    },
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
     languageOptions: {
-      parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
+      ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
     },
     rules: {
-      // Recommended React rules
-      ...react.configs.recommended.rules,
-      // Recommended React Hooks rules
-      ...reactHooks.configs.recommended.rules,
-      // React Refresh rules for Vite
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
-      // Add any other specific rules you need for JSX
-      // 'react/prop-types': 'off', // Often turned off in modern React
-      // 'react/react-in-jsx-scope': 'off', // Not needed with new JSX transform
-    },
-    settings: {
-      react: {
-        version: 'detect', // Auto-detect React version
-      },
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
-];
+])
