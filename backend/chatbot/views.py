@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
 from .chroma_connection import ChromaService
+from .test_pdf_to_chroma import process_and_store_pdf_in_chroma
 
 # Initialize the chatbot
 chatbot = FastHybridChatbot()
@@ -43,6 +44,24 @@ chatbot = FastHybridChatbot()
 @api_view(['GET'])
 def evaluate(request):
     return Response({"f1": 0.85, "bleu": 0.72, "satisfaction": 4.2})
+
+@csrf_exempt
+def upload_pdf_view(request):
+    if request.method == "POST":
+        if 'pdf_file' not in request.FILES:
+            return JsonResponse({"error": "No file uploaded"}, status=400)
+        
+        pdf_file = request.FILES['pdf_file']
+        pdf_bytes = pdf_file.read()
+        pdf_file_name = pdf_file.name
+
+        try:
+            process_and_store_pdf_in_chroma(pdf_bytes, pdf_file_name)
+            return JsonResponse({"status": f"PDF '{pdf_file_name}' processed and stored successfully."})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "POST request required"}, status=400)
 
 @csrf_exempt
 def chat_view(request):

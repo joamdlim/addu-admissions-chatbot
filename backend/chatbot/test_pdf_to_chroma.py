@@ -6,19 +6,17 @@ from PyPDF2 import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models import KeyedVectors
 import chromadb # Import chromadb to access client methods like delete_collection
+import re # Import the re module for regular expressions
 
-from supabase_client import get_supabase_client
-from chroma_connection import ChromaService
-from preprocess import preprocess_text # Ensure this is imported for preprocessing
+from chatbot.supabase_client import get_supabase_client
+from chatbot.chroma_connection import ChromaService
+from chatbot.preprocess import preprocess_text # Ensure this is imported for preprocessing
 
 # --- Configuration for Embeddings (Matches FastHybridChatbot) ---
 # Assuming these paths are relative to the 'backend' directory
 EMBEDDINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "embeddings")
 WORD2VEC_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "model", "GoogleNews-vectors-negative300.bin")
 METADATA_PATH = os.path.join(EMBEDDINGS_DIR, "metadata.json")
-
-# --- New: Define the name for your PDF collection ---
-PDF_CHROMA_COLLECTION_NAME = "pdf_scraped_documents"
 
 # --- Global/Singleton for Vectorizer and Word2Vec Model ---
 # This will be initialized once
@@ -116,58 +114,62 @@ def embed_text(text):
 
     return hybrid_vector.tolist()
 
-def main():
-    # Initialize embedding models once
-    initialize_embedding_models()
+def process_and_store_pdf_in_chroma(pdf_bytes: bytes, pdf_file_name: str):
+    """
+    Processes a PDF from bytes, extracts text, generates embeddings,
+    and stores it in a ChromaDB collection.
+    """
+    initialize_embedding_models() # Ensure models are initialized
 
-    # Get ChromaDB client instance
+    # Define the collection name based on the PDF file name
+    base_name = os.path.splitext(pdf_file_name)[0]
+    pdf_collection_name = re.sub(r'[^a-zA-Z0-9._-]', '_', base_name).lower()
+    pdf_collection_name = pdf_collection_name.strip('_')
+    if len(pdf_collection_name) < 3:
+        pdf_collection_name = "pdf_" + pdf_collection_name
+
     chroma_client = ChromaService.get_client()
+    pdf_chroma_collection = chroma_client.get_or_create_collection(name=pdf_collection_name)
+    print(f"✅ Ensured collection '{pdf_collection_name}' exists.")
 
-    # --- IMPORTANT for testing: Delete the new PDF collection if it exists ---
-    # This ensures a clean slate for the PDF collection's dimension each test run.
-    try:
-        chroma_client.delete_collection(name=PDF_CHROMA_COLLECTION_NAME)
-        print(f"✅ Deleted existing '{PDF_CHROMA_COLLECTION_NAME}' collection to reset dimension.")
-    except Exception as e:
-        print(f"⚠️ Could not delete '{PDF_CHROMA_COLLECTION_NAME}' collection (might not exist yet): {e}")
+    print(f"Processing: {pdf_file_name}")
 
-    # Get or create the NEW PDF collection
-    pdf_chroma_collection = chroma_client.get_or_create_collection(name=PDF_CHROMA_COLLECTION_NAME)
-    print(f"✅ Ensured collection '{PDF_CHROMA_COLLECTION_NAME}' exists.")
-
-    supabase = get_supabase_client()
-
-
-    # List all PDFs in the original-pdfs bucket
-    pdf_files = supabase.storage.from_("original-pdfs").list()
-    pdf_file = next((f['name'] for f in pdf_files if f['name'].endswith('.pdf')), None)
-    if not pdf_file:
-        print("No PDF files found in the bucket.")
-        return
-
-    print(f"Processing: {pdf_file}")
-
-    # Download the PDF
-    pdf_bytes = supabase.storage.from_("original-pdfs").download(pdf_file)
-
-    # Extract text
     text = extract_text_from_pdf(pdf_bytes)
     print("Extracted text preview:\n", text[:500], "\n---\n")
 
-    # Embed the text using your actual embedding logic
     embedding = embed_text(text)
     print(f"Generated embedding with dimension: {len(embedding)}")
 
-
-    # Store in the NEW ChromaDB collection
-    doc_id = os.path.splitext(pdf_file)[0]
-    pdf_chroma_collection.add( # Changed from chroma_collection to pdf_chroma_collection
+    doc_id = os.path.splitext(pdf_file_name)[0]
+    pdf_chroma_collection.add(
         ids=[doc_id],
         documents=[text],
         embeddings=[embedding],
-        metadatas=[{"filename": pdf_file, "source": "pdf_scrape"}]
+        metadatas=[{"filename": pdf_file_name, "source": "pdf_scrape"}]
     )
-    print(f"✅ Stored embedding for {pdf_file} in '{PDF_CHROMA_COLLECTION_NAME}' collection.")
+    print(f"✅ Stored embedding for {pdf_file_name} in '{pdf_collection_name}' collection.")
+
+def main():
+    # initialize_embedding_models() # No longer needed here as it's called in the new function
+
+    supabase = get_supabase_client()
+
+    # List all PDFs in the original-pdfs bucket
+    pdf_files_in_bucket = supabase.storage.from_("original-pdfs").list()
+    
+    # Filter for actual PDF files and extract names
+    pdf_names = [f['name'] for f in pdf_files_in_bucket if f['name'].endswith('.pdf')]
+
+    if not pdf_names:
+        print("No PDF files found in the bucket.")
+        return
+
+    # Process each PDF file
+    for pdf_file in pdf_names:
+        # Download the PDF
+        pdf_bytes = supabase.storage.from_("original-pdfs").download(pdf_file)
+        process_and_store_pdf_in_chroma(pdf_bytes, pdf_file)
+        print("-" * 50) # Separator for clarity between PDF processing
 
 if __name__ == "__main__":
     main()
