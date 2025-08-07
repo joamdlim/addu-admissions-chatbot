@@ -1,37 +1,35 @@
-import "./App.css";
-import { Routes, Route, useNavigate } from "react-router-dom";
-import { ChatPage } from "./pages/ChatPage";
-import AdminPage from "./pages/AdminPage";
+import { useState } from 'react'
+import reactLogo from './assets/react.svg'
+import viteLogo from '/vite.svg'
+import './App.css'
 
 function App() {
-  const navigate = useNavigate();
+  const [count, setCount] = useState(0)
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="bg-[#063970] text-white p-4 flex justify-between items-center shadow-md">
-        <div>
-          <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
-          <p className="text-sm">ADMISSIONS AI ASSISTANT</p>
-        </div>
-        {/* Button to Admin Page */}
-        <button
-          onClick={() => navigate("/admin")}
-          className="bg-white text-[#063970] px-4 py-2 rounded shadow hover:bg-gray-100 transition"
-        >
-          Admin Page
-        </button>
-      </header>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-auto">
-        <Routes>
-          <Route path="/" element={<ChatPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
+    <>
+      <div>
+        <a href="https://vite.dev" target="_blank">
+          <img src={viteLogo} className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
       </div>
-    </div>
-  );
+      <h1>Vite + React</h1>
+      <div className="card">
+        <button onClick={() => setCount((count) => count + 1)}>
+          count is {count}
+        </button>
+        <p>
+          Edit <code>src/App.jsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </>
+  )
 }
 
-export default App;
+export default App
