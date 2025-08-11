@@ -39,6 +39,9 @@ try:
 except ImportError:
     from chatbot.llama_interface_optimized import generate_response, correct_typos, stream_response
 
+from chatbot.chroma_connection import ChromaService
+from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
+
 def sparse_to_array(sparse_matrix):
     """Convert sparse matrix to numpy array safely"""
     if hasattr(sparse_matrix, "toarray"):
@@ -74,7 +77,7 @@ class FastHybridChatbot:
     """Fast hybrid chatbot that combines TF-IDF, Word2Vec, and optimized LLM"""
     
     def __init__(self, embeddings_dir=None, processed_dir=None, 
-                 word2vec_path=None):
+                 word2vec_path=None, use_chroma: bool = False, chroma_collection_name: Optional[str] = None):
         # Get the current script's directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
         
@@ -101,6 +104,14 @@ class FastHybridChatbot:
         self.dialogue_history = []
         self.max_history_length = 5  # Keep last 5 exchanges
         
+        self.use_chroma = use_chroma
+        self.chroma_collection_name = chroma_collection_name or os.getenv("CHROMA_COLLECTION", "documents")
+
+        if self.use_chroma:
+            _init_embed_models()  # ensure the TF‑IDF + Word2Vec embedder is ready
+        else:
+            self._load_data()
+        
         # Start timing
         start_time = time.time()
         
@@ -112,9 +123,6 @@ class FastHybridChatbot:
                 print("✅ Word2Vec model loaded successfully")
             except Exception as e:
                 print(f"⚠️ Failed to load Word2Vec model: {e}")
-        
-        # Load data
-        self._load_data()
         
         # Report load time
         load_time = time.time() - start_time
@@ -199,13 +207,12 @@ class FastHybridChatbot:
     
     def retrieve_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """Retrieve relevant documents using hybrid approach or fallback to keyword search"""
+        if self.use_chroma:
+            return self._retrieve_from_chroma(query, top_k)
         if self.vectors is not None and self.tfidf_vectorizer is not None:
-            # Use vector similarity if vectors are available
             query_vector = self._vectorize_query(query)
             return self._vector_search(query_vector, top_k)
-        else:
-            # Fall back to keyword search
-            return self._keyword_search(query, top_k)
+        return self._keyword_search(query, top_k)
     
     def _vector_search(self, query_vector: np.ndarray, top_k: int = 2) -> List[Dict]:
         """Find relevant documents using vector similarity - optimized for speed"""
@@ -233,7 +240,6 @@ class FastHybridChatbot:
         except Exception as e:
             print(f"❌ Error in vector search: {e}")
             return []
-    
     def _keyword_search(self, query: str, max_docs: int = 2) -> List[Dict]:
         """Simple keyword search as fallback"""
         if not self.documents:
@@ -257,6 +263,32 @@ class FastHybridChatbot:
         
         # Sort by relevance and take top results
         return sorted(scored_docs, key=lambda x: x['relevance'], reverse=True)[:max_docs]
+    
+    def _retrieve_from_chroma(self, query: str, top_k: int = 2) -> List[Dict]:
+        q_emb = _embed_text(query)
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            res = collection.query(
+                query_embeddings=[q_emb],
+                n_results=max(top_k, 5),
+                include=["documents", "distances", "metadatas"],
+                where={"source": "pdf_scrape"}  # only your Supabase-ingested PDFs
+            )
+            # relevance = 1/(1+d) fallback to 1.0 if no distances
+            ids = res.get("ids", [[]])[0]
+            docs = res.get("documents", [[]])[0]
+            d = res.get("distances", [None])[0]
+            out = []
+            for i, (doc_id, content) in enumerate(zip(ids, docs)):
+                if d is not None and i < len(d) and d[i] is not None:
+                    rel = float(1.0 / (1.0 + d[i]))
+                else:
+                    rel = 1.0  # accept when distances aren’t present
+                out.append({"id": doc_id, "content": content, "relevance": rel})
+            return out
+        except Exception as e:
+            print(f"Error querying Chroma: {e}")
+            return []
     
     def add_to_history(self, query: str, response: str) -> None:
         """Add a query-response pair to dialogue history"""
@@ -282,98 +314,101 @@ class FastHybridChatbot:
         
         return context
     
-    def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 150, 
-                      stream: bool = True, use_history: bool = True) -> Tuple[str, List[Dict]]:
-        """Process a query with hybrid retrieval and fast response generation"""
+    def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 150,
+                      stream: bool = True, use_history: bool = True,
+                      require_context: bool = True, min_relevance: float = 0.35) -> Tuple[str, List[Dict]]:
         # Start timing
         start_time = time.time()
-        
-        # Start showing that we're working immediately
+
         if stream:
             print("🔍 Searching for relevant information...", end="", flush=True)
-        
-        # Correct typos if enabled - but only if it's a short query to avoid delays
+
+        # Optional typo correction
         if correct_spelling and len(query) < 50:
             corrected_query = correct_typos(query)
             if corrected_query.lower() != query.lower():
                 print(f"\rCorrected query: '{query}' → '{corrected_query}'")
                 query = corrected_query
-        
-        # Limit retrieval time to ensure quick response
-        retrieval_start = time.time()
-        max_retrieval_time = 2.0  # Maximum 2 seconds for retrieval
-        
-        # Retrieve relevant documents with time limit
+
+        # Retrieve docs
         try:
             relevant_docs = self.retrieve_documents(query)
-            
-            # If retrieval is taking too long, proceed with what we have
-            if time.time() - retrieval_start > max_retrieval_time and relevant_docs:
-                print("\r⚠️ Retrieval time limited, proceeding with partial results")
         except Exception as e:
             print(f"\r❌ Retrieval error: {e}")
             relevant_docs = []
-        
+
+        # Relax the context filter so valid hits aren’t discarded
+        filtered = []
+        for d in relevant_docs:
+            rel = d.get("relevance")
+            try: rel = float(rel)
+            except (TypeError, ValueError): rel = None
+            if rel is None or rel >= min_relevance:
+                filtered.append(d)
+
+        # if nothing passes threshold but we do have hits, keep top-1
+        if require_context and not filtered:
+            if relevant_docs:
+                filtered = [relevant_docs[0]]
+            else:
+                return "I don’t have enough information in my Admissions & Aid knowledge base to answer that.", []
+
+        relevant_docs = filtered
+
+        if require_context and not relevant_docs:
+            return "I don’t have enough information in my Admissions & Aid knowledge base to answer that.", []
+
         retrieval_time = time.time() - start_time
-        
-        # Clear the searching message if streaming
         if stream:
             print("\r" + " " * 40 + "\r", end="", flush=True)
-        
         print(f"⏱️ Document retrieval: {retrieval_time:.2f}s")
-        
-        # Format context - optimized for speed with limited content
-        doc_context = "\n".join([f"Document: {doc['content'][:150]}" for doc in relevant_docs[:2]])
-        
-        # Add dialogue history context if available and enabled
-        # But limit the history to just the most recent exchanges for speed
+
+        # Build context from retrieved docs
+        doc_context = "\n\n".join([
+            f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+            for doc in relevant_docs[:3]
+        ])
+
+        # History context (optional, limited)
         history_context = ""
         if use_history and self.dialogue_history:
             history_context = "Previous conversation:\n"
-            # Only use the last 2 exchanges for faster response
             recent_history = self.dialogue_history[-2:] if len(self.dialogue_history) > 2 else self.dialogue_history
             for exchange in recent_history:
                 history_context += f"User: {exchange['query']}\n"
                 history_context += f"Assistant: {exchange['response'][:100]}...\n"
-        
-        # Create improved prompt that encourages complete responses
+
+        # Strict instruction to avoid guessing
         prompt = f"""Context information:
-{doc_context}
+            {doc_context}
 
-{history_context}
-Question: {query}
+            {history_context}
+            Question: {query}
 
-Instructions: Provide a complete and comprehensive answer to the question based on the context information.
-If the question relates to previous conversation, use that context to provide a relevant answer.
-If the context doesn't contain enough information, say so but provide what you can.
-Answer:"""
-        
-        # Generate response with streaming or non-streaming based on parameter
+            Instructions: You must answer strictly and only using the context above.
+            If the context does not contain enough information, reply exactly:
+            "I don’t have enough information in my Admissions & Aid knowledge base to answer that."
+            Answer:"""
+
+        # Generate response
         if stream:
-            # Use streaming response generation - this always returns a string
             response = stream_response(prompt, max_tokens=max_tokens)
         else:
-            # Show that we're generating a response
             print("\n💬 Response: ", end="")
-            
-            # Generate response with increased max_tokens - use the function that guarantees a string
             response = generate_response(prompt, max_tokens=max_tokens)
-            
-            # Print the response
             print(response)
-        
-        # Add to dialogue history
+
+        # Add to history
         self.add_to_history(query, response)
-        
-        # Calculate total time
+
         total_time = time.time() - start_time
         print(f"⏱️ Total processing time: {total_time:.2f}s")
-        
+
         return response, relevant_docs
 
 def test_fast_hybrid_chatbot():
     """Test the fast hybrid chatbot"""
-    chatbot = FastHybridChatbot()
+    chatbot = FastHybridChatbot(use_chroma=True)
     
     print("\n⚡🔍 FAST HYBRID CHATBOT MODE ⚡🔍")
     print("Type 'exit' to quit\n")

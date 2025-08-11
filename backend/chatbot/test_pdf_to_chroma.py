@@ -18,10 +18,16 @@ EMBEDDINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__
 WORD2VEC_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "model", "GoogleNews-vectors-negative300.bin")
 METADATA_PATH = os.path.join(EMBEDDINGS_DIR, "metadata.json")
 
+import joblib  # add this import
+
+TFIDF_VECTORIZER_PATH = os.path.join(EMBEDDINGS_DIR, "tfidf_vectorizer.pkl")
+W2V_DIM = 300
+
 # --- Global/Singleton for Vectorizer and Word2Vec Model ---
 # This will be initialized once
 tfidf_vectorizer = None
 word2vec_model = None
+
 documents = [] # To hold the corpus for TF-IDF
 
 def initialize_embedding_models():
@@ -29,37 +35,31 @@ def initialize_embedding_models():
     Initializes the TF-IDF vectorizer and Word2Vec model.
     This should be called once at the start of the application or script.
     """
-    global tfidf_vectorizer, word2vec_model, documents
+    global tfidf_vectorizer, word2vec_model
 
-    # Load metadata (corpus for TF-IDF)
-    if os.path.exists(METADATA_PATH):
+    # Load or fit TF-IDF vectorizer once, then persist
+    if os.path.exists(TFIDF_VECTORIZER_PATH):
+        tfidf_vectorizer = joblib.load(TFIDF_VECTORIZER_PATH)
+        print("✅ Loaded persisted TF-IDF vectorizer.")
+    else:
+        # Build vocabulary from current metadata.json ONCE
+        if not os.path.exists(METADATA_PATH):
+            raise FileNotFoundError(f"metadata.json not found at {METADATA_PATH} to build TF-IDF.")
         with open(METADATA_PATH, 'r', encoding='utf-8') as f:
-            documents = json.load(f)
-        print(f"✅ Loaded metadata for {len(documents)} documents for TF-IDF corpus.")
-    else:
-        print(f"⚠️ Metadata file not found at: {METADATA_PATH}. TF-IDF will not be initialized.")
-        # If metadata is not found, we cannot build TF-IDF. This is a critical warning.
-        # Consider creating dummy documents or handling this case more robustly.
-        return
-
-    # Build TF-IDF vectorizer
-    if documents:
-        corpus = [" ".join(preprocess_text(doc["content"])) for doc in documents]
-        tfidf_vectorizer = TfidfVectorizer()
+            docs = json.load(f)
+        corpus = [" ".join(preprocess_text(doc["content"])) for doc in docs]
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        tfidf_vectorizer = TfidfVectorizer(max_features=20000, ngram_range=(1,2), lowercase=False)
         tfidf_vectorizer.fit(corpus)
-        print("✅ Initialized global TF-IDF vectorizer.")
-    else:
-        print("⚠️ No documents in metadata to build TF-IDF vectorizer.")
+        joblib.dump(tfidf_vectorizer, TFIDF_VECTORIZER_PATH)
+        print(f"✅ Fitted and saved TF-IDF vectorizer with {len(tfidf_vectorizer.get_feature_names_out())} features.")
 
-    # Load Word2Vec model
+    # Load Word2Vec (300-dim)
     if os.path.exists(WORD2VEC_PATH):
-        try:
-            word2vec_model = KeyedVectors.load_word2vec_format(WORD2VEC_PATH, binary=True)
-            print("✅ Loaded global Word2Vec model.")
-        except Exception as e:
-            print(f"⚠️ Failed to load Word2Vec model from {WORD2VEC_PATH}: {e}. Will proceed without Word2Vec.")
+        word2vec_model = KeyedVectors.load_word2vec_format(WORD2VEC_PATH, binary=True)
+        print("✅ Loaded Word2Vec (300-dim).")
     else:
-        print(f"⚠️ Word2Vec model not found at: {WORD2VEC_PATH}. Will proceed without Word2Vec.")
+        raise FileNotFoundError(f"Required Word2Vec model not found at {WORD2VEC_PATH}.")
 
 
 def extract_text_from_pdf(pdf_bytes):
@@ -76,78 +76,41 @@ def embed_text(text):
     Generates a hybrid embedding (TF-IDF + Word2Vec) for the given text
     using the globally initialized models.
     """
-    if tfidf_vectorizer is None and word2vec_model is None:
-        raise ValueError("Embedding models are not initialized. Call initialize_embedding_models() first.")
+    if tfidf_vectorizer is None or word2vec_model is None:
+        raise ValueError("Embedding models not initialized. Call initialize_embedding_models() first.")
 
     tokens = preprocess_text(text)
     processed_text = " ".join(tokens)
 
-    # TF-IDF vector
-    if tfidf_vectorizer:
-        tfidf_vector = tfidf_vectorizer.transform([processed_text]).toarray()[0]
-    else:
-        # Fallback if TF-IDF wasn't initialized, create a zero vector of appropriate size
-        # This size should ideally come from a fixed vocabulary if no model is loaded.
-        # For this test, if TF-IDF model is missing, its contribution to the final vector will be zero.
-        # If your metadata.json is empty or not found, tfidf_vectorizer will be None.
-        # For a consistent dimension, this might need a default size.
-        # However, the primary fix is to ensure metadata.json is present and loaded.
-        tfidf_vector = np.zeros(0)
+    tfidf_vec = tfidf_vectorizer.transform([processed_text]).toarray()[0]  # fixed length: TFIDF_VOCAB_SIZE
+    vectors = [word2vec_model[w] for w in tokens if w in word2vec_model]
+    w2v_vec = np.mean(vectors, axis=0) if vectors else np.zeros(W2V_DIM)
 
-    # Word2Vec vector
-    if word2vec_model:
-        vectors = [word2vec_model[word] for word in tokens if word in word2vec_model]
-        w2v_vector = np.mean(vectors, axis=0) if vectors else np.zeros(300) # Assuming 300 dim for GoogleNews
-    else:
-        # Fallback if Word2Vec wasn't initialized
-        w2v_vector = np.zeros(0)
-
-    # Concatenate only if both are present, otherwise return the one that is.
-    if tfidf_vector.size > 0 and w2v_vector.size > 0:
-        hybrid_vector = np.concatenate((tfidf_vector, w2v_vector))
-    elif tfidf_vector.size > 0:
-        hybrid_vector = tfidf_vector
-    elif w2v_vector.size > 0:
-        hybrid_vector = w2v_vector
-    else:
-        raise RuntimeError("No embedding models available to create a vector. Check metadata.json and Word2Vec path.")
-
-    return hybrid_vector.tolist()
+    hybrid = np.concatenate((tfidf_vec, w2v_vec))  # fixed length: TFIDF_VOCAB_SIZE + 300
+    return hybrid.tolist()
 
 def process_and_store_pdf_in_chroma(pdf_bytes: bytes, pdf_file_name: str):
     """
     Processes a PDF from bytes, extracts text, generates embeddings,
     and stores it in a ChromaDB collection.
     """
-    initialize_embedding_models() # Ensure models are initialized
-
-    # Define the collection name based on the PDF file name
-    base_name = os.path.splitext(pdf_file_name)[0]
-    pdf_collection_name = re.sub(r'[^a-zA-Z0-9._-]', '_', base_name).lower()
-    pdf_collection_name = pdf_collection_name.strip('_')
-    if len(pdf_collection_name) < 3:
-        pdf_collection_name = "pdf_" + pdf_collection_name
+    initialize_embedding_models()
 
     chroma_client = ChromaService.get_client()
-    pdf_chroma_collection = chroma_client.get_or_create_collection(name=pdf_collection_name)
-    print(f"✅ Ensured collection '{pdf_collection_name}' exists.")
-
-    print(f"Processing: {pdf_file_name}")
+    collection_name = os.getenv("CHROMA_COLLECTION", "documents")
+    collection = chroma_client.get_or_create_collection(name=collection_name)
+    print(f"✅ Using collection '{collection_name}'")
 
     text = extract_text_from_pdf(pdf_bytes)
-    print("Extracted text preview:\n", text[:500], "\n---\n")
-
     embedding = embed_text(text)
-    print(f"Generated embedding with dimension: {len(embedding)}")
 
     doc_id = os.path.splitext(pdf_file_name)[0]
-    pdf_chroma_collection.add(
+    collection.add(
         ids=[doc_id],
         documents=[text],
         embeddings=[embedding],
         metadatas=[{"filename": pdf_file_name, "source": "pdf_scrape"}]
     )
-    print(f"✅ Stored embedding for {pdf_file_name} in '{pdf_collection_name}' collection.")
 
 def main():
     # initialize_embedding_models() # No longer needed here as it's called in the new function
