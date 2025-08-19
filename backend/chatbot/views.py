@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from fast_hybrid_chatbot import FastHybridChatbot
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 import json
 from .chroma_connection import ChromaService
 from .test_pdf_to_chroma import process_and_store_pdf_in_chroma
@@ -38,10 +38,34 @@ def upload_pdf_view(request):
 @csrf_exempt
 def chat_view(request):
     if request.method == "POST":
-        data = json.loads(request.body)
-        prompt = data.get("prompt", "")
-        response, _ = chatbot.process_query(prompt, min_relevance=0.1)
-        return JsonResponse({"response": response})
+        try:
+            data = json.loads(request.body)
+            prompt = data.get("prompt", "")
+            
+            def generate_streaming_response():
+                try:
+                    # Use the GLOBAL chatbot instance (no reloading!)
+                    for event in chatbot.process_query_stream(prompt, min_relevance=0.1):
+                        yield "data: " + json.dumps(event) + "\n\n"
+                        
+                except Exception as e:
+                    yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
+                    yield "data: " + json.dumps({"done": True}) + "\n\n"
+            
+            response = StreamingHttpResponse(
+                generate_streaming_response(),
+                content_type='text/event-stream'
+            )
+            
+            response['Cache-Control'] = 'no-cache'
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Headers'] = 'Content-Type'
+            
+            return response
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
     return JsonResponse({"error": "POST request required"}, status=400)
 
 

@@ -1,7 +1,12 @@
 import React from "react";
 
 const PromptArea = ({
-  faqs, onFaqClick, onSend, query, setQuery
+  faqs,
+  onFaqClick,
+  onSend,
+  query,
+  setQuery,
+  disabled = false,
 }) => (
   <div className="w-full flex flex-col items-center pb-8">
     {/* FAQs */}
@@ -9,8 +14,11 @@ const PromptArea = ({
       {faqs.map((faq, idx) => (
         <button
           key={idx}
-          className="bg-white text-[#063970] rounded px-4 py-2 shadow hover:bg-gray-100"
-          onClick={() => onFaqClick(faq)}
+          className={`bg-white text-black rounded px-4 py-2 border border-gray-300 ${
+            disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
+          }`}
+          onClick={() => !disabled && onFaqClick(faq)}
+          disabled={disabled}
         >
           {faq}
         </button>
@@ -19,19 +27,30 @@ const PromptArea = ({
     {/* Query Input */}
     <form
       className="w-2/3 flex"
-      onSubmit={e => { e.preventDefault(); onSend(query); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!disabled) onSend(query);
+      }}
     >
       <input
-        className="flex-1 rounded-l px-4 py-2 border border-gray-300"
+        className={`text-black flex-1 rounded-l px-4 py-2 border border-gray-300 ${
+          disabled ? "bg-gray-100" : ""
+        }`}
         placeholder="Ask anything about Ateneo de Davao's admissions"
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={(e) => setQuery(e.target.value)}
+        disabled={disabled}
       />
       <button
         type="submit"
-        className="bg-[#063970] text-white px-6 rounded-r"
+        className={`px-6 rounded-r text-white ${
+          disabled
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-[#063970] hover:bg-[#052a5a]"
+        }`}
+        disabled={disabled}
       >
-        Send
+        {disabled ? "Sending..." : "Send"}
       </button>
     </form>
     <img

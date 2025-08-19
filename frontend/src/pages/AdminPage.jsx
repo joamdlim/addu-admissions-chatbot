@@ -11,7 +11,7 @@ const AdminPage = () => {
     <div className="p-6">
       {/* Admin Page Header - This will be covered by the main App header or you can customize App header based on route*/}
       <div className="mb-6">
-        <h2 className="text-2xl text-white text-[#063970]">
+        <h2 className="text-2xl text-white text-[#ffffff]">
           ATENEO DE DAVAO UNIVERSITY
         </h2>
         <p className="text-lg text-white">ADMISSIONS AI ASSISTANT - ADMIN</p>
@@ -63,7 +63,9 @@ const AdminPage = () => {
                 Document1.pdf
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button className="text-gray-600 hover:text-gray-900">...</button>
+                <button className="text-gray-600 hover:text-gray-900">
+                  ...
+                </button>
               </td>
             </tr>
             <tr>
@@ -71,7 +73,9 @@ const AdminPage = () => {
                 Document2.pdf
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button className="text-gray-600 hover:text-gray-900">...</button>
+                <button className="text-gray-600 hover:text-gray-900">
+                  ...
+                </button>
               </td>
             </tr>
             <tr>
@@ -79,7 +83,9 @@ const AdminPage = () => {
                 Document3.txt
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button className="text-gray-600 hover:text-gray-900">...</button>
+                <button className="text-gray-600 hover:text-gray-900">
+                  ...
+                </button>
               </td>
             </tr>
             {/* ... more rows ... */}

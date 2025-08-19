@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import json
 import time
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Generator
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import csr_matrix
@@ -405,6 +405,134 @@ class FastHybridChatbot:
         print(f"⏱️ Total processing time: {total_time:.2f}s")
 
         return response, relevant_docs
+
+    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 150,
+                        use_history: bool = True, require_context: bool = True, 
+                        min_relevance: float = 0.35) -> Generator[Dict, None, None]:
+        """
+        Process query and yield streaming chunks for real-time response
+        Yields dictionaries with 'chunk', 'error', or 'done' keys
+        """
+        try:
+            # Start timing
+            start_time = time.time()
+            
+            # Optional typo correction
+            if correct_spelling and len(query) < 50:
+                corrected_query = correct_typos(query)
+                if corrected_query.lower() != query.lower():
+                    query = corrected_query
+                    yield {"info": f"Corrected query: '{query}' → '{corrected_query}'"}
+
+            # Retrieve docs (same logic as process_query)
+            try:
+                relevant_docs = self.retrieve_documents(query)
+            except Exception as e:
+                yield {"error": f"Retrieval error: {e}"}
+                return
+
+            # Filter by relevance (same logic as process_query)
+            filtered = []
+            for d in relevant_docs:
+                rel = d.get("relevance")
+                try: 
+                    rel = float(rel)
+                except (TypeError, ValueError): 
+                    rel = None
+                if rel is None or rel >= min_relevance:
+                    filtered.append(d)
+
+            # Handle no context case
+            if require_context and not filtered:
+                if relevant_docs:
+                    filtered = [relevant_docs[0]]
+                else:
+                    yield {"chunk": "I don't have enough information in my Admissions & Aid knowledge base to answer that."}
+                    yield {"done": True}
+                    return
+
+            relevant_docs = filtered
+
+            if require_context and not relevant_docs:
+                yield {"chunk": "I don't have enough information in my Admissions & Aid knowledge base to answer that."}
+                yield {"done": True}
+                return
+
+            # Build context from retrieved docs (same as process_query)
+            doc_context = "\n\n".join([
+                f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+                for doc in relevant_docs[:3]
+            ])
+
+            # History context (same as process_query)
+            history_context = ""
+            if use_history and self.dialogue_history:
+                history_context = "Previous conversation:\n"
+                recent_history = self.dialogue_history[-2:] if len(self.dialogue_history) > 2 else self.dialogue_history
+                for exchange in recent_history:
+                    history_context += f"User: {exchange['query']}\n"
+                    history_context += f"Assistant: {exchange['response'][:100]}...\n"
+
+            # Build prompt (same as process_query)
+            prompt = f"""Context information:
+{doc_context}
+
+{history_context}
+Question: {query}
+
+Instructions: You must answer strictly and only using the context above.
+If the context does not contain enough information, reply exactly:
+"I don't have enough information in my Admissions & Aid knowledge base to answer that."
+Answer:"""
+
+            # Import LLM interface for streaming
+            try:
+                from chatbot.llama_interface_optimized import llm, GENERATION_CONFIG
+            except ImportError:
+                from llama_interface_optimized import llm, GENERATION_CONFIG
+
+            # Stream from LLM
+            full_response = ""
+            
+            # Create streaming config
+            stream_config = GENERATION_CONFIG.copy()
+            stream_config.update({
+                "stream": True,
+                "max_tokens": max_tokens
+            })
+            
+            try:
+                # Generate streaming response from LLM
+                for chunk in llm(prompt, echo=False, **stream_config):
+                    if isinstance(chunk, dict):
+                        # Handle llama-cpp-python response format
+                        if 'choices' in chunk and len(chunk['choices']) > 0:
+                            choice = chunk['choices'][0]
+                            
+                            # Handle different response formats
+                            text_chunk = ""
+                            if 'delta' in choice and 'content' in choice['delta']:
+                                text_chunk = choice['delta']['content']
+                            elif 'text' in choice:
+                                text_chunk = choice['text']
+                            
+                            if text_chunk:
+                                full_response += text_chunk
+                                yield {"chunk": text_chunk}
+                
+                # Add to conversation history
+                self.add_to_history(query, full_response)
+                
+                # Calculate total time
+                total_time = time.time() - start_time
+                yield {"info": f"Total processing time: {total_time:.2f}s"}
+                yield {"done": True}
+                
+            except Exception as e:
+                yield {"error": f"LLM generation error: {e}"}
+                
+        except Exception as e:
+            yield {"error": f"Processing error: {e}"}
 
 def test_fast_hybrid_chatbot():
     """Test the fast hybrid chatbot"""
