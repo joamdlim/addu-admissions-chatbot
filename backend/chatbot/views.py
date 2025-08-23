@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from fast_hybrid_chatbot import FastHybridChatbot
+from chatbot.fast_hybrid_chatbot import FastHybridChatbot
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, StreamingHttpResponse
 import json
@@ -45,7 +45,7 @@ def chat_view(request):
             def generate_streaming_response():
                 try:
                     # Use the GLOBAL chatbot instance (no reloading!)
-                    for event in chatbot.process_query_stream(prompt, min_relevance=0.1):
+                    for event in chatbot.process_query_stream(prompt, min_relevance=0.3, use_history=True):  # Increase from 0.1 to 0.3
                         yield "data: " + json.dumps(event) + "\n\n"
                         
                 except Exception as e:

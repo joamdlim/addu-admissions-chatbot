@@ -33,11 +33,23 @@ except ImportError:
     WORD2VEC_AVAILABLE = False
     print("⚠️ Gensim Word2Vec not available, using placeholder")
 
-# Import the optimized interface
+# Import the optimized interface - FIXED VERSION
 try:
-    from chatbot.llama_interface_optimized import generate_response, correct_typos, stream_response
+    from chatbot.llama_interface_optimized import (
+        generate_response, 
+        correct_typos, 
+        stream_response, 
+        llm, 
+        GENERATION_CONFIG
+    )
 except ImportError:
-    from chatbot.llama_interface_optimized import generate_response, correct_typos, stream_response
+    from llama_interface_optimized import (
+        generate_response, 
+        correct_typos, 
+        stream_response, 
+        llm, 
+        GENERATION_CONFIG
+    )
 
 from chatbot.chroma_connection import ChromaService
 from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
@@ -467,11 +479,34 @@ class FastHybridChatbot:
             # History context (same as process_query)
             history_context = ""
             if use_history and self.dialogue_history:
-                history_context = "Previous conversation:\n"
-                recent_history = self.dialogue_history[-2:] if len(self.dialogue_history) > 2 else self.dialogue_history
-                for exchange in recent_history:
-                    history_context += f"User: {exchange['query']}\n"
-                    history_context += f"Assistant: {exchange['response'][:100]}...\n"
+                # Calculate available token budget for history
+                base_prompt = f"Context information:\n{doc_context}\nQuestion: {query}\nInstructions: You must answer strictly and only using the context above.\nAnswer:"
+                base_tokens = len(base_prompt.split())
+                
+                # Leave 300 tokens for response generation, use rest for history
+                available_for_history = 3700 - base_tokens
+                
+                if available_for_history > 80:  # Only add history if meaningful space
+                    history_context = "Previous conversation:\n"
+                    
+                    # Start with most recent exchange and work backwards
+                    for exchange in reversed(self.dialogue_history):
+                        # Create a condensed version of the exchange
+                        condensed_q = exchange['query'][:50] + "..." if len(exchange['query']) > 50 else exchange['query']
+                        condensed_a = exchange['response'][:60] + "..." if len(exchange['response']) > 60 else exchange['response']
+                        
+                        entry = f"User: {condensed_q}\nAssistant: {condensed_a}\n"
+                        entry_tokens = len(entry.split())
+                        
+                        # Check if we have room for this entry
+                        if len((history_context + entry).split()) <= available_for_history:
+                            history_context += entry
+                        else:
+                            break  # Stop adding history if we run out of space
+                    
+                    # If no history could fit, don't include any
+                    if history_context == "Previous conversation:\n":
+                        history_context = ""
 
             # Build prompt (same as process_query)
             prompt = f"""Context information:
@@ -485,12 +520,18 @@ If the context does not contain enough information, reply exactly:
 "I don't have enough information in my Admissions & Aid knowledge base to answer that."
 Answer:"""
 
-            # Import LLM interface for streaming
-            try:
-                from chatbot.llama_interface_optimized import llm, GENERATION_CONFIG
-            except ImportError:
-                from llama_interface_optimized import llm, GENERATION_CONFIG
-
+            print(f"🔍 DEBUG INFO:")
+            print(f"📊 Query: '{query}'")
+            print(f"📄 Retrieved docs: {len(relevant_docs)}")
+            for i, doc in enumerate(relevant_docs):
+                print(f"   Doc {i+1}: {doc['id']} (Relevance: {doc.get('relevance', 'N/A'):.3f})")
+            print(f"💬 History entries: {len(self.dialogue_history)}")
+            print(f"📏 Doc context: {len(doc_context)} chars (~{len(doc_context.split())} tokens)")
+            print(f"📏 History context: {len(history_context)} chars (~{len(history_context.split())} tokens)")
+            print(f"📏 Total prompt: {len(prompt)} chars (~{len(prompt.split())} tokens)")
+            print(f"📏 Estimated tokens left for response: {4096 - len(prompt.split())}")
+            print("=" * 70)
+            
             # Stream from LLM
             full_response = ""
             

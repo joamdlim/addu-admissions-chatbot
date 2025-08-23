@@ -30,7 +30,7 @@ MODEL_CONFIG = {
 
 # Generation parameters - tuned for speed
 GENERATION_CONFIG = {
-    "max_tokens": 80,      # Further reduced token count
+    "max_tokens": 200,      # Increase from 80 to 200 for better responses
     "temperature": 0.7,    # Keep creativity balanced
     "top_p": 0.9,          # More aggressive nucleus sampling
     "top_k": 20,           # More aggressive top-k filtering
