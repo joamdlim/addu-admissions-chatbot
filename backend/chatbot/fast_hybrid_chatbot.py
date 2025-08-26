@@ -314,18 +314,126 @@ class FastHybridChatbot:
         self.dialogue_history = []
         print("🧹 Dialogue history cleared")
     
-    def get_context_from_history(self) -> str:
-        """Format dialogue history as context for the LLM"""
-        if not self.dialogue_history:
+    def analyze_query_relationship(self, current_query: str, previous_exchanges: list) -> dict:
+        """
+        Multi-model AI analysis using all available NLP models
+        Combines TF-IDF + Word2Vec + Embeddings + Llama for robust analysis
+        """
+        if not previous_exchanges:
+            return {'needs_history': False, 'confidence': 1.0, 'reason': 'no_history', 'exchanges_needed': 0}
+        
+        current_lower = current_query.lower().strip()
+        last_exchange = previous_exchanges[-1]
+        
+        # Level 1: Explicit references (high confidence, fast)
+        if any(ref in current_lower for ref in ['that', 'this', 'it', 'previous', 'you said', 'these']):
+            return {'needs_history': True, 'confidence': 0.95, 'reason': 'explicit_reference', 'exchanges_needed': 1}
+        
+        print(f"🧠 MULTI-MODEL ANALYSIS:")
+        print(f"   Analyzing: '{current_query[:50]}...' vs '{last_exchange['query'][:50]}...'")
+        
+        # Level 2: Semantic similarity using existing NLP models
+        try:
+            # Method A: Use Chroma embeddings (if available)
+            if self.use_chroma:
+                current_emb = _embed_text(current_query)
+                previous_emb = _embed_text(last_exchange['query'])
+                chroma_similarity = cosine_similarity(
+                    current_emb.reshape(1, -1), 
+                    previous_emb.reshape(1, -1)
+                )[0][0]
+                print(f"   Chroma similarity: {chroma_similarity:.3f}")
+            else:
+                chroma_similarity = None
+            
+            # Method B: Use TF-IDF + Word2Vec hybrid
+            if self.tfidf_vectorizer is not None:
+                current_vector = self._vectorize_query(current_query)
+                previous_vector = self._vectorize_query(last_exchange['query'])
+                hybrid_similarity = cosine_similarity(
+                    current_vector.reshape(1, -1),
+                    previous_vector.reshape(1, -1)
+                )[0][0]
+                print(f"   Hybrid TF-IDF+W2V similarity: {hybrid_similarity:.3f}")
+            else:
+                hybrid_similarity = None
+            
+            # Combine similarity scores
+            similarities = [s for s in [chroma_similarity, hybrid_similarity] if s is not None]
+            if similarities:
+                avg_similarity = sum(similarities) / len(similarities)
+                max_similarity = max(similarities)
+                
+                print(f"   Average similarity: {avg_similarity:.3f}")
+                print(f"   Max similarity: {max_similarity:.3f}")
+                
+                # Use the more conservative (lower) score for decisions
+                final_similarity = avg_similarity
+                
+                if final_similarity > 0.6:
+                    return {'needs_history': True, 'confidence': 0.8, 'reason': f'high_ai_similarity_{final_similarity:.3f}', 'exchanges_needed': 1}
+                elif final_similarity > 0.4:
+                    return {'needs_history': True, 'confidence': 0.6, 'reason': f'medium_ai_similarity_{final_similarity:.3f}', 'exchanges_needed': 1}
+                elif final_similarity > 0.25:
+                    return {'needs_history': True, 'confidence': 0.4, 'reason': f'low_ai_similarity_{final_similarity:.3f}', 'exchanges_needed': 1}
+                else:
+                    return {'needs_history': False, 'confidence': 0.85, 'reason': f'no_ai_similarity_{final_similarity:.3f}', 'exchanges_needed': 0}
+            
+        except Exception as e:
+            print(f"   🚨 AI similarity analysis failed: {e}")
+        
+        # Fallback: Conservative approach
+        return {'needs_history': False, 'confidence': 0.7, 'reason': 'conservative_fallback', 'exchanges_needed': 0}
+
+    def build_smart_history_context(self, query: str, available_tokens: int) -> str:
+        """Build history context based on intelligent analysis"""
+        if not self.dialogue_history or available_tokens < 100:
             return ""
         
-        context = "Previous conversation:\n"
-        for i, exchange in enumerate(self.dialogue_history):
-            context += f"User: {exchange['query']}\n"
-            context += f"Assistant: {exchange['response']}\n"
+        # Analyze relationship
+        analysis = self.analyze_query_relationship(query, self.dialogue_history)
         
-        return context
-    
+        print(f"🧠 CONTEXT ANALYSIS:")
+        print(f"   Needs history: {analysis['needs_history']}")
+        print(f"   Confidence: {analysis['confidence']:.2f}")
+        print(f"   Reason: {analysis['reason']}")
+        print(f"   Exchanges needed: {analysis['exchanges_needed']}")
+        
+        if not analysis['needs_history']:
+            return ""
+        
+        # Build appropriate history based on confidence and reason
+        history_context = ""
+        
+        if analysis['confidence'] >= 0.8:
+            # High confidence - include detailed recent context
+            history_context = "Previous conversation:\n"
+            exchanges_to_include = min(analysis['exchanges_needed'] + 1, len(self.dialogue_history))
+            
+            for exchange in reversed(self.dialogue_history[-exchanges_to_include:]):
+                entry = f"User: {exchange['query'][:50]}{'...' if len(exchange['query']) > 50 else ''}\nBot: {exchange['response'][:60]}{'...' if len(exchange['response']) > 60 else ''}\n"
+                
+                if len((history_context + entry).split()) <= available_tokens:
+                    history_context += entry
+                else:
+                    break
+                    
+        elif analysis['confidence'] >= 0.5:
+            # Medium confidence - include condensed recent context
+            last = self.dialogue_history[-1]
+            history_context = f"Context: {last['query'][:30]}... -> {last['response'][:35]}...\n"
+            
+        elif analysis['confidence'] >= 0.3:
+            # Low confidence - include minimal context
+            last = self.dialogue_history[-1]
+            history_context = f"Previous: {last['response'][:25]}...\n"
+        
+        # Safety check
+        if len(history_context.split()) > available_tokens:
+            return ""
+        
+        return history_context
+
     def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 150,
                       stream: bool = True, use_history: bool = True,
                       require_context: bool = True, min_relevance: float = 0.35) -> Tuple[str, List[Dict]]:
@@ -384,23 +492,36 @@ class FastHybridChatbot:
         # History context (optional, limited)
         history_context = ""
         if use_history and self.dialogue_history:
-            history_context = "Previous conversation:\n"
-            recent_history = self.dialogue_history[-2:] if len(self.dialogue_history) > 2 else self.dialogue_history
-            for exchange in recent_history:
-                history_context += f"User: {exchange['query']}\n"
-                history_context += f"Assistant: {exchange['response'][:100]}...\n"
+            # Calculate available token budget for history
+            base_prompt = f"Context information:\n{doc_context}\nQuestion: {query}\nInstructions: You must answer strictly and only using the context above.\nAnswer:"
+            base_tokens = len(base_prompt.split())  # This is ~187 tokens
+            available_for_history = 3700 - base_tokens  # 3700 - 187 = 3513 tokens
+            
+            # Use smart history building
+            history_context = self.build_smart_history_context(query, available_for_history)
+        else:
+            history_context = ""
 
-        # Strict instruction to avoid guessing
-        prompt = f"""Context information:
+        # Replace the current prompt with this MUCH STRONGER version:
+        prompt = f"""<|system|>
+            You are a document-based assistant. You MUST ONLY use the information provided in the context below. 
+            You are NOT allowed to use any external knowledge, pre-trained information, or general knowledge.
+            If the context does not contain the answer, you MUST respond with exactly: "I don't have enough information in my Admissions & Aid knowledge base to answer that."
+            NEVER make up information or use knowledge outside the provided context.
+            </|system|>
+
+            <|context|>
             {doc_context}
+            </|context|>
 
             {history_context}
-            Question: {query}
 
-            Instructions: You must answer strictly and only using the context above.
-            If the context does not contain enough information, reply exactly:
-            "I don’t have enough information in my Admissions & Aid knowledge base to answer that."
-            Answer:"""
+            <|user|>
+            {query}
+            </|user|>
+
+            <|assistant|>
+            """
 
         # Generate response
         if stream:
@@ -481,32 +602,13 @@ class FastHybridChatbot:
             if use_history and self.dialogue_history:
                 # Calculate available token budget for history
                 base_prompt = f"Context information:\n{doc_context}\nQuestion: {query}\nInstructions: You must answer strictly and only using the context above.\nAnswer:"
-                base_tokens = len(base_prompt.split())
+                base_tokens = len(base_prompt.split())  # This is ~187 tokens
+                available_for_history = 3700 - base_tokens  # 3700 - 187 = 3513 tokens
                 
-                # Leave 300 tokens for response generation, use rest for history
-                available_for_history = 3700 - base_tokens
-                
-                if available_for_history > 80:  # Only add history if meaningful space
-                    history_context = "Previous conversation:\n"
-                    
-                    # Start with most recent exchange and work backwards
-                    for exchange in reversed(self.dialogue_history):
-                        # Create a condensed version of the exchange
-                        condensed_q = exchange['query'][:50] + "..." if len(exchange['query']) > 50 else exchange['query']
-                        condensed_a = exchange['response'][:60] + "..." if len(exchange['response']) > 60 else exchange['response']
-                        
-                        entry = f"User: {condensed_q}\nAssistant: {condensed_a}\n"
-                        entry_tokens = len(entry.split())
-                        
-                        # Check if we have room for this entry
-                        if len((history_context + entry).split()) <= available_for_history:
-                            history_context += entry
-                        else:
-                            break  # Stop adding history if we run out of space
-                    
-                    # If no history could fit, don't include any
-                    if history_context == "Previous conversation:\n":
-                        history_context = ""
+                # Use smart history building
+                history_context = self.build_smart_history_context(query, available_for_history)
+            else:
+                history_context = ""
 
             # Build prompt (same as process_query)
             prompt = f"""Context information:
@@ -539,7 +641,9 @@ Answer:"""
             stream_config = GENERATION_CONFIG.copy()
             stream_config.update({
                 "stream": True,
-                "max_tokens": max_tokens
+                "max_tokens": max_tokens,
+                "temperature": 0.1,  # Override for this specific call
+                "stop": ["</|assistant|>", "<|user|>", "<|system|>"]  # Better stopping
             })
             
             try:

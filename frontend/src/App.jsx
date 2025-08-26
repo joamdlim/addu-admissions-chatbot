@@ -14,13 +14,13 @@ function App() {
           <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
           <p className="text-sm">ADMISSIONS AI ASSISTANT</p>
         </div>
-        {/* Button to Admin Page */}
+        {/* Button to Admin Page
         <button
           onClick={() => navigate("/admin")}
           className="bg-white text-[#063970] px-4 py-2 rounded shadow hover:bg-gray-100 transition"
         >
           Admin Page
-        </button>
+        </button> */}
       </header>
 
       {/* Main Content Area */}

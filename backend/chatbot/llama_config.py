@@ -10,7 +10,7 @@ MODEL_PATH = "model/llama-2-7b-chat.Q4_K_M.gguf"
 # Model loading parameters - optimized for speed
 MODEL_CONFIG = {
     # Core parameters
-    "n_ctx": 1024,         # Reduced context window for faster processing
+    "n_ctx": 4096,         # Reduced context window for faster processing
     "n_threads": 12,       # Increased threads for better CPU utilization
     "n_batch": 1024,       # Larger batch size for more efficient processing
     "n_gpu_layers": 32,    # Offload more layers to GPU if available
@@ -31,7 +31,7 @@ MODEL_CONFIG = {
 # Generation parameters - tuned for speed
 GENERATION_CONFIG = {
     "max_tokens": 200,      # Increase from 80 to 200 for better responses
-    "temperature": 0.7,    # Keep creativity balanced
+    "temperature": 0.1,    # Keep creativity balanced
     "top_p": 0.9,          # More aggressive nucleus sampling
     "top_k": 20,           # More aggressive top-k filtering
     "repeat_penalty": 1.1, # Penalty for repeating tokens
