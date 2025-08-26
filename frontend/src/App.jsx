@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { ChatPage } from "./pages/ChatPage";
 import AdminPage from "./pages/AdminPage";
+import adduLogo from './assets/addu.png'; // Make sure this path is correct!
 
 function App() {
   const navigate = useNavigate();
@@ -10,9 +11,16 @@ function App() {
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="bg-[#063970] text-white p-4 flex justify-between items-center shadow-md">
-        <div>
-          <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
-          <p className="text-sm">ADMISSIONS AI ASSISTANT</p>
+        <div className="flex items-center"> {/* Added a flex container for the logo and text */}
+          <img
+            src={adduLogo} // Use the imported logo
+            alt="Ateneo de Davao University Logo"
+            className="w-16 h-16 rounded-full mr-4" // Tailwind classes for styling
+          />
+          <div>
+            <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
+            <p className="text-sm">ADMISSIONS AI ASSISTANT</p>
+          </div>
         </div>
         {/* Button to Admin Page
         <button

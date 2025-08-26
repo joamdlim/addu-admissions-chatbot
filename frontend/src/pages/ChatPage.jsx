@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Sidebar } from "../components/Sidebar";
 import { PromptArea } from "../components/PromptArea";
 
 const mockFaqs = [
@@ -10,9 +9,8 @@ const mockFaqs = [
 ];
 
 const ChatPage = () => {
-  const [promptHistory, setPromptHistory] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [query, setQuery] = useState("");
-  const [response, setResponse] = useState(""); // Store chatbot response
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFaqClick = (faq) => {
@@ -22,9 +20,11 @@ const ChatPage = () => {
   const handleSend = async (q) => {
     if (!q.trim() || isLoading) return;
 
-    setPromptHistory([q, ...promptHistory]);
+    const userMsg = { role: "user", content: q };
+    const botMsg = { role: "bot", content: "" };
+
+    setMessages((prev) => [...prev, userMsg, botMsg]);
     setQuery("");
-    setResponse(""); // Clear previous response
     setIsLoading(true);
 
     try {
@@ -41,7 +41,6 @@ const ChatPage = () => {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
-      // Handle Server-Sent Events streaming
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -51,42 +50,52 @@ const ChatPage = () => {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // Decode the chunk
         buffer += decoder.decode(value, { stream: true });
-
-        // Process complete lines from buffer
         const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
-              const jsonStr = line.slice(6); // Remove 'data: ' prefix
+              const jsonStr = line.slice(6);
               if (jsonStr.trim()) {
                 const data = JSON.parse(jsonStr);
 
                 if (data.chunk) {
-                  // Append chunk to current response
                   currentResponse += data.chunk;
-                  setResponse(currentResponse);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    // Update the last message (bot placeholder) with streamed content
+                    const lastIndex = updated.length - 1;
+                    if (lastIndex >= 0 && updated[lastIndex].role === "bot") {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        content: currentResponse,
+                      };
+                    }
+                    return updated;
+                  });
                 } else if (data.done) {
-                  // Streaming complete
                   setIsLoading(false);
                   return;
                 } else if (data.error) {
-                  // Handle error
-                  setResponse(`Error: ${data.error}`);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (lastIndex >= 0 && updated[lastIndex].role === "bot") {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        content: `Error: ${data.error}`,
+                      };
+                    }
+                    return updated;
+                  });
                   setIsLoading(false);
                   return;
                 }
               }
             } catch (parseError) {
-              console.error(
-                "Error parsing SSE data:",
-                parseError,
-                "Line:",
-                line
-              );
+              console.error("Error parsing SSE data:", parseError, "Line:", line);
             }
           }
         }
@@ -95,35 +104,57 @@ const ChatPage = () => {
       setIsLoading(false);
     } catch (err) {
       console.error("Streaming error:", err);
-      setResponse("Error connecting to chatbot backend.");
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex].role === "bot") {
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: "Error connecting to chatbot backend.",
+          };
+        }
+        return updated;
+      });
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen">
-      <Sidebar promptHistory={promptHistory} />
-      <div className="flex-1 relative bg-gray-50 flex flex-col">
-        {/* Chatbot response at the top */}
-        <div className="flex-1 flex flex-col items-center justify-start pt-12">
-          {(response || isLoading) && (
-            <div className="bg-white shadow rounded p-6 w-2/3 text-lg text-gray-800">
-              {response}
-              {isLoading && <span className="animate-pulse">|</span>}
+    <div className="w-full h-screen bg-gray-50 flex flex-col items-center">
+      {/* Messages */}
+      <div className="flex-1 w-[800px] max-w-[800px] py-8 overflow-y-auto space-y-4">
+        {messages.map((m, idx) => {
+          const isUser = m.role === "user";
+          return (
+            <div
+              key={idx}
+              className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[75%] rounded-lg p-4 text-base leading-relaxed ${
+                  isUser
+                    ? "bg-[#063970] text-white rounded-br-sm"
+                    : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                }`}
+              >
+                {m.content}
+              </div>
             </div>
-          )}
-        </div>
-        {/* FAQs and textbox at the bottom */}
-        <div className="w-full">
-          <PromptArea
-            faqs={mockFaqs}
-            onFaqClick={handleFaqClick}
-            onSend={handleSend}
-            query={query}
-            setQuery={setQuery}
-            disabled={isLoading}
-          />
-        </div>
+          );
+        })}
+        
+      </div>
+
+      {/* FAQs and input */}
+      <div className="w-[800px] max-w-[800px] pb-6">
+        <PromptArea
+          faqs={mockFaqs}
+          onFaqClick={handleFaqClick}
+          onSend={handleSend}
+          query={query}
+          setQuery={setQuery}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );
