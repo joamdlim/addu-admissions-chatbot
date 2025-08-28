@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, StreamingHttpResponse
 import json
 from .chroma_connection import ChromaService
-from .test_pdf_to_chroma import process_and_store_pdf_in_chroma
+from .improved_pdf_to_chroma import sync_supabase_to_chroma_improved
 from .supabase_client import get_supabase_client
 import os, json
 
@@ -28,7 +28,8 @@ def upload_pdf_view(request):
         pdf_file_name = pdf_file.name
 
         try:
-            process_and_store_pdf_in_chroma(pdf_bytes, pdf_file_name)
+            # This function is no longer used as per the new_code, but kept for now
+            # process_and_store_pdf_in_chroma(pdf_bytes, pdf_file_name) 
             return JsonResponse({"status": f"PDF '{pdf_file_name}' processed and stored successfully."})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
@@ -94,21 +95,19 @@ def chroma_test_query(request):
 @csrf_exempt
 def sync_supabase_to_chroma(request):
     try:
-        supabase = get_supabase_client()
-        files = supabase.storage.from_("original-pdfs").list()
-        pdf_names = [f['name'] for f in files if f['name'].lower().endswith('.pdf')]
-
-        ingested = 0
-        for pdf_file in pdf_names:
-            pdf_bytes = supabase.storage.from_("original-pdfs").download(pdf_file)
-            try:
-                process_and_store_pdf_in_chroma(pdf_bytes, pdf_file)
-                ingested += 1
-            except Exception as e:
-                print(f"Failed to ingest {pdf_file}: {e}")
-                continue
-
-        return JsonResponse({"status": "ok", "found": len(pdf_names), "ingested": ingested})
+        # Use the improved sync function with default parameters
+        result = sync_supabase_to_chroma_improved()
+        
+        # Convert to the expected response format
+        if "error" in result:
+            return JsonResponse({"error": result["error"]}, status=500)
+        
+        return JsonResponse({
+            "status": result["status"], 
+            "found": result["found"], 
+            "ingested": result["ingested"],
+            "extraction_method": result.get("extraction_method", "pdfplumber")
+        })
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
