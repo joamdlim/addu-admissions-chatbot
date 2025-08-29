@@ -502,26 +502,61 @@ class FastHybridChatbot:
         else:
             history_context = ""
 
-        # Replace the current prompt with this MUCH STRONGER version:
+        # Replace the current prompt with the new stricter AdmissionsRAG Assistant version:
         prompt = f"""<|system|>
-            You are a document-based assistant. You MUST ONLY use the information provided in the context below. 
-            You are NOT allowed to use any external knowledge, pre-trained information, or general knowledge.
-            If the context does not contain the answer, you MUST respond with exactly: "I don't have enough information in my Admissions & Aid knowledge base to answer that."
-            NEVER make up information or use knowledge outside the provided context.
-            </|system|>
+You are AdmissionsRAG Assistant, a grounded, retrieval-augmented chatbot for first-year admissions. 
 
-            <|context|>
-            {doc_context}
-            </|context|>
+CORE INSTRUCTIONS:
+- Use ONLY information from the provided ChromaDB context below
+- NEVER use external knowledge, web results, or model priors
+- NEVER fabricate facts, dates, fees, URLs, names, or policies
+- If relevant data is not found in retrieved chunks, use the grounded fallback response
+- Cite document titles or IDs from ChromaDB when appropriate (no external links)
 
-            {history_context}
+FORMATTING RULES:
+- Keep paragraphs short and scannable
+- Use clear headings when helpful (e.g., "Eligibility", "Steps", "Deadlines", "Documents")
+- When listing items, put each list number on its own line:
+  1. First item
+  2. Second item
+  3. Third item
+- Use tables only if the retrieved data is tabular (fees, dates, score bands)
+- Bold sparingly for emphasis on critical terms (dates, fees, must-have documents)
 
-            <|user|>
-            {query}
-            </|user|>
+TONE & ATTITUDE:
+- Friendly, direct, and student-first
+- Confident when data is available; transparent when it isn't
+- No fluff, no hype, no speculation
 
-            <|assistant|>
-            """
+SCOPE CONTROL:
+- Answer only admissions-related questions using ChromaDB content
+- For anything outside admissions scope, decline and redirect to supported topics
+
+FALLBACK RESPONSE:
+If retrieval returns no relevant results or confidence is low, respond with:
+"I don't have that information in my admissions knowledge base. Here are some ways I can help you:
+1. Specify your campus or program of interest
+2. Ask about application deadlines or requirements
+3. Inquire about specific intake terms"
+
+SAFETY & INTEGRITY:
+- Do not provide legal, medical, or immigration advice beyond what's in ChromaDB
+- If documents conflict, present the conflict and suggest confirming with admissions office
+- Cite sources as: [doc_title or doc_id, section/page if available]
+</|system|>
+
+<|context|>
+{doc_context}
+</|context|>
+
+{history_context}
+
+<|user|>
+{query}
+</|user|>
+
+<|assistant|>
+"""
 
         # Generate response
         if stream:
@@ -539,9 +574,9 @@ class FastHybridChatbot:
 
         return response, relevant_docs
 
-    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 150,
+    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 3000,
                         use_history: bool = True, require_context: bool = True, 
-                        min_relevance: float = 0.35) -> Generator[Dict, None, None]:
+                        min_relevance: float = 0.1) -> Generator[Dict, None, None]:  # Increased from 800 to 3000
         """
         Process query and yield streaming chunks for real-time response
         Yields dictionaries with 'chunk', 'error', or 'done' keys
@@ -564,6 +599,15 @@ class FastHybridChatbot:
                 yield {"error": f"Retrieval error: {e}"}
                 return
 
+            # Add debug info before filtering to see what we're getting from ChromaDB
+            print(f"🔍 RAW RETRIEVAL DEBUG:")
+            print(f"📊 Query: '{query}'")
+            print(f"📄 Raw retrieved docs: {len(relevant_docs)}")
+            for i, doc in enumerate(relevant_docs):
+                print(f"   Raw Doc {i+1}: {doc['id']} (Relevance: {doc.get('relevance', 'N/A'):.3f})")
+            print(f"📏 Min relevance threshold: {min_relevance}")
+            print("-" * 50)
+
             # Filter by relevance (same logic as process_query)
             filtered = []
             for d in relevant_docs:
@@ -574,6 +618,12 @@ class FastHybridChatbot:
                     rel = None
                 if rel is None or rel >= min_relevance:
                     filtered.append(d)
+                    print(f"✅ PASSED filter: {d['id']} (Relevance: {rel:.3f})")
+                else:
+                    print(f"❌ FILTERED OUT: {d['id']} (Relevance: {rel:.3f} < {min_relevance})")
+
+            print(f"📄 Docs after filtering: {len(filtered)}")
+            print("-" * 50)
 
             # Handle no context case
             if require_context and not filtered:
@@ -610,17 +660,38 @@ class FastHybridChatbot:
             else:
                 history_context = ""
 
-            # Build prompt (same as process_query)
-            prompt = f"""Context information:
+            # Build prompt optimized for complete responses
+            prompt = f"""You are an admissions information assistant. Answer the user's question using ONLY the context provided below.
+
+CRITICAL RULES:
+- Answer directly from the context - do not add welcoming messages or greetings
+- If the context contains relevant information, provide a COMPLETE and DETAILED answer
+- Do not use emojis in your response
+- Do not start with phrases like "Based on the context" or "According to the information"
+- Get straight to the point
+- Only use the fallback if the context truly has NO relevant information
+- IMPORTANT: Provide ALL steps and details from the context - do not cut off or summarize
+
+LIST FORMATTING:
+- When providing lists, put each item on a new line
+- Use numbered format: 1. Item, 2. Item, 3. Item
+- For sub-items, use bullet points: o Sub-item
+- Include ALL steps and details from the context
+- Example format:
+  1. First requirement
+  2. Second requirement
+  o Sub-requirement A
+  o Sub-requirement B
+  3. Third requirement
+
+CONTEXT:
 {doc_context}
 
 {history_context}
-Question: {query}
 
-Instructions: You must answer strictly and only using the context above.
-If the context does not contain enough information, reply exactly:
-"I don't have enough information in my Admissions & Aid knowledge base to answer that."
-Answer:"""
+USER QUESTION: {query}
+
+COMPLETE ANSWER:"""
 
             print(f"🔍 DEBUG INFO:")
             print(f"📊 Query: '{query}'")
@@ -637,13 +708,17 @@ Answer:"""
             # Stream from LLM
             full_response = ""
             
-            # Create streaming config
+            # Create streaming config optimized for complete responses
             stream_config = GENERATION_CONFIG.copy()
             stream_config.update({
                 "stream": True,
                 "max_tokens": max_tokens,
-                "temperature": 0.1,  # Override for this specific call
-                "stop": ["</|assistant|>", "<|user|>", "<|system|>"]  # Better stopping
+                "temperature": 0.1,  # Keep deterministic for consistent responses
+                "top_p": 0.9,        # Allow more variety in word choice
+                "top_k": 40,         # Increased for better quality
+                "repeat_penalty": 1.1,
+                "mirostat_mode": 0,  # Disable mirostat for longer responses
+                "stop": ["</|assistant|>", "<|user|>", "<|system|>", "USER QUESTION:", "CONTEXT:"]  # Better stopping
             })
             
             try:

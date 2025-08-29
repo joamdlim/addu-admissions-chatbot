@@ -45,8 +45,8 @@ def chat_view(request):
             
             def generate_streaming_response():
                 try:
-                    # Use the GLOBAL chatbot instance (no reloading!)
-                    for event in chatbot.process_query_stream(prompt, min_relevance=0.3, use_history=True):  # Increase from 0.1 to 0.3
+                    # Use maximum tokens for complete responses
+                    for event in chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
                         yield "data: " + json.dumps(event) + "\n\n"
                         
                 except Exception as e:

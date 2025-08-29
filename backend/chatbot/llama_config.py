@@ -28,14 +28,14 @@ MODEL_CONFIG = {
     "embedding": False     # Don't return embeddings
 }
 
-# Generation parameters - tuned for speed
+# Generation parameters - tuned for complete responses
 GENERATION_CONFIG = {
-    "max_tokens": 200,      # Increase from 80 to 200 for better responses
+    "max_tokens": 3000,     # Increased from 200 to 3000 for complete responses
     "temperature": 0.1,    # Keep creativity balanced
     "top_p": 0.9,          # More aggressive nucleus sampling
     "top_k": 20,           # More aggressive top-k filtering
     "repeat_penalty": 1.1, # Penalty for repeating tokens
-    "mirostat_mode": 2,    # Use adaptive sampling
+    "mirostat_mode": 0,    # Disable mirostat for longer responses
     "mirostat_tau": 5.0,   # Target entropy
     "mirostat_eta": 0.1    # Learning rate
 }
