@@ -156,3 +156,161 @@ def export_chroma_to_local(request):
         return JsonResponse({"status": "ok", "exported": len(all_docs), "collection": collection_name})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+def admin_upload_file(request):
+    """Upload file directly to Supabase storage and process it for ChromaDB"""
+    if request.method == "POST":
+        if 'file' not in request.FILES:
+            return JsonResponse({"error": "No file uploaded"}, status=400)
+        
+        uploaded_file = request.FILES['file']
+        file_bytes = uploaded_file.read()
+        file_name = uploaded_file.name
+        
+        try:
+            supabase = get_supabase_client()
+            
+            # Upload to Supabase storage
+            result = supabase.storage.from_("original-pdfs").upload(
+                file_name,
+                file_bytes,
+                {"content-type": uploaded_file.content_type}
+            )
+            
+            # Process and store in ChromaDB immediately for PDFs only
+            if file_name.lower().endswith('.pdf'):
+                try:
+                    from .improved_pdf_to_chroma import process_and_store_pdf_in_chroma_improved
+                    documents_stored = process_and_store_pdf_in_chroma_improved(
+                        file_bytes, 
+                        file_name,
+                        chunk_size=1000,
+                        overlap=200
+                    )
+                    message = f"File '{file_name}' uploaded and processed successfully ({documents_stored} documents stored in ChromaDB)"
+                except Exception as chroma_error:
+                    print(f"⚠️ ChromaDB processing failed for {file_name}: {chroma_error}")
+                    message = f"File '{file_name}' uploaded to Supabase but ChromaDB processing failed: {str(chroma_error)}"
+            else:
+                message = f"File '{file_name}' uploaded successfully (non-PDF files are stored in Supabase only)"
+            
+            return JsonResponse({
+                "status": "success",
+                "message": message,
+                "file_name": file_name
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
+
+@api_view(['GET'])
+def admin_list_files(request):
+    """List all files from Supabase storage"""
+    try:
+        supabase = get_supabase_client()
+        files = supabase.storage.from_("original-pdfs").list()
+        
+        # Format file data
+        file_list = []
+        for file in files:
+            file_list.append({
+                "name": file.get("name"),
+                "size": file.get("metadata", {}).get("size", 0),
+                "created_at": file.get("created_at"),
+                "updated_at": file.get("updated_at"),
+                "content_type": file.get("metadata", {}).get("mimetype", "unknown")
+            })
+        
+        return Response({"files": file_list})
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def admin_delete_file(request):
+    """Delete file from Supabase storage and ChromaDB"""
+    if request.method == "DELETE":
+        try:
+            data = json.loads(request.body)
+            file_name = data.get("file_name")
+            
+            if not file_name:
+                return JsonResponse({"error": "File name required"}, status=400)
+            
+            supabase = get_supabase_client()
+            
+            # Delete from Supabase storage
+            supabase.storage.from_("original-pdfs").remove([file_name])
+            
+            # Also remove from ChromaDB if it's a PDF
+            if file_name.lower().endswith('.pdf'):
+                try:
+                    from .chroma_connection import ChromaService
+                    chroma_client = ChromaService.get_client()
+                    collection_name = os.getenv("CHROMA_COLLECTION", "documents")
+                    collection = chroma_client.get_or_create_collection(name=collection_name)
+                    
+                    # Generate the document ID (same as used during upload)
+                    doc_id = os.path.splitext(file_name)[0]
+                    
+                    # Delete from ChromaDB
+                    collection.delete(ids=[doc_id])
+                    message = f"File '{file_name}' deleted from both Supabase and ChromaDB"
+                except Exception as chroma_error:
+                    print(f"⚠️ ChromaDB deletion failed for {file_name}: {chroma_error}")
+                    message = f"File '{file_name}' deleted from Supabase but ChromaDB deletion failed"
+            else:
+                message = f"File '{file_name}' deleted successfully"
+            
+            return JsonResponse({
+                "status": "success",
+                "message": message
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "DELETE request required"}, status=400)
+
+# Keep the manual sync function for individual files if needed
+@csrf_exempt
+def admin_sync_file_to_chroma(request):
+    """Manually sync a specific file from Supabase to ChromaDB"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            file_name = data.get("file_name")
+            
+            if not file_name:
+                return JsonResponse({"error": "File name required"}, status=400)
+            
+            if not file_name.lower().endswith('.pdf'):
+                return JsonResponse({"error": "Only PDF files can be synced to ChromaDB"}, status=400)
+            
+            supabase = get_supabase_client()
+            
+            # Download file from Supabase
+            pdf_bytes = supabase.storage.from_("original-pdfs").download(file_name)
+            
+            # Process and store in ChromaDB using the improved method
+            from .improved_pdf_to_chroma import process_and_store_pdf_in_chroma_improved
+            result = process_and_store_pdf_in_chroma_improved(
+                pdf_bytes, 
+                file_name,
+                chunk_size=1000,
+                overlap=200
+            )
+            
+            return JsonResponse({
+                "status": "success",
+                "message": f"File '{file_name}' successfully synced to ChromaDB",
+                "documents_stored": result
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
