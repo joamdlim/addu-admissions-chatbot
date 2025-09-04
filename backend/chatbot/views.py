@@ -1,17 +1,23 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from chatbot.fast_hybrid_chatbot import FastHybridChatbot
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, StreamingHttpResponse
 import json
 from .chroma_connection import ChromaService
 from .improved_pdf_to_chroma import sync_supabase_to_chroma_improved
 from .supabase_client import get_supabase_client
+from .models import Conversation, ConversationTurn, SystemPrompt
+from .enhanced_hybrid_chatbot import get_enhanced_chatbot
+from .fast_hybrid_chatbot import FastHybridChatbot
 import os, json
+import uuid
 
-# Initialize the chatbot
-chatbot = FastHybridChatbot(use_chroma=True)
+# Initialize chatbots at startup (eager loading)
+print("🚀 Initializing chatbots at server startup...")
+enhanced_chatbot = get_enhanced_chatbot()
+legacy_chatbot = FastHybridChatbot(use_chroma=True)
+print("✅ All chatbots ready!")
 
 @api_view(['GET'])
 def evaluate(request):
@@ -38,15 +44,30 @@ def upload_pdf_view(request):
 
 @csrf_exempt
 def chat_view(request):
+    """Enhanced chat view with conversation memory support"""
     if request.method == "POST":
         try:
             data = json.loads(request.body)
             prompt = data.get("prompt", "")
+            session_id = data.get("session_id", None)  # Optional session ID
+            max_tokens = data.get("max_tokens", 3000)
+            min_relevance = data.get("min_relevance", 0.1)
+            
+            # Generate a session ID if not provided
+            if not session_id:
+                session_id = str(uuid.uuid4())
             
             def generate_streaming_response():
                 try:
-                    # Use maximum tokens for complete responses
-                    for event in chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
+                    # Use enhanced chatbot with conversation memory
+                    for event in enhanced_chatbot.process_query_with_memory(
+                        query=prompt,
+                        session_id=session_id,
+                        max_tokens=max_tokens,
+                        stream=True,
+                        require_context=True,
+                        min_relevance=min_relevance
+                    ):
                         yield "data: " + json.dumps(event) + "\n\n"
                         
                 except Exception as e:
@@ -69,6 +90,220 @@ def chat_view(request):
     
     return JsonResponse({"error": "POST request required"}, status=400)
 
+@csrf_exempt 
+def chat_legacy_view(request):
+    """Legacy chat view for backward compatibility (without conversation memory)"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            prompt = data.get("prompt", "")
+            
+            def generate_streaming_response():
+                try:
+                    # Use original chatbot for legacy support
+                    for event in legacy_chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
+                        yield "data: " + json.dumps(event) + "\n\n"
+                        
+                except Exception as e:
+                    yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
+                    yield "data: " + json.dumps({"done": True}) + "\n\n"
+            
+            response = StreamingHttpResponse(
+                generate_streaming_response(),
+                content_type='text/event-stream'
+            )
+            
+            response['Cache-Control'] = 'no-cache'
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Headers'] = 'Content-Type'
+            
+            return response
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
+
+# ===== NEW CONVERSATION MANAGEMENT ENDPOINTS =====
+
+@api_view(['POST'])
+def create_conversation(request):
+    """Create a new conversation session"""
+    try:
+        session_id = str(uuid.uuid4())
+        conversation = enhanced_chatbot.get_or_create_conversation(session_id)
+        
+        return Response({
+            "status": "success",
+            "session_id": conversation.session_id,
+            "created_at": conversation.created_at.isoformat()
+        })
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['GET'])
+def get_conversation_history(request, session_id):
+    """Get conversation history for a session"""
+    try:
+        limit = int(request.GET.get('limit', 20))
+        history = enhanced_chatbot.get_conversation_history(session_id, limit)
+        
+        return Response({
+            "session_id": session_id,
+            "history": history,
+            "count": len(history)
+        })
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['GET'])
+def get_conversation_stats(request, session_id):
+    """Get conversation statistics"""
+    try:
+        stats = enhanced_chatbot.get_conversation_stats(session_id)
+        
+        if not stats:
+            return Response({"error": "Conversation not found"}, status=404)
+        
+        return Response(stats)
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['DELETE'])
+def clear_conversation(request, session_id):
+    """Clear/reset a conversation"""
+    try:
+        success = enhanced_chatbot.clear_conversation(session_id)
+        
+        if success:
+            return Response({
+                "status": "success",
+                "message": f"Conversation {session_id} cleared"
+            })
+        else:
+            return Response({"error": "Conversation not found"}, status=404)
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['GET'])
+def list_active_conversations(request):
+    """List all active conversations"""
+    try:
+        conversations = Conversation.objects.filter(is_active=True).order_by('-updated_at')[:50]
+        
+        conversation_list = []
+        for conv in conversations:
+            conversation_list.append({
+                'session_id': conv.session_id,
+                'title': conv.title,
+                'total_exchanges': conv.total_exchanges,
+                'created_at': conv.created_at.isoformat(),
+                'updated_at': conv.updated_at.isoformat(),
+                'current_token_count': conv.current_token_count
+            })
+        
+        return Response({
+            "conversations": conversation_list,
+            "count": len(conversation_list)
+        })
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def force_summarization(request, session_id):
+    """Manually trigger summarization for a conversation"""
+    if request.method == "POST":
+        try:
+            conversation = Conversation.objects.get(session_id=session_id)
+            enhanced_chatbot.perform_summarization(conversation)
+            
+            # Get updated stats
+            stats = enhanced_chatbot.get_conversation_stats(session_id)
+            
+            return JsonResponse({
+                "status": "success",
+                "message": "Summarization completed",
+                "stats": stats
+            })
+            
+        except Conversation.DoesNotExist:
+            return JsonResponse({"error": "Conversation not found"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
+
+# ===== SYSTEM PROMPT MANAGEMENT =====
+
+@api_view(['GET'])
+def get_system_prompts(request):
+    """Get all system prompts"""
+    try:
+        prompts = SystemPrompt.objects.all().order_by('-created_at')
+        
+        prompt_list = []
+        for prompt in prompts:
+            prompt_list.append({
+                'id': prompt.id,
+                'name': prompt.name,
+                'prompt_text': prompt.prompt_text,
+                'token_count': prompt.token_count,
+                'is_active': prompt.is_active,
+                'created_at': prompt.created_at.isoformat()
+            })
+        
+        return Response({"prompts": prompt_list})
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def update_system_prompt(request):
+    """Create or update system prompt"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            name = data.get("name", "default")
+            prompt_text = data.get("prompt_text", "")
+            
+            if not prompt_text:
+                return JsonResponse({"error": "Prompt text is required"}, status=400)
+            
+            # Count tokens
+            from .token_utils import count_tokens
+            token_count = count_tokens(prompt_text)
+            
+            # Deactivate other prompts
+            SystemPrompt.objects.filter(is_active=True).update(is_active=False)
+            
+            # Create or update prompt
+            prompt, created = SystemPrompt.objects.update_or_create(
+                name=name,
+                defaults={
+                    'prompt_text': prompt_text,
+                    'token_count': token_count,
+                    'is_active': True
+                }
+            )
+            
+            return JsonResponse({
+                "status": "success",
+                "prompt_id": prompt.id,
+                "token_count": token_count,
+                "created": created
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
+
+# ===== EXISTING ENDPOINTS (UNCHANGED) =====
 
 def chroma_test_add(request):
     collection = ChromaService.get_collection()
