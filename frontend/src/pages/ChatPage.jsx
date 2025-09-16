@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import { PromptArea } from "../components/PromptArea";
 
 const mockFaqs = [
@@ -191,7 +192,36 @@ const ChatPage = () => {
                     : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
                 }`}
               >
-                {m.content}
+                {isUser ? (
+                  m.content
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      // Customize rendering
+                      p: ({ children }) => <p className="mb-2">{children}</p>,
+                      ul: ({ children }) => (
+                        <ul className="list-disc list-inside mb-2">
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal list-inside mb-2">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="mb-1">{children}</li>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold text-gray-900">
+                          {children}
+                        </strong>
+                      ),
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           );

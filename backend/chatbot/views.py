@@ -8,16 +8,19 @@ from .chroma_connection import ChromaService
 from .improved_pdf_to_chroma import sync_supabase_to_chroma_improved
 from .supabase_client import get_supabase_client
 from .models import Conversation, ConversationTurn, SystemPrompt
-from .enhanced_hybrid_chatbot import get_enhanced_chatbot
-from .fast_hybrid_chatbot import FastHybridChatbot
+# Remove the enhanced chatbot import
+# from .enhanced_hybrid_chatbot import get_enhanced_chatbot
+# from .fast_hybrid_chatbot import FastHybridChatbot
+
+# Add the Together AI chatbot import
+from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
 import os, json
 import uuid
 
-# Initialize chatbots at startup (eager loading)
-print("🚀 Initializing chatbots at server startup...")
-enhanced_chatbot = get_enhanced_chatbot()
-legacy_chatbot = FastHybridChatbot(use_chroma=True)
-print("✅ All chatbots ready!")
+# Initialize Together AI chatbot at startup
+print("🚀 Initializing Together AI chatbot...")
+together_chatbot = FastHybridChatbotTogether(use_chroma=True)
+print("✅ Together AI chatbot ready!")
 
 @api_view(['GET'])
 def evaluate(request):
@@ -44,29 +47,23 @@ def upload_pdf_view(request):
 
 @csrf_exempt
 def chat_view(request):
-    """Enhanced chat view with conversation memory support"""
+    """Chat view using Together AI"""
     if request.method == "POST":
         try:
             data = json.loads(request.body)
             prompt = data.get("prompt", "")
-            session_id = data.get("session_id", None)  # Optional session ID
+            session_id = data.get("session_id", None)
             max_tokens = data.get("max_tokens", 3000)
             min_relevance = data.get("min_relevance", 0.1)
             
-            # Generate a session ID if not provided
-            if not session_id:
-                session_id = str(uuid.uuid4())
-            
             def generate_streaming_response():
                 try:
-                    # Use enhanced chatbot with conversation memory
-                    for event in enhanced_chatbot.process_query_with_memory(
+                    # Use the Together AI chatbot
+                    for event in together_chatbot.process_query_stream(
                         query=prompt,
-                        session_id=session_id,
                         max_tokens=max_tokens,
-                        stream=True,
-                        require_context=True,
-                        min_relevance=min_relevance
+                        min_relevance=min_relevance,
+                        use_history=True
                     ):
                         yield "data: " + json.dumps(event) + "\n\n"
                         
@@ -92,7 +89,7 @@ def chat_view(request):
 
 @csrf_exempt 
 def chat_legacy_view(request):
-    """Legacy chat view for backward compatibility (without conversation memory)"""
+    """Legacy chat view for backward compatibility (using Together AI)"""
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -100,8 +97,8 @@ def chat_legacy_view(request):
             
             def generate_streaming_response():
                 try:
-                    # Use original chatbot for legacy support
-                    for event in legacy_chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
+                    # Use Together AI chatbot for legacy support
+                    for event in together_chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
                         yield "data: " + json.dumps(event) + "\n\n"
                         
                 except Exception as e:
@@ -124,19 +121,19 @@ def chat_legacy_view(request):
     
     return JsonResponse({"error": "POST request required"}, status=400)
 
-# ===== NEW CONVERSATION MANAGEMENT ENDPOINTS =====
+# ===== SIMPLIFIED CONVERSATION MANAGEMENT ENDPOINTS =====
+# Note: These endpoints are simplified since we're not using complex conversation memory
 
 @api_view(['POST'])
 def create_conversation(request):
-    """Create a new conversation session"""
+    """Create a new conversation session (simplified)"""
     try:
         session_id = str(uuid.uuid4())
-        conversation = enhanced_chatbot.get_or_create_conversation(session_id)
         
         return Response({
             "status": "success",
-            "session_id": conversation.session_id,
-            "created_at": conversation.created_at.isoformat()
+            "session_id": session_id,
+            "message": "Conversation created (simplified mode)"
         })
         
     except Exception as e:
@@ -144,15 +141,15 @@ def create_conversation(request):
 
 @api_view(['GET'])
 def get_conversation_history(request, session_id):
-    """Get conversation history for a session"""
+    """Get conversation history for a session (simplified)"""
     try:
-        limit = int(request.GET.get('limit', 20))
-        history = enhanced_chatbot.get_conversation_history(session_id, limit)
-        
+        # In simplified mode, we don't store conversation history
+        # This is just for API compatibility
         return Response({
             "session_id": session_id,
-            "history": history,
-            "count": len(history)
+            "history": [],
+            "count": 0,
+            "message": "Conversation history not stored in simplified mode"
         })
         
     except Exception as e:
@@ -160,55 +157,36 @@ def get_conversation_history(request, session_id):
 
 @api_view(['GET'])
 def get_conversation_stats(request, session_id):
-    """Get conversation statistics"""
+    """Get conversation statistics (simplified)"""
     try:
-        stats = enhanced_chatbot.get_conversation_stats(session_id)
-        
-        if not stats:
-            return Response({"error": "Conversation not found"}, status=404)
-        
-        return Response(stats)
+        return Response({
+            'session_id': session_id,
+            'message': 'Simplified mode - no detailed stats available'
+        })
         
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
 @api_view(['DELETE'])
 def clear_conversation(request, session_id):
-    """Clear/reset a conversation"""
+    """Clear/reset a conversation (simplified)"""
     try:
-        success = enhanced_chatbot.clear_conversation(session_id)
-        
-        if success:
-            return Response({
-                "status": "success",
-                "message": f"Conversation {session_id} cleared"
-            })
-        else:
-            return Response({"error": "Conversation not found"}, status=404)
+        return Response({
+            "status": "success",
+            "message": f"Conversation {session_id} cleared (simplified mode)"
+        })
         
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 def list_active_conversations(request):
-    """List all active conversations"""
+    """List all active conversations (simplified)"""
     try:
-        conversations = Conversation.objects.filter(is_active=True).order_by('-updated_at')[:50]
-        
-        conversation_list = []
-        for conv in conversations:
-            conversation_list.append({
-                'session_id': conv.session_id,
-                'title': conv.title,
-                'total_exchanges': conv.total_exchanges,
-                'created_at': conv.created_at.isoformat(),
-                'updated_at': conv.updated_at.isoformat(),
-                'current_token_count': conv.current_token_count
-            })
-        
         return Response({
-            "conversations": conversation_list,
-            "count": len(conversation_list)
+            "conversations": [],
+            "count": 0,
+            "message": "Simplified mode - no conversation tracking"
         })
         
     except Exception as e:
@@ -216,23 +194,14 @@ def list_active_conversations(request):
 
 @csrf_exempt
 def force_summarization(request, session_id):
-    """Manually trigger summarization for a conversation"""
+    """Manually trigger summarization for a conversation (simplified)"""
     if request.method == "POST":
         try:
-            conversation = Conversation.objects.get(session_id=session_id)
-            enhanced_chatbot.perform_summarization(conversation)
-            
-            # Get updated stats
-            stats = enhanced_chatbot.get_conversation_stats(session_id)
-            
             return JsonResponse({
                 "status": "success",
-                "message": "Summarization completed",
-                "stats": stats
+                "message": "Summarization not needed in simplified mode"
             })
             
-        except Conversation.DoesNotExist:
-            return JsonResponse({"error": "Conversation not found"}, status=404)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
     
@@ -274,9 +243,8 @@ def update_system_prompt(request):
             if not prompt_text:
                 return JsonResponse({"error": "Prompt text is required"}, status=400)
             
-            # Count tokens
-            from .token_utils import count_tokens
-            token_count = count_tokens(prompt_text)
+            # Count tokens (simplified)
+            token_count = len(prompt_text.split())
             
             # Deactivate other prompts
             SystemPrompt.objects.filter(is_active=True).update(is_active=False)
