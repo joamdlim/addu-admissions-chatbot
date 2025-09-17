@@ -517,3 +517,208 @@ def admin_sync_file_to_chroma(request):
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "POST request required"}, status=400)
+
+@csrf_exempt
+def extract_text_from_file(request):
+    """Extract text from uploaded file for preview/editing before final upload"""
+    if request.method == "POST":
+        if 'file' not in request.FILES:
+            return JsonResponse({"error": "No file uploaded"}, status=400)
+        
+        uploaded_file = request.FILES['file']
+        file_bytes = uploaded_file.read()
+        file_name = uploaded_file.name
+        file_type = uploaded_file.content_type
+        
+        try:
+            extracted_text = ""
+            
+            if file_name.lower().endswith('.pdf'):
+                # Use the existing PDF extraction function
+                from .improved_pdf_to_chroma import extract_and_process_pdf
+                cleaned_text, chunks, analysis = extract_and_process_pdf(file_bytes)
+                extracted_text = cleaned_text
+            elif file_name.lower().endswith('.txt'):
+                # Handle text files
+                extracted_text = file_bytes.decode('utf-8', errors='ignore')
+            elif file_name.lower().endswith('.docx'):
+                # Basic DOCX support (you can enhance this later)
+                try:
+                    import docx
+                    doc = docx.Document(io.BytesIO(file_bytes))
+                    extracted_text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                except ImportError:
+                    extracted_text = "DOCX files require python-docx package. Please install it or upload as PDF/TXT."
+                except Exception as docx_error:
+                    extracted_text = f"DOCX processing failed: {str(docx_error)}"
+            else:
+                return JsonResponse({"error": "Unsupported file type. Please use PDF, TXT, or DOCX files."}, status=400)
+            
+            return JsonResponse({
+                "status": "success",
+                "file_name": file_name,
+                "file_type": file_type,
+                "extracted_text": extracted_text,
+                "text_length": len(extracted_text)
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
+
+# Add debugging to the upload_processed_file function
+@csrf_exempt
+def upload_processed_file(request):
+    """Upload file with processed/edited text content"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            file_name = data.get("file_name")
+            processed_text = data.get("processed_text")
+            original_file_type = data.get("file_type")
+            
+            print(f"🔍 Processing file: {file_name}")
+            print(f"🔍 Original file type: {original_file_type}")
+            print(f"🔍 Text length: {len(processed_text) if processed_text else 0}")
+            
+            if not file_name or not processed_text:
+                return JsonResponse({"error": "File name and processed text required"}, status=400)
+            
+            supabase = get_supabase_client()
+            
+            # Convert processed text back to bytes for storage
+            text_bytes = processed_text.encode('utf-8')
+            
+            # Upload to Supabase storage
+            result = supabase.storage.from_("original-pdfs").upload(
+                file_name,
+                text_bytes,
+                {"content-type": "text/plain"}  # Always store as text after processing
+            )
+            
+            print(f"✅ Uploaded to Supabase: {file_name}")
+            
+            # Process and store in ChromaDB - handle both PDFs and text files
+            if file_name.lower().endswith(('.pdf', '.txt', '.docx')):
+                print(f"🔄 Starting ChromaDB processing for {file_name}")
+                try:
+                    from .chroma_connection import ChromaService
+                    
+                    # Get ChromaDB collection
+                    collection = ChromaService.get_collection()
+                    
+                    # Try smart chunking first, then fallback to simple chunking
+                    print(f"📄 Chunking processed text for {file_name}...")
+                    
+                    chunks = []
+                    try:
+                        from .improved_pdf_to_chroma import smart_chunk_text, initialize_embedding_models
+                        print(f"🔧 Initializing embedding models for {file_name}...")
+                        initialize_embedding_models()
+                        chunks = smart_chunk_text(processed_text, chunk_size=800, overlap=150)
+                        print(f"✅ Smart chunking created {len(chunks)} chunks")
+                    except Exception as smart_chunk_error:
+                        print(f"⚠️ Smart chunking failed: {smart_chunk_error}")
+                        print(f"🔄 Falling back to simple chunking...")
+                        
+                    # Fallback to simple chunking if smart chunking fails or returns no chunks
+                    if not chunks:
+                        print(f"📝 Using simple text chunking...")
+                        chunk_size = 800
+                        overlap = 150
+                        
+                        # Simple text chunking
+                        text_length = len(processed_text)
+                        for i in range(0, text_length, chunk_size - overlap):
+                            chunk_end = min(i + chunk_size, text_length)
+                            chunk_text = processed_text[i:chunk_end].strip()
+                            
+                            if chunk_text:  # Only add non-empty chunks
+                                chunks.append({
+                                    'id': f'simple_chunk_{len(chunks)}',
+                                    'content': chunk_text,
+                                    'size': len(chunk_text),
+                                    'type': 'simple_text'
+                                })
+                        
+                        print(f"✅ Simple chunking created {len(chunks)} chunks")
+                    
+                    print(f"📊 Processing {len(chunks)} chunks for {file_name}...")
+                    
+                    if len(chunks) == 0:
+                        print(f"❌ No chunks created - text might be empty or invalid")
+                        message = f"File '{file_name}' uploaded but no chunks could be created from the text"
+                    else:
+                        # Process chunks in smaller batches to avoid timeout
+                        batch_size = 10
+                        total_stored = 0
+                        
+                        for batch_start in range(0, len(chunks), batch_size):
+                            batch_end = min(batch_start + batch_size, len(chunks))
+                            batch_chunks = chunks[batch_start:batch_end]
+                            
+                            # Prepare batch data
+                            documents = []
+                            metadatas = []
+                            ids = []
+                            
+                            for i, chunk in enumerate(batch_chunks):
+                                actual_index = batch_start + i
+                                chunk_content = chunk.get('content', '') if isinstance(chunk, dict) else str(chunk)
+                                
+                                if chunk_content.strip():  # Only process non-empty content
+                                    documents.append(chunk_content)
+                                    metadatas.append({
+                                        "source": file_name,
+                                        "chunk_index": actual_index,
+                                        "total_chunks": len(chunks),
+                                        "chunk_size": chunk.get('size', len(chunk_content)) if isinstance(chunk, dict) else len(chunk_content),
+                                        "chunk_type": chunk.get('type', 'unknown') if isinstance(chunk, dict) else 'simple',
+                                        "original_file_type": original_file_type,
+                                        "processed_via": "text_editor"
+                                    })
+                                    ids.append(f"{file_name}_chunk_{actual_index}")
+                            
+                            # Add batch to ChromaDB only if we have documents
+                            if documents:
+                                try:
+                                    print(f"💾 Storing batch {batch_start//batch_size + 1}/{(len(chunks)-1)//batch_size + 1} ({len(documents)} docs)...")
+                                    collection.add(
+                                        documents=documents,
+                                        metadatas=metadatas,
+                                        ids=ids
+                                    )
+                                    total_stored += len(documents)
+                                    print(f"✅ Batch {batch_start//batch_size + 1} stored successfully ({len(documents)} docs)")
+                                except Exception as batch_error:
+                                    print(f"⚠️ Batch {batch_start//batch_size + 1} failed: {batch_error}")
+                                    continue
+                            else:
+                                print(f"⚠️ Batch {batch_start//batch_size + 1} skipped - no valid documents")
+                        
+                        message = f"File '{file_name}' uploaded and processed successfully ({total_stored} documents stored in ChromaDB)"
+                        print(f"✅ ChromaDB processing completed: {total_stored} documents")
+                    
+                except Exception as chroma_error:
+                    print(f"⚠️ ChromaDB processing failed for {file_name}: {chroma_error}")
+                    import traceback
+                    traceback.print_exc()
+                    message = f"File '{file_name}' uploaded but ChromaDB processing failed: {str(chroma_error)}"
+            else:
+                print(f"ℹ️ Skipping ChromaDB processing (unsupported file type): {file_name}")
+                message = f"File '{file_name}' uploaded successfully (unsupported for ChromaDB)"
+            
+            return JsonResponse({
+                "status": "success",
+                "message": message,
+                "file_name": file_name
+            })
+            
+        except Exception as e:
+            print(f"❌ Upload failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)

@@ -28,4 +28,6 @@ urlpatterns = [
     path("admin/files/", views.admin_list_files, name="admin_list_files"),
     path("admin/delete/", views.admin_delete_file, name="admin_delete_file"),
     path("admin/sync-to-chroma/", views.admin_sync_file_to_chroma, name="admin_sync_to_chroma"),
+    path("admin/extract-text/", views.extract_text_from_file, name="extract_text_from_file"),
+    path("admin/upload-processed/", views.upload_processed_file, name="upload_processed_file"),
 ]

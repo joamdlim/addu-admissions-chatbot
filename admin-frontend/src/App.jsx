@@ -1,8 +1,27 @@
-import React from "react";
-import AdminPage from "../pages/AdminPage";
-import adduLogo from "../assets/addu.png";
+import React, { useState } from "react";
+import AdminPage from "./pages/AdminPage";
+import TextEditorPage from "./pages/TextEditorPage";
+import adduLogo from "./assets/addu.png";
 
 function App() {
+  const [currentPage, setCurrentPage] = useState("admin");
+  const [fileData, setFileData] = useState(null);
+
+  const handleFileForReview = (data) => {
+    setFileData(data);
+    setCurrentPage("editor");
+  };
+
+  const handleConfirmUpload = () => {
+    setCurrentPage("admin");
+    setFileData(null);
+  };
+
+  const handleCancel = () => {
+    setCurrentPage("admin");
+    setFileData(null);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
@@ -15,14 +34,34 @@ function App() {
           />
           <div>
             <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
-            <p className="text-sm">ADMISSIONS AI ASSISTANT - ADMIN PANEL</p>
+            <p className="text-sm">
+              ADMISSIONS AI ASSISTANT - ADMIN PANEL
+              {currentPage === "editor" && " - DOCUMENT EDITOR"}
+            </p>
           </div>
         </div>
+        {currentPage === "editor" && (
+          <button
+            onClick={handleCancel}
+            className="text-white hover:text-gray-300 transition"
+          >
+            ← Back to Admin
+          </button>
+        )}
       </header>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto">
-        <AdminPage />
+        {currentPage === "admin" && (
+          <AdminPage onFileForReview={handleFileForReview} />
+        )}
+        {currentPage === "editor" && (
+          <TextEditorPage
+            fileData={fileData}
+            onConfirmUpload={handleConfirmUpload}
+            onCancel={handleCancel}
+          />
+        )}
       </div>
     </div>
   );

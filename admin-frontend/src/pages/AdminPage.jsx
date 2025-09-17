@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 
-const AdminPage = () => {
+const AdminPage = ({ onFileForReview }) => {
   const fileInputRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [syncingFile, setSyncingFile] = useState(null);
 
   // Fetch files from backend
@@ -35,13 +35,13 @@ const AdminPage = () => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
 
-    setUploading(true);
+    setExtracting(true);
     const formData = new FormData();
     formData.append("file", selectedFile);
 
     try {
       const response = await fetch(
-        "http://localhost:8000/chatbot/admin/upload/",
+        "http://localhost:8000/chatbot/admin/extract-text/",
         {
           method: "POST",
           body: formData,
@@ -51,17 +51,19 @@ const AdminPage = () => {
       const result = await response.json();
 
       if (response.ok) {
-        alert(result.message);
-        fetchFiles(); // Refresh file list
+        // Pass the extracted data to the editor page
+        if (onFileForReview) {
+          onFileForReview(result);
+        }
         fileInputRef.current.value = ""; // Clear input
       } else {
-        alert(`Upload failed: ${result.error}`);
+        alert(`Text extraction failed: ${result.error}`);
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      alert("Upload failed. Please try again.");
+      console.error("Extraction error:", error);
+      alert("Text extraction failed. Please try again.");
     } finally {
-      setUploading(false);
+      setExtracting(false);
     }
   };
 
@@ -149,9 +151,9 @@ const AdminPage = () => {
       {/* Add file button */}
       <button
         onClick={handleAddFileClick}
-        disabled={uploading}
+        disabled={extracting}
         className={`px-4 py-2 rounded mb-6 flex items-center space-x-2 transition ${
-          uploading
+          extracting
             ? "bg-gray-500 cursor-not-allowed"
             : "bg-[#063970] hover:bg-blue-800"
         } text-white`}
@@ -168,7 +170,7 @@ const AdminPage = () => {
             clipRule="evenodd"
           />
         </svg>
-        <span>{uploading ? "Uploading..." : "Add file"}</span>
+        <span>{extracting ? "Extracting text..." : "Add file"}</span>
       </button>
 
       <input
@@ -178,6 +180,16 @@ const AdminPage = () => {
         onChange={handleFileUpload}
         accept=".pdf,.txt,.doc,.docx"
       />
+
+      {/* Instruction text */}
+      {extracting && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+          <p className="text-blue-700 text-sm">
+            📄 Extracting text from your file... You'll be redirected to the
+            editor to review the content before uploading.
+          </p>
+        </div>
+      )}
 
       {/* File List Table */}
       <div className="bg-white shadow rounded overflow-hidden">
@@ -263,6 +275,21 @@ const AdminPage = () => {
       >
         {loading ? "Loading..." : "Refresh"}
       </button>
+
+      {/* Info section */}
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          How it works:
+        </h3>
+        <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+          <li>Click "Add file" to select a document (PDF, TXT, DOC, DOCX)</li>
+          <li>The system will extract and clean the text content</li>
+          <li>Review and edit the extracted text in the editor</li>
+          <li>
+            Confirm to upload the processed document to the knowledge base
+          </li>
+        </ol>
+      </div>
     </div>
   );
 };
