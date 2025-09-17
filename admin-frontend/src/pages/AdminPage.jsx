@@ -133,6 +133,48 @@ const AdminPage = ({ onFileForReview }) => {
     }
   };
 
+  const handleDownloadFile = async (fileName) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/chatbot/admin/download/${encodeURIComponent(
+          fileName
+        )}/`,
+        {
+          method: "GET",
+        }
+      );
+
+      if (response.ok) {
+        // Create a blob from the response
+        const blob = await response.blob();
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+
+        // Create a temporary download link
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+
+        // Trigger the download
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        console.log(`✅ Downloaded: ${fileName}`);
+      } else {
+        const error = await response.json();
+        alert(`Download failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Download failed. Please try again.");
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -252,6 +294,13 @@ const AdminPage = ({ onFileForReview }) => {
                         {syncingFile === file.name ? "⏳" : "🔄"}
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDownloadFile(file.name)}
+                      className="text-green-600 hover:text-green-900 transition"
+                      title="Download file"
+                    >
+                      📥
+                    </button>
                     <button
                       onClick={() => handleDeleteFile(file.name)}
                       className="text-red-600 hover:text-red-900 transition"

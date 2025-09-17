@@ -30,4 +30,5 @@ urlpatterns = [
     path("admin/sync-to-chroma/", views.admin_sync_file_to_chroma, name="admin_sync_to_chroma"),
     path("admin/extract-text/", views.extract_text_from_file, name="extract_text_from_file"),
     path("admin/upload-processed/", views.upload_processed_file, name="upload_processed_file"),
+    path("admin/download/<str:file_name>/", views.admin_download_file, name="admin_download_file"),
 ]

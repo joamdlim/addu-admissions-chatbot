@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse
 import json
 from .chroma_connection import ChromaService
 from .improved_pdf_to_chroma import sync_supabase_to_chroma_improved
@@ -16,6 +16,8 @@ from .models import Conversation, ConversationTurn, SystemPrompt
 from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
 import os, json
 import uuid
+import io  # Add this import at the top
+from urllib.parse import quote
 
 # Initialize Together AI chatbot at startup
 print("🚀 Initializing Together AI chatbot...")
@@ -447,24 +449,27 @@ def admin_delete_file(request):
             
             # Delete from Supabase storage
             supabase.storage.from_("original-pdfs").remove([file_name])
+            print(f"✅ Deleted from Supabase: {file_name}")
             
-            # Also remove from ChromaDB if it's a PDF
-            if file_name.lower().endswith('.pdf'):
+            # Also remove from ChromaDB for supported file types
+            if file_name.lower().endswith(('.pdf', '.txt', '.docx')):
                 try:
                     from .chroma_connection import ChromaService
-                    chroma_client = ChromaService.get_client()
-                    collection_name = os.getenv("CHROMA_COLLECTION", "documents")
-                    collection = chroma_client.get_or_create_collection(name=collection_name)
+                    collection = ChromaService.get_collection()
                     
-                    # Generate the document ID (same as used during upload)
+                    # Use the same ID format as storage (single document approach)
                     doc_id = os.path.splitext(file_name)[0]
+                    print(f"🗑️ Deleting ChromaDB document: {doc_id}")
                     
-                    # Delete from ChromaDB
                     collection.delete(ids=[doc_id])
                     message = f"File '{file_name}' deleted from both Supabase and ChromaDB"
+                    print(f"✅ Successfully deleted from ChromaDB: {doc_id}")
+                        
                 except Exception as chroma_error:
                     print(f"⚠️ ChromaDB deletion failed for {file_name}: {chroma_error}")
-                    message = f"File '{file_name}' deleted from Supabase but ChromaDB deletion failed"
+                    import traceback
+                    traceback.print_exc()
+                    message = f"File '{file_name}' deleted from Supabase but ChromaDB deletion failed: {str(chroma_error)}"
             else:
                 message = f"File '{file_name}' deleted successfully"
             
@@ -474,9 +479,50 @@ def admin_delete_file(request):
             })
             
         except Exception as e:
+            print(f"❌ Delete failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "DELETE request required"}, status=400)
+
+@csrf_exempt
+def admin_download_file(request, file_name):
+    """Download file from Supabase storage"""
+    try:
+        supabase = get_supabase_client()
+        
+        print(f"📥 Downloading file: {file_name}")
+        
+        # Download file from Supabase
+        file_bytes = supabase.storage.from_("original-pdfs").download(file_name)
+        
+        # Determine content type based on file extension
+        content_type = "application/octet-stream"  # Default
+        if file_name.lower().endswith('.pdf'):
+            content_type = "application/pdf"
+        elif file_name.lower().endswith('.txt'):
+            content_type = "text/plain; charset=utf-8"
+        elif file_name.lower().endswith('.docx'):
+            content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        
+        # Create HTTP response with file
+        response = HttpResponse(file_bytes, content_type=content_type)
+        
+        # Properly encode filename for Content-Disposition header
+        encoded_filename = quote(file_name.encode('utf-8'))
+        response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{encoded_filename}'
+        response['Content-Length'] = len(file_bytes)
+        response['Cache-Control'] = 'no-cache'
+        
+        print(f"✅ File download prepared: {file_name} ({len(file_bytes)} bytes)")
+        return response
+        
+    except Exception as e:
+        print(f"❌ Download failed for {file_name}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Download failed: {str(e)}"}, status=500)
 
 # Keep the manual sync function for individual files if needed
 @csrf_exempt
@@ -490,22 +536,40 @@ def admin_sync_file_to_chroma(request):
             if not file_name:
                 return JsonResponse({"error": "File name required"}, status=400)
             
-            if not file_name.lower().endswith('.pdf'):
-                return JsonResponse({"error": "Only PDF files can be synced to ChromaDB"}, status=400)
+            if not file_name.lower().endswith(('.pdf', '.txt', '.docx')):
+                return JsonResponse({"error": "Only PDF, TXT, and DOCX files can be synced to ChromaDB"}, status=400)
             
             supabase = get_supabase_client()
             
             # Download file from Supabase
-            pdf_bytes = supabase.storage.from_("original-pdfs").download(file_name)
+            print(f"📥 Downloading {file_name} for sync...")
+            file_bytes = supabase.storage.from_("original-pdfs").download(file_name)
             
-            # Process and store in ChromaDB using the improved method
-            from .improved_pdf_to_chroma import process_and_store_pdf_in_chroma_improved
-            result = process_and_store_pdf_in_chroma_improved(
-                pdf_bytes, 
-                file_name,
-                chunk_size=1000,
-                overlap=200
-            )
+            # Process based on file type
+            if file_name.lower().endswith('.pdf'):
+                # Use the existing PDF processing function (single document approach)
+                from .improved_pdf_to_chroma import process_and_store_pdf_in_chroma_improved
+                result = process_and_store_pdf_in_chroma_improved(
+                    file_bytes, 
+                    file_name,
+                    chunk_size=1000,
+                    overlap=200
+                )
+            else:
+                # For TXT/DOCX files, extract text and use single document approach
+                if file_name.lower().endswith('.txt'):
+                    text_content = file_bytes.decode('utf-8', errors='ignore')
+                elif file_name.lower().endswith('.docx'):
+                    try:
+                        import docx
+                        import io
+                        doc = docx.Document(io.BytesIO(file_bytes))
+                        text_content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                    except Exception as docx_error:
+                        return JsonResponse({"error": f"DOCX processing failed: {str(docx_error)}"}, status=500)
+                
+                # Store as single document
+                result = process_text_with_existing_embeddings(text_content, file_name)
             
             return JsonResponse({
                 "status": "success",
@@ -514,6 +578,9 @@ def admin_sync_file_to_chroma(request):
             })
             
         except Exception as e:
+            print(f"❌ Sync failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "POST request required"}, status=400)
@@ -530,29 +597,41 @@ def extract_text_from_file(request):
         file_name = uploaded_file.name
         file_type = uploaded_file.content_type
         
+        print(f"🔍 Extracting text from: {file_name} ({file_type})")
+        
         try:
             extracted_text = ""
             
             if file_name.lower().endswith('.pdf'):
-                # Use the existing PDF extraction function
+                print("📄 Processing PDF file...")
                 from .improved_pdf_to_chroma import extract_and_process_pdf
                 cleaned_text, chunks, analysis = extract_and_process_pdf(file_bytes)
                 extracted_text = cleaned_text
+                
             elif file_name.lower().endswith('.txt'):
-                # Handle text files
+                print("📝 Processing TXT file...")
                 extracted_text = file_bytes.decode('utf-8', errors='ignore')
+                
             elif file_name.lower().endswith('.docx'):
-                # Basic DOCX support (you can enhance this later)
+                print("📄 Processing DOCX file...")
                 try:
                     import docx
                     doc = docx.Document(io.BytesIO(file_bytes))
                     extracted_text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                    if not extracted_text.strip():
+                        extracted_text = "Warning: No text content found in DOCX file."
                 except ImportError:
-                    extracted_text = "DOCX files require python-docx package. Please install it or upload as PDF/TXT."
+                    extracted_text = "Error: python-docx package is required for DOCX files. Please install it: pip install python-docx"
                 except Exception as docx_error:
-                    extracted_text = f"DOCX processing failed: {str(docx_error)}"
+                    print(f"DOCX processing error: {docx_error}")
+                    extracted_text = f"DOCX processing failed: {str(docx_error)}\n\nPlease try converting to PDF or TXT format."
+                    
             else:
-                return JsonResponse({"error": "Unsupported file type. Please use PDF, TXT, or DOCX files."}, status=400)
+                return JsonResponse({
+                    "error": f"Unsupported file type: {file_name}. Please use PDF, TXT, or DOCX files."
+                }, status=400)
+            
+            print(f"✅ Text extracted successfully: {len(extracted_text)} characters")
             
             return JsonResponse({
                 "status": "success",
@@ -563,7 +642,8 @@ def extract_text_from_file(request):
             })
             
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            print(f"❌ Text extraction failed: {str(e)}")
+            return JsonResponse({"error": f"Text extraction failed: {str(e)}"}, status=500)
     
     return JsonResponse({"error": "POST request required"}, status=400)
 
@@ -579,135 +659,50 @@ def upload_processed_file(request):
             original_file_type = data.get("file_type")
             
             print(f"🔍 Processing file: {file_name}")
-            print(f"🔍 Original file type: {original_file_type}")
             print(f"🔍 Text length: {len(processed_text) if processed_text else 0}")
             
             if not file_name or not processed_text:
                 return JsonResponse({"error": "File name and processed text required"}, status=400)
             
+            if not processed_text.strip():
+                return JsonResponse({"error": "Processed text cannot be empty"}, status=400)
+            
             supabase = get_supabase_client()
             
-            # Convert processed text back to bytes for storage
+            # Convert processed text to bytes for storage
             text_bytes = processed_text.encode('utf-8')
             
             # Upload to Supabase storage
+            print(f"📤 Uploading to Supabase: {file_name}")
             result = supabase.storage.from_("original-pdfs").upload(
                 file_name,
                 text_bytes,
-                {"content-type": "text/plain"}  # Always store as text after processing
+                {"content-type": "text/plain"}
             )
-            
             print(f"✅ Uploaded to Supabase: {file_name}")
             
-            # Process and store in ChromaDB - handle both PDFs and text files
+            # Process and store in ChromaDB for supported file types
             if file_name.lower().endswith(('.pdf', '.txt', '.docx')):
                 print(f"🔄 Starting ChromaDB processing for {file_name}")
                 try:
-                    from .chroma_connection import ChromaService
+                    # Use the EXACT same approach as the working version
+                    # Convert the processed text back to bytes and use the existing function
+                    documents_stored = process_text_with_existing_embeddings(
+                        processed_text, 
+                        file_name
+                    )
                     
-                    # Get ChromaDB collection
-                    collection = ChromaService.get_collection()
-                    
-                    # Try smart chunking first, then fallback to simple chunking
-                    print(f"📄 Chunking processed text for {file_name}...")
-                    
-                    chunks = []
-                    try:
-                        from .improved_pdf_to_chroma import smart_chunk_text, initialize_embedding_models
-                        print(f"🔧 Initializing embedding models for {file_name}...")
-                        initialize_embedding_models()
-                        chunks = smart_chunk_text(processed_text, chunk_size=800, overlap=150)
-                        print(f"✅ Smart chunking created {len(chunks)} chunks")
-                    except Exception as smart_chunk_error:
-                        print(f"⚠️ Smart chunking failed: {smart_chunk_error}")
-                        print(f"🔄 Falling back to simple chunking...")
-                        
-                    # Fallback to simple chunking if smart chunking fails or returns no chunks
-                    if not chunks:
-                        print(f"📝 Using simple text chunking...")
-                        chunk_size = 800
-                        overlap = 150
-                        
-                        # Simple text chunking
-                        text_length = len(processed_text)
-                        for i in range(0, text_length, chunk_size - overlap):
-                            chunk_end = min(i + chunk_size, text_length)
-                            chunk_text = processed_text[i:chunk_end].strip()
-                            
-                            if chunk_text:  # Only add non-empty chunks
-                                chunks.append({
-                                    'id': f'simple_chunk_{len(chunks)}',
-                                    'content': chunk_text,
-                                    'size': len(chunk_text),
-                                    'type': 'simple_text'
-                                })
-                        
-                        print(f"✅ Simple chunking created {len(chunks)} chunks")
-                    
-                    print(f"📊 Processing {len(chunks)} chunks for {file_name}...")
-                    
-                    if len(chunks) == 0:
-                        print(f"❌ No chunks created - text might be empty or invalid")
-                        message = f"File '{file_name}' uploaded but no chunks could be created from the text"
-                    else:
-                        # Process chunks in smaller batches to avoid timeout
-                        batch_size = 10
-                        total_stored = 0
-                        
-                        for batch_start in range(0, len(chunks), batch_size):
-                            batch_end = min(batch_start + batch_size, len(chunks))
-                            batch_chunks = chunks[batch_start:batch_end]
-                            
-                            # Prepare batch data
-                            documents = []
-                            metadatas = []
-                            ids = []
-                            
-                            for i, chunk in enumerate(batch_chunks):
-                                actual_index = batch_start + i
-                                chunk_content = chunk.get('content', '') if isinstance(chunk, dict) else str(chunk)
-                                
-                                if chunk_content.strip():  # Only process non-empty content
-                                    documents.append(chunk_content)
-                                    metadatas.append({
-                                        "source": file_name,
-                                        "chunk_index": actual_index,
-                                        "total_chunks": len(chunks),
-                                        "chunk_size": chunk.get('size', len(chunk_content)) if isinstance(chunk, dict) else len(chunk_content),
-                                        "chunk_type": chunk.get('type', 'unknown') if isinstance(chunk, dict) else 'simple',
-                                        "original_file_type": original_file_type,
-                                        "processed_via": "text_editor"
-                                    })
-                                    ids.append(f"{file_name}_chunk_{actual_index}")
-                            
-                            # Add batch to ChromaDB only if we have documents
-                            if documents:
-                                try:
-                                    print(f"💾 Storing batch {batch_start//batch_size + 1}/{(len(chunks)-1)//batch_size + 1} ({len(documents)} docs)...")
-                                    collection.add(
-                                        documents=documents,
-                                        metadatas=metadatas,
-                                        ids=ids
-                                    )
-                                    total_stored += len(documents)
-                                    print(f"✅ Batch {batch_start//batch_size + 1} stored successfully ({len(documents)} docs)")
-                                except Exception as batch_error:
-                                    print(f"⚠️ Batch {batch_start//batch_size + 1} failed: {batch_error}")
-                                    continue
-                            else:
-                                print(f"⚠️ Batch {batch_start//batch_size + 1} skipped - no valid documents")
-                        
-                        message = f"File '{file_name}' uploaded and processed successfully ({total_stored} documents stored in ChromaDB)"
-                        print(f"✅ ChromaDB processing completed: {total_stored} documents")
+                    message = f"File '{file_name}' uploaded and processed successfully ({documents_stored} documents stored in ChromaDB)"
+                    print(f"✅ ChromaDB processing completed: {documents_stored} documents")
                     
                 except Exception as chroma_error:
                     print(f"⚠️ ChromaDB processing failed for {file_name}: {chroma_error}")
                     import traceback
                     traceback.print_exc()
-                    message = f"File '{file_name}' uploaded but ChromaDB processing failed: {str(chroma_error)}"
+                    message = f"File '{file_name}' uploaded to Supabase but ChromaDB processing failed: {str(chroma_error)}"
             else:
                 print(f"ℹ️ Skipping ChromaDB processing (unsupported file type): {file_name}")
-                message = f"File '{file_name}' uploaded successfully (unsupported for ChromaDB)"
+                message = f"File '{file_name}' uploaded successfully"
             
             return JsonResponse({
                 "status": "success",
@@ -722,3 +717,47 @@ def upload_processed_file(request):
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "POST request required"}, status=400)
+
+
+def process_text_with_existing_embeddings(text: str, file_name: str):
+    """Process text using the SAME approach as the original - single document per file"""
+    from .improved_pdf_to_chroma import embed_text, tfidf_vectorizer, word2vec_model
+    from .chroma_connection import ChromaService
+    
+    print(f"🔍 Processing as single document (matching original setup)...")
+    
+    # Check if models are already loaded
+    if tfidf_vectorizer is None or word2vec_model is None:
+        print(f"⚠️ Embedding models not initialized, initializing now...")
+        from .improved_pdf_to_chroma import initialize_embedding_models
+        initialize_embedding_models()
+    else:
+        print(f"✅ Using existing initialized embedding models")
+    
+    # Get ChromaDB collection
+    collection = ChromaService.get_collection()
+    
+    # Store as ONE document per file (same as original)
+    doc_id = os.path.splitext(file_name)[0]
+    
+    try:
+        # Generate single embedding for entire text
+        full_embedding = embed_text(text)
+        
+        collection.add(
+            ids=[doc_id],
+            documents=[text],
+            embeddings=[full_embedding],
+            metadatas=[{
+                "filename": file_name, 
+                "source": "pdf_scrape",
+                "processed_via": "text_editor"
+            }]
+        )
+        
+        print(f"✅ Stored complete document as single entry: {doc_id}")
+        return 1  # Successfully stored 1 document (matching original)
+        
+    except Exception as e:
+        print(f"❌ Failed to store document {file_name}: {e}")
+        raise
