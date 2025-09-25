@@ -31,4 +31,16 @@ urlpatterns = [
     path("admin/extract-text/", views.extract_text_from_file, name="extract_text_from_file"),
     path("admin/upload-processed/", views.upload_processed_file, name="upload_processed_file"),
     path("admin/download/<str:file_name>/", views.admin_download_file, name="admin_download_file"),
+    
+    # Folder management endpoints
+    path("admin/folders/", views.manage_folders, name="manage_folders"),
+    path("admin/folders/<int:folder_id>/", views.manage_folder_detail, name="manage_folder_detail"),
+    
+    # Document metadata management
+    path("admin/documents/", views.manage_document_metadata, name="manage_document_metadata"),
+    path("admin/documents/<str:document_id>/metadata/", views.update_document_metadata, name="update_document_metadata"),
+    path("admin/documents/<str:document_id>/", views.delete_document, name="delete_document"),
+    
+    # Enhanced chat with filtering
+    path("chat/enhanced/", views.enhanced_chat_query, name="enhanced_chat_query"),
 ]

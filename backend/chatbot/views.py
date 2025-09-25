@@ -18,6 +18,8 @@ import os, json
 import uuid
 import io  # Add this import at the top
 from urllib.parse import quote
+from .models import DocumentFolder, DocumentMetadata
+from django.db.models import Count
 
 # Initialize Together AI chatbot at startup
 print("🚀 Initializing Together AI chatbot...")
@@ -364,7 +366,7 @@ def export_chroma_to_local(request):
 
 @csrf_exempt
 def admin_upload_file(request):
-    """Upload file directly to Supabase storage and process it for ChromaDB"""
+    """Upload file directly to Supabase storage and process it for ChromaDB with enhanced metadata"""
     if request.method == "POST":
         if 'file' not in request.FILES:
             return JsonResponse({"error": "No file uploaded"}, status=400)
@@ -372,6 +374,12 @@ def admin_upload_file(request):
         uploaded_file = request.FILES['file']
         file_bytes = uploaded_file.read()
         file_name = uploaded_file.name
+        
+        # Get optional metadata from form data
+        folder_id = request.POST.get('folder_id')
+        document_type = request.POST.get('document_type', 'other')
+        target_program = request.POST.get('target_program', 'all')
+        keywords = request.POST.get('keywords', '')
         
         try:
             supabase = get_supabase_client()
@@ -391,7 +399,11 @@ def admin_upload_file(request):
                         file_bytes, 
                         file_name,
                         chunk_size=1000,
-                        overlap=200
+                        overlap=200,
+                        folder_id=int(folder_id) if folder_id else None,
+                        document_type=document_type,
+                        target_program=target_program,
+                        keywords=keywords
                     )
                     message = f"File '{file_name}' uploaded and processed successfully ({documents_stored} documents stored in ChromaDB)"
                 except Exception as chroma_error:
@@ -407,6 +419,9 @@ def admin_upload_file(request):
             })
             
         except Exception as e:
+            print(f"❌ Upload failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "POST request required"}, status=400)
@@ -761,3 +776,360 @@ def process_text_with_existing_embeddings(text: str, file_name: str):
     except Exception as e:
         print(f"❌ Failed to store document {file_name}: {e}")
         raise
+
+# ===== FOLDER MANAGEMENT API =====
+
+@api_view(['GET', 'POST'])
+def manage_folders(request):
+    """List all folders or create a new folder"""
+    if request.method == 'GET':
+        folders = DocumentFolder.objects.annotate(
+            doc_count=Count('documents')  # Changed from document_count to doc_count
+        ).order_by('name')
+        
+        folder_list = []
+        for folder in folders:
+            # Get document type breakdown
+            type_breakdown = DocumentMetadata.objects.filter(folder=folder).values('document_type').annotate(count=Count('document_type'))
+            
+            folder_list.append({
+                'id': folder.id,
+                'name': folder.name,
+                'description': folder.description,
+                'color': folder.color,
+                'document_count': folder.doc_count,  # Use the annotated field
+                'type_breakdown': list(type_breakdown),
+                'created_at': folder.created_at.isoformat(),
+                'updated_at': folder.updated_at.isoformat(),
+            })
+        
+        return Response({"folders": folder_list})
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name', '').strip()
+            description = data.get('description', '').strip()
+            color = data.get('color', '#063970')
+            
+            if not name:
+                return Response({"error": "Folder name is required"}, status=400)
+            
+            # Check for duplicate names
+            if DocumentFolder.objects.filter(name=name).exists():
+                return Response({"error": "Folder name already exists"}, status=400)
+            
+            folder = DocumentFolder.objects.create(
+                name=name,
+                description=description,
+                color=color
+            )
+            
+            return Response({
+                "message": f"Folder '{name}' created successfully",
+                "folder": {
+                    'id': folder.id,
+                    'name': folder.name,
+                    'description': folder.description,
+                    'color': folder.color,
+                    'document_count': 0,
+                    'created_at': folder.created_at.isoformat(),
+                }
+            })
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def manage_folder_detail(request, folder_id):
+    """Update or delete a specific folder"""
+    try:
+        folder = DocumentFolder.objects.get(id=folder_id)
+    except DocumentFolder.DoesNotExist:
+        return JsonResponse({"error": "Folder not found"}, status=404)
+    
+    if request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+            
+            if 'name' in data:
+                new_name = data['name'].strip()
+                if not new_name:
+                    return JsonResponse({"error": "Folder name cannot be empty"}, status=400)
+                
+                # Check for duplicate names (excluding current folder)
+                if DocumentFolder.objects.filter(name=new_name).exclude(id=folder_id).exists():
+                    return JsonResponse({"error": "Folder name already exists"}, status=400)
+                
+                folder.name = new_name
+            
+            if 'description' in data:
+                folder.description = data['description'].strip()
+            
+            if 'color' in data:
+                folder.color = data['color']
+            
+            folder.save()
+            
+            return JsonResponse({
+                "message": f"Folder '{folder.name}' updated successfully",
+                "folder": {
+                    'id': folder.id,
+                    'name': folder.name,
+                    'description': folder.description,
+                    'color': folder.color,
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    elif request.method == 'DELETE':
+        try:
+            folder_name = folder.name
+            document_count = folder.documents.count()
+            
+            if document_count > 0:
+                return JsonResponse({
+                    "error": f"Cannot delete folder '{folder_name}' - it contains {document_count} documents. Move or delete documents first."
+                }, status=400)
+            
+            folder.delete()
+            return JsonResponse({"message": f"Folder '{folder_name}' deleted successfully"})
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@api_view(['GET', 'POST'])
+def manage_document_metadata(request):
+    """List documents with metadata or update document metadata"""
+    if request.method == 'GET':
+        folder_id = request.GET.get('folder_id')
+        document_type = request.GET.get('document_type')
+        program = request.GET.get('program')
+        
+        queryset = DocumentMetadata.objects.select_related('folder').all()
+        
+        # Apply filters
+        if folder_id:
+            queryset = queryset.filter(folder_id=folder_id)
+        if document_type:
+            queryset = queryset.filter(document_type=document_type)
+        if program:
+            queryset = queryset.filter(target_program=program)
+        
+        documents = []
+        for doc in queryset.order_by('-created_at'):
+            documents.append({
+                'id': doc.id,
+                'document_id': doc.document_id,
+                'filename': doc.filename,
+                'folder': {
+                    'id': doc.folder.id,
+                    'name': doc.folder.name,
+                    'color': doc.folder.color,
+                },
+                'document_type': doc.document_type,
+                'document_type_display': doc.get_document_type_display(),
+                'target_program': doc.target_program,
+                'target_program_display': doc.get_target_program_display(),
+                'keywords': doc.keywords,
+                'keywords_list': doc.get_keywords_list(),
+                'synced_to_chroma': doc.synced_to_chroma,
+                'created_at': doc.created_at.isoformat(),
+                'last_modified': doc.last_modified.isoformat(),
+            })
+        
+        return Response({"documents": documents})
+
+@csrf_exempt
+def update_document_metadata(request, document_id):
+    """Update metadata for a specific document"""
+    if request.method != 'PUT':
+        return JsonResponse({"error": "PUT request required"}, status=400)
+    
+    try:
+        doc_metadata = DocumentMetadata.objects.get(document_id=document_id)
+    except DocumentMetadata.DoesNotExist:
+        return JsonResponse({"error": "Document not found"}, status=404)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Update folder
+        if 'folder_id' in data:
+            try:
+                new_folder = DocumentFolder.objects.get(id=data['folder_id'])
+                doc_metadata.folder = new_folder
+            except DocumentFolder.DoesNotExist:
+                return JsonResponse({"error": "Folder not found"}, status=404)
+        
+        # Update document type
+        if 'document_type' in data:
+            valid_types = [choice[0] for choice in DocumentMetadata.DOCUMENT_TYPES]
+            if data['document_type'] in valid_types:
+                doc_metadata.document_type = data['document_type']
+            else:
+                return JsonResponse({"error": "Invalid document type"}, status=400)
+        
+        # Update target program
+        if 'target_program' in data:
+            valid_programs = [choice[0] for choice in DocumentMetadata.PROGRAMS]
+            if data['target_program'] in valid_programs:
+                doc_metadata.target_program = data['target_program']
+            else:
+                return JsonResponse({"error": "Invalid target program"}, status=400)
+        
+        # Update keywords
+        if 'keywords' in data:
+            doc_metadata.keywords = data['keywords'].strip()
+        
+        doc_metadata.save()
+        
+        # Update ChromaDB metadata
+        try:
+            from .chroma_connection import ChromaService
+            collection = ChromaService.get_collection()
+            
+            # Get current document
+            result = collection.get(ids=[document_id], include=["metadatas", "documents"])
+            if result['ids']:
+                # Update metadata while preserving document content
+                updated_metadata = doc_metadata.get_chroma_metadata()
+                collection.update(
+                    ids=[document_id],
+                    metadatas=[updated_metadata]
+                )
+                print(f"✅ Updated ChromaDB metadata for {document_id}")
+            
+        except Exception as chroma_error:
+            print(f"⚠️ Failed to update ChromaDB metadata: {chroma_error}")
+        
+        return JsonResponse({
+            "message": f"Document metadata updated successfully",
+            "document": {
+                'id': doc_metadata.id,
+                'document_id': doc_metadata.document_id,
+                'filename': doc_metadata.filename,
+                'folder': doc_metadata.folder.name,
+                'document_type': doc_metadata.get_document_type_display(),
+                'target_program': doc_metadata.get_target_program_display(),
+                'keywords': doc_metadata.keywords,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+def delete_document(request, document_id):
+    """Delete document from database, Supabase storage, and ChromaDB"""
+    if request.method != 'DELETE':
+        return JsonResponse({"error": "DELETE request required"}, status=400)
+    
+    try:
+        # Get the document metadata
+        doc_metadata = DocumentMetadata.objects.get(document_id=document_id)
+        filename = doc_metadata.filename
+        
+        # Delete from Supabase storage
+        try:
+            supabase = get_supabase_client()
+            supabase.storage.from_("original-pdfs").remove([filename])
+            print(f"✅ Deleted from Supabase: {filename}")
+        except Exception as supabase_error:
+            print(f"⚠️ Supabase deletion failed for {filename}: {supabase_error}")
+            # Continue with other deletions even if Supabase fails
+        
+        # Delete from ChromaDB
+        try:
+            from .chroma_connection import ChromaService
+            collection = ChromaService.get_collection()
+            
+            # Delete all chunks for this document
+            # ChromaDB stores document chunks with IDs like "document_id_chunk_0", "document_id_chunk_1", etc.
+            result = collection.get(include=["metadatas"])
+            doc_ids_to_delete = []
+            
+            for i, metadata in enumerate(result.get('metadatas', [])):
+                if metadata and metadata.get('source_document_id') == document_id:
+                    doc_ids_to_delete.append(result['ids'][i])
+            
+            if doc_ids_to_delete:
+                collection.delete(ids=doc_ids_to_delete)
+                print(f"✅ Deleted {len(doc_ids_to_delete)} chunks from ChromaDB for document: {document_id}")
+            else:
+                print(f"⚠️ No ChromaDB chunks found for document: {document_id}")
+                
+        except Exception as chroma_error:
+            print(f"⚠️ ChromaDB deletion failed for {document_id}: {chroma_error}")
+            # Continue with database deletion even if ChromaDB fails
+        
+        # Delete from Django database
+        doc_metadata.delete()
+        print(f"✅ Deleted from database: {document_id}")
+        
+        return JsonResponse({
+            "status": "success",
+            "message": f"Document '{filename}' deleted successfully from all systems"
+        })
+        
+    except DocumentMetadata.DoesNotExist:
+        return JsonResponse({"error": "Document not found"}, status=404)
+    except Exception as e:
+        print(f"❌ Delete failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+@api_view(['POST'])
+def enhanced_chat_query(request):
+    """Enhanced chat endpoint with folder/type filtering"""
+    try:
+        data = json.loads(request.body)
+        query = data.get('query', '').strip()
+        
+        if not query:
+            return Response({"error": "Query is required"}, status=400)
+        
+        # Optional manual filters
+        manual_filters = {}
+        if data.get('folder_filter'):
+            manual_filters['folder_filter'] = data['folder_filter']
+        if data.get('document_type_filter'):
+            manual_filters['document_type_filter'] = data['document_type_filter']
+        if data.get('program_filter'):
+            manual_filters['program_filter'] = data['program_filter']
+        
+        # Initialize chatbot
+        from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
+        chatbot = FastHybridChatbotTogether(use_chroma=True, chroma_collection_name="documents")
+        
+        # Process query with intent analysis
+        if manual_filters:
+            response, sources = chatbot.process_query_with_intent_analysis(
+                query, 
+                manual_filters=manual_filters,
+                stream=False,
+                require_context=True,
+                min_relevance=0.3
+            )
+        else:
+            response, sources = chatbot.process_query_with_intent_analysis(
+                query,
+                stream=False,
+                require_context=True,
+                min_relevance=0.3
+            )
+        
+        return Response({
+            "response": response,
+            "sources": sources,
+            "query": query,
+            "applied_filters": manual_filters if manual_filters else chatbot.analyze_query_intent(query)
+        })
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

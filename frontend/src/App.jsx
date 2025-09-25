@@ -1,7 +1,6 @@
 import React from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { ChatPage } from "./pages/ChatPage";
-import AdminPage from "./pages/AdminPage";
 import adduLogo from "./assets/addu.png"; // Make sure this path is correct!
 
 function App() {
@@ -25,19 +24,19 @@ function App() {
           </div>
         </div>
 
-        <button
+        {/* <button
           onClick={() => navigate("/admin")}
           className="bg-white text-[#063970] px-4 py-2 rounded shadow hover:bg-gray-100 transition"
         >
           Admin Page
-        </button>
+        </button> */}
       </header>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<ChatPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          {/* <Route path="/admin" element={<AdminPage />} /> */}
         </Routes>
       </div>
     </div>

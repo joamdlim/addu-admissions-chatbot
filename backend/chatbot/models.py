@@ -79,3 +79,79 @@ class SystemPrompt(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.token_count} tokens)"
+
+class DocumentFolder(models.Model):
+    """Represents a folder for organizing documents"""
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=7, default="#063970")  # Hex color
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    @property
+    def document_count(self):
+        return self.documents.count()
+
+class DocumentMetadata(models.Model):
+    """Enhanced metadata for documents stored in ChromaDB"""
+    # Document identification
+    document_id = models.CharField(max_length=255, unique=True)  # Matches ChromaDB doc ID
+    filename = models.CharField(max_length=255)
+    
+    # Folder organization
+    folder = models.ForeignKey(DocumentFolder, on_delete=models.CASCADE, related_name='documents')
+    
+    # Categorization metadata
+    DOCUMENT_TYPES = [
+        ('admission', 'Admission Requirements'),
+        ('enrollment', 'Enrollment Process'),
+        ('scholarship', 'Scholarships & Financial Aid'),
+        ('academic', 'Academic Programs'),
+        ('fees', 'Fees & Payments'),
+        ('policy', 'Policies & Procedures'),
+        ('contact', 'Contact Information'),
+        ('other', 'Other'),
+    ]
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='other')
+    
+    PROGRAMS = [
+        ('undergraduate', 'Undergraduate Programs'),
+        ('graduate', 'Graduate Programs'),
+        ('senior_high', 'Senior High School'),
+        ('all', 'All Programs'),
+    ]
+    target_program = models.CharField(max_length=20, choices=PROGRAMS, default='all')
+    
+    # Keywords for better searchability
+    keywords = models.TextField(blank=True, help_text="Comma-separated keywords")
+    
+    # Administrative tracking
+    uploaded_by = models.CharField(max_length=255, blank=True)
+    last_modified = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # ChromaDB sync tracking
+    synced_to_chroma = models.BooleanField(default=False)
+    chroma_metadata_hash = models.CharField(max_length=64, blank=True)  # For change detection
+    
+    def __str__(self):
+        return f"{self.filename} ({self.folder.name})"
+    
+    def get_keywords_list(self):
+        return [k.strip() for k in self.keywords.split(',') if k.strip()]
+    
+    def get_chroma_metadata(self):
+        """Generate metadata dict for ChromaDB storage"""
+        return {
+            'filename': self.filename,
+            'source': 'pdf_scrape',
+            'folder_id': str(self.folder.id),
+            'folder_name': self.folder.name,
+            'document_type': self.document_type,
+            'target_program': self.target_program,
+            'keywords': self.keywords,
+            'document_id': self.document_id,
+        }

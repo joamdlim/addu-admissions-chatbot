@@ -226,9 +226,12 @@ def extract_and_process_pdf(pdf_bytes: bytes, chunk_size: int = 1000, overlap: i
     return cleaned_text, chunks, analysis
 
 def process_and_store_pdf_in_chroma_improved(pdf_bytes: bytes, pdf_file_name: str, 
-                                           chunk_size: int = 1000, overlap: int = 200):
+                                           chunk_size: int = 1000, overlap: int = 200,
+                                           folder_id: int = None, document_type: str = 'other',
+                                           target_program: str = 'all', keywords: str = ''):
     """
     Process PDF with improved pdfplumber extraction and store as ONE document per PDF in ChromaDB
+    Enhanced with folder organization and metadata
     """
     print(f"🔄 Processing PDF: {pdf_file_name}")
     
@@ -262,20 +265,62 @@ def process_and_store_pdf_in_chroma_improved(pdf_bytes: bytes, pdf_file_name: st
     # Store as ONE document per PDF
     doc_id = os.path.splitext(pdf_file_name)[0]
     
+    # Import Django models here to avoid circular imports
+    from django.apps import apps
+    DocumentFolder = apps.get_model('chatbot', 'DocumentFolder')
+    DocumentMetadata = apps.get_model('chatbot', 'DocumentMetadata')
+    
     try:
+        # Get or create default folder if none specified
+        if folder_id:
+            try:
+                folder = DocumentFolder.objects.get(id=folder_id)
+            except DocumentFolder.DoesNotExist:
+                folder, _ = DocumentFolder.objects.get_or_create(
+                    name="Uncategorized",
+                    defaults={'description': 'Default folder for uncategorized documents'}
+                )
+        else:
+            folder, _ = DocumentFolder.objects.get_or_create(
+                name="Uncategorized",
+                defaults={'description': 'Default folder for uncategorized documents'}
+            )
+        
+        # Create or update document metadata
+        doc_metadata, created = DocumentMetadata.objects.update_or_create(
+            document_id=doc_id,
+            defaults={
+                'filename': pdf_file_name,
+                'folder': folder,
+                'document_type': document_type,
+                'target_program': target_program,
+                'keywords': keywords,
+                'synced_to_chroma': False,
+            }
+        )
+        
+        # Generate enhanced metadata for ChromaDB
+        chroma_metadata = doc_metadata.get_chroma_metadata()
+        chroma_metadata.update({
+            'step_analysis': analysis["order"]
+        })
+        
         full_embedding = embed_text(cleaned_text)
         collection.add(
             ids=[doc_id],
             documents=[cleaned_text],
             embeddings=[full_embedding],
-            metadatas=[{
-                "filename": pdf_file_name, 
-                "source": "pdf_scrape",
-                "step_analysis": analysis["order"]
-            }]
+            metadatas=[chroma_metadata]
         )
+        
+        # Update sync status
+        doc_metadata.synced_to_chroma = True
+        doc_metadata.save()
+        
         print(f"✅ Stored complete PDF as single document: {doc_id}")
+        print(f"📁 Assigned to folder: {folder.name}")
         return 1  # Successfully stored 1 document
+        
     except Exception as e:
         print(f"❌ Failed to store PDF {pdf_file_name}: {e}")
         raise

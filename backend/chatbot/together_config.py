@@ -4,7 +4,7 @@ Replaces llama_config.py for hosted API usage.
 """
 
 # Together AI model configuration
-TOGETHER_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"  # Fast and efficient
+TOGETHER_MODEL = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"  # Fast and efficient
 # Alternative models you can use:
 # "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"  # More powerful but slower
 # "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo"  # Most powerful but slowest
