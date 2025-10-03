@@ -670,20 +670,20 @@ const AdminPage = ({ onFileForReview }) => {
             </div>
             {/* Filter indicator on the same line */}
             {selectedFolder && (
-              <div className="flex items-center bg-blue-100 px-3 py-1.5 rounded">
+              <div className="flex items-center justify-center bg-blue-100 px-3 py-1.5 rounded">
+                <button
+                  onClick={() => setSelectedFolder(null)}
+                  className="mr-2 text-blue-700 hover:text-blue-900 text-sm"
+                >
+                  ✕
+                </button>
                 <div
                   className="w-2.5 h-2.5 rounded mr-1.5"
                   style={{ backgroundColor: selectedFolder.color }}
                 ></div>
-                <span className="text-xs font-medium text-blue-900">
+                <span className="text-sm font-medium text-blue-900">
                   Filtered by: {selectedFolder.name}
                 </span>
-                <button
-                  onClick={() => setSelectedFolder(null)}
-                  className="ml-2 text-blue-700 hover:text-blue-900 text-sm"
-                >
-                  ✕
-                </button>
               </div>
             )}
           </div>
