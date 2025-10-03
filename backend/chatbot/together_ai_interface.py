@@ -250,11 +250,31 @@ class MockLLM:
 # Create the mock llm instance
 llm = MockLLM()
 
+def stream_response_together(prompt: str, max_tokens: int = 150):
+    """
+    Generate a streaming response that yields string chunks
+    This is for the chatbot's streaming interface
+    """
+    # Get streaming result
+    stream_result = generate_fast_response(prompt, max_tokens, stream=True)
+    
+    # Process the stream and yield string chunks
+    try:
+        for chunk in stream_result:
+            if isinstance(chunk, dict) and "choices" in chunk and chunk["choices"]:
+                if isinstance(chunk["choices"][0], dict) and "delta" in chunk["choices"][0]:
+                    text_chunk = chunk["choices"][0]["delta"]["content"]
+                    yield text_chunk  # Yield just the string, not the dict
+    except Exception as e:
+        print(f"⚠️ Streaming error: {e}")
+        yield ""  # Yield empty string on error
+
 # Export the same interface as the original file
 __all__ = [
     "generate_fast_response",
     "generate_response", 
     "stream_response",
+    "stream_response_together",  # Add this
     "correct_typos",
     "predict_next_words",
     "llm",

@@ -225,81 +225,177 @@ class FastHybridChatbotTogether:
         return hybrid_vector
     
     def retrieve_documents_hybrid(self, query: str, top_k: int = 2) -> List[Dict]:
-        """Multi-stage hybrid retrieval using semantic + metadata + folder intelligence + dynamic program detection"""
-        print(f"🔍 HYBRID RETRIEVAL for: '{query}'")
+        """
+        TWO-STAGE RETRIEVAL:
+        1. Keyword search (fast, exact matches)
+        2. Semantic search (fallback for fuzzy matches)
+        Combines both for final ranking
+        """
+        import re
         
-        # Stage 1: Enhanced Intent Analysis with Dynamic Detection
-        query_lower = query.lower()
+        print(f"�� Retrieving for: '{query}'")
         
-        # Detect if this is a curriculum/subject query
-        is_curriculum_query = any(word in query_lower for word in [
-            'curriculum', 'course', 'subject', 'program structure', 'study plan',
-            'what courses', 'what subjects', 'semester courses', 'year courses'
-        ])
-        
-        # Enhanced detection with dynamic program discovery
-        folder_and_filename = self._detect_smart_folder_and_filename_dynamic(query_lower, None)
-        document_type, type_confidence = self._detect_document_type_with_confidence(query_lower)
-        program_filter, program_confidence = self._detect_program_with_confidence(query_lower)
-        
-        # Override document type for curriculum queries
-        if is_curriculum_query:
-            document_type = 'academic'
-            folder_and_filename['folder_filter'] = 'Subjects'
-        
-        intent = {
-            'document_type': document_type,
-            'program_filter': program_filter,
-            'folder_filter': folder_and_filename.get('folder_filter'),
-            'program_hint': folder_and_filename.get('program_hint'),
-            'is_curriculum_query': is_curriculum_query,
-            'type_confidence': type_confidence,
-            'program_confidence': program_confidence
-        }
-        
-        print(f"📊 Intent: folder={intent.get('folder_filter')}, program_hint={intent.get('program_hint')}, type={document_type}")
-        
-        # Stage 2: Multi-Strategy Retrieval
-        all_candidates = []
-        
-        # Strategy A: Filename-Aware Retrieval (Highest Priority for Subjects)
-        if intent.get('folder_filter') == 'Subjects' and intent.get('program_hint'):
-            filename_results = self._retrieve_with_filename_intelligence_dynamic(query, intent, top_k)
-            all_candidates.extend([(doc, 'filename', doc['relevance'] * 1.3) for doc in filename_results])
-            print(f"📄 Filename strategy: {len(filename_results)} docs")
-        
-        # Strategy B: Metadata-First (High Precision)
-        if document_type or program_filter:
-            metadata_results = self._retrieve_with_metadata_priority(query, intent, top_k)
-            all_candidates.extend([(doc, 'metadata', doc['relevance'] * 1.2) for doc in metadata_results])
-            print(f"📋 Metadata strategy: {len(metadata_results)} docs")
-        
-        # Strategy C: Folder-Aware (Medium Precision)
-        if intent.get('folder_filter'):
-            folder_results = self._retrieve_with_folder_priority(query, intent, top_k)
-            all_candidates.extend([(doc, 'folder', doc['relevance'] * 1.1) for doc in folder_results])
-            print(f"📁 Folder strategy: {len(folder_results)} docs")
-        
-        # Strategy D: Pure Semantic (High Recall)
-        semantic_results = self._retrieve_semantic_only(query, top_k * 2)
-        all_candidates.extend([(doc, 'semantic', doc['relevance']) for doc in semantic_results])
-        print(f"🧠 Semantic strategy: {len(semantic_results)} docs")
-        
-        # Stage 3: Smart Deduplication & Scoring
-        final_results = self._merge_and_rank_candidates(all_candidates, query, top_k)
-        
-        print(f"✅ Final results: {len(final_results)} docs")
-        for i, doc in enumerate(final_results):
-            filename = doc.get('filename', 'N/A')
-            strategy = doc.get('retrieval_strategy', 'N/A')
-            score = doc.get('hybrid_score', 0)
-            program_hint = intent.get('program_hint', 'N/A')
-            print(f"   {i+1}. {filename} (strategy: {strategy}, score: {score:.3f}, program: {program_hint})")
-        
-        return final_results
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Extract query terms
+            query_lower = query.lower()
+            stop_words = {'what', 'is', 'the', 'a', 'an', 'for', 'in', 'on', 'at', 'to', 
+                          'of', 'and', 'or', 'are', 'can', 'you', 'tell', 'me', 'about',
+                          'how', 'when', 'where', 'who', 'which', 'do', 'does', 'i', 'my'}
+            
+            query_terms = set(re.findall(r'\b[a-z0-9]{2,}\b', query_lower)) - stop_words
+            print(f"📝 Query terms: {query_terms}")
+            
+            # STAGE 1: Get ALL documents (no limit) to search keywords
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Searching through {len(all_ids)} documents...")
+            
+            # KEYWORD SCORING for ALL documents
+            keyword_candidates = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                filename = metadata.get('filename', '')
+                keywords = metadata.get('keywords', '')
+                
+                filename_lower = filename.lower()
+                keywords_lower = keywords.lower()
+                content_lower = content.lower()
+                
+                # Count keyword matches - USE WORD BOUNDARIES to avoid substring matches
+                filename_matches = 0
+                keyword_matches = 0
+                content_matches = 0
+                
+                for term in query_terms:
+                    # Use regex word boundaries \b to match whole words only
+                    # This prevents "arch" from matching "Anthropology"
+                    term_pattern = r'\b' + re.escape(term) + r'\b'
+                    
+                    # Filename matching (whole words)
+                    if re.search(term_pattern, filename_lower):
+                        filename_matches += 1
+                    
+                    # Keywords matching (whole words)
+                    if re.search(term_pattern, keywords_lower):
+                        keyword_matches += 1
+                    
+                    # Content matching (whole words)
+                    if re.search(term_pattern, content_lower):
+                        content_matches += 1
+                
+                total_terms = len(query_terms) if query_terms else 1
+                
+                # Calculate keyword score
+                keyword_score = (
+                    (filename_matches * 3.0) +
+                    (keyword_matches * 2.0) +
+                    (content_matches * 0.5)  # Content is less important (too broad)
+                ) / total_terms
+                
+                # Only keep if it has SOME keyword match
+                if keyword_score > 0:
+                    keyword_candidates.append({
+                        'id': doc_id,
+                        'content': content,
+                        'metadata': metadata,
+                        'keyword_score': keyword_score,
+                        'filename_matches': filename_matches,
+                        'keyword_matches': keyword_matches,
+                        'content_matches': content_matches
+                    })
+            
+            print(f"�� Found {len(keyword_candidates)} documents with keyword matches")
+            
+            # STAGE 2: Get semantic embeddings for top keyword candidates
+            q_emb = _embed_text(query)
+            
+            # Get embeddings for top 20 keyword candidates
+            top_keyword_ids = [c['id'] for c in sorted(keyword_candidates, key=lambda x: x['keyword_score'], reverse=True)[:20]]
+            
+            # Also get top 20 semantic results
+            semantic_results = collection.query(
+                query_embeddings=[q_emb],
+                n_results=20,
+                include=["documents", "distances", "metadatas"],
+                where={"source": "pdf_scrape"}
+            )
+            
+            semantic_ids = semantic_results.get("ids", [[]])[0]
+            semantic_distances = semantic_results.get("distances", [[]])[0]
+            
+            # Create semantic score lookup
+            semantic_scores = {}
+            for doc_id, distance in zip(semantic_ids, semantic_distances):
+                semantic_scores[doc_id] = float(1.0 / (1.0 + distance))
+            
+            # COMBINE both approaches
+            final_results = []
+            seen_ids = set()
+            
+            # First, add keyword candidates with semantic scores
+            for candidate in keyword_candidates:
+                doc_id = candidate['id']
+                if doc_id in seen_ids:
+                    continue
+                seen_ids.add(doc_id)
+                
+                keyword_score = candidate['keyword_score']
+                semantic_score = semantic_scores.get(doc_id, 0.3)  # Default low score if not in top semantic
+                
+                # If strong keyword match, heavily favor keywords
+                if candidate['filename_matches'] >= 2 or candidate['keyword_matches'] >= 2:
+                    final_score = keyword_score * 0.8 + semantic_score * 0.2
+                else:
+                    final_score = keyword_score * 0.5 + semantic_score * 0.5
+                
+                final_results.append({
+                    'id': doc_id,
+                    'content': candidate['content'],
+                    'relevance': final_score,
+                    'folder': candidate['metadata'].get('folder_name', 'Unknown'),
+                    'document_type': candidate['metadata'].get('document_type', 'other'),
+                    'target_program': candidate['metadata'].get('target_program', 'all'),
+                    'filename': candidate['metadata'].get('filename', ''),
+                    'retrieval_strategy': 'keyword-first',
+                    'hybrid_score': final_score,
+                    '_debug': {
+                        'semantic': semantic_score,
+                        'keyword': keyword_score,
+                        'filename_matches': candidate['filename_matches'],
+                        'keyword_matches': candidate['keyword_matches'],
+                        'content_matches': candidate['content_matches']
+                    }
+                })
+            
+            # Sort by final score
+            final_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            # Debug output
+            print(f"✅ Top {min(top_k, len(final_results))} results:")
+            for i, doc in enumerate(final_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:70]}")
+                print(f"       Score: {doc['relevance']:.3f} (sem={debug['semantic']:.3f}, kw={debug['keyword']:.3f})")
+                print(f"       Matches: file={debug['filename_matches']}, kw={debug['keyword_matches']}, content={debug['content_matches']}")
+            
+            return final_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
 
     def retrieve_documents(self, query: str, top_k: int = 2) -> List[Dict]:
-        """Main retrieval method - use hybrid approach with dynamic program detection"""
+        """Main retrieval - always use simplified hybrid"""
         if self.use_chroma:
             return self.retrieve_documents_hybrid(query, top_k)
         elif self.vectors is not None and self.tfidf_vectorizer is not None:
@@ -362,58 +458,109 @@ class FastHybridChatbotTogether:
     def _retrieve_from_chroma(self, query: str, top_k: int = 2, 
                              folder_filter: str = None, document_type_filter: str = None,
                              program_filter: str = None) -> List[Dict]:
+        """Enhanced retrieval with proper ChromaDB filtering and keyword boosting"""
+        import re
+        
         q_emb = _embed_text(query)
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # Build where clause for filtering
-            where_clause = {"source": "pdf_scrape"}  # Base filter
+            # Build where clause with proper $and operator for multiple conditions
+            conditions = [{"source": "pdf_scrape"}]  # Base condition
             
-            # Add folder filtering
             if folder_filter:
-                where_clause["folder_name"] = folder_filter
-            
-            # Add document type filtering
+                conditions.append({"folder_name": folder_filter})
             if document_type_filter:
-                where_clause["document_type"] = document_type_filter
-                
-            # Add program filtering
+                conditions.append({"document_type": document_type_filter})
             if program_filter and program_filter != 'all':
-                where_clause["target_program"] = {"$in": [program_filter, "all"]}
+                conditions.append({"target_program": {"$in": [program_filter, "all"]}})
             
+            # Use $and only if we have multiple conditions
+            if len(conditions) > 1:
+                where_clause = {"$and": conditions}
+            else:
+                where_clause = conditions[0]
+            
+            print(f"🔍 ChromaDB where clause: {where_clause}")
+            
+            # Get MORE results for keyword re-ranking
             res = collection.query(
                 query_embeddings=[q_emb],
-                n_results=max(top_k, 5),
+                n_results=max(top_k * 4, 20),  # Get 4x more for re-ranking
                 include=["documents", "distances", "metadatas"],
                 where=where_clause
             )
             
-            # relevance = 1/(1+d) fallback to 1.0 if no distances
             ids = res.get("ids", [[]])[0]
             docs = res.get("documents", [[]])[0]
             metadatas = res.get("metadatas", [[]])[0]
-            d = res.get("distances", [None])[0]
+            distances = res.get("distances", [None])[0]
+            
+            # UNIVERSAL KEYWORD EXTRACTION
+            query_lower = query.lower()
+            stop_words = {'what', 'is', 'the', 'a', 'an', 'for', 'in', 'on', 'at', 'to', 
+                          'of', 'and', 'or', 'are', 'can', 'you', 'tell', 'me', 'about',
+                          'how', 'when', 'where', 'who', 'which', 'do', 'does', 'i', 'my', 'will'}
+            
+            query_terms = set(re.findall(r'\b[a-z0-9]{2,}\b', query_lower))
+            query_terms = query_terms - stop_words
+            
+            print(f"🔍 Query terms: {query_terms}")
+            
             out = []
             for i, (doc_id, content) in enumerate(zip(ids, docs)):
-                if d is not None and i < len(d) and d[i] is not None:
-                    rel = float(1.0 / (1.0 + d[i]))
+                # Semantic score
+                if distances is not None and i < len(distances) and distances[i] is not None:
+                    semantic_score = float(1.0 / (1.0 + distances[i]))
                 else:
-                    rel = 1.0  # accept when distances aren't present
+                    semantic_score = 1.0
                     
-                # Include metadata in result
                 metadata = metadatas[i] if i < len(metadatas) else {}
+                
+                # KEYWORD MATCHING
+                content_lower = content.lower()
+                filename_lower = metadata.get('filename', '').lower()
+                keywords_lower = metadata.get('keywords', '').lower()
+                
+                matches = 0
+                for term in query_terms:
+                    if term in filename_lower:
+                        matches += 1.5  # Filename = highest priority
+                    elif term in keywords_lower:
+                        matches += 1.3  # Keywords = medium priority
+                    elif term in content_lower:
+                        matches += 1.0  # Content = normal priority
+                
+                keyword_score = min(matches / len(query_terms), 1.0) if query_terms else 0.0
+                
+                # Combine: 60% semantic + 40% keyword
+                final_score = (semantic_score * 0.6) + (keyword_score * 0.4)
+                
                 out.append({
                     "id": doc_id, 
                     "content": content, 
-                    "relevance": rel,
+                    "relevance": final_score,
                     "folder": metadata.get("folder_name", "Unknown"),
                     "document_type": metadata.get("document_type", "other"),
                     "target_program": metadata.get("target_program", "all"),
-                    "filename": metadata.get("filename", "")
+                    "filename": metadata.get("filename", ""),
+                    "_semantic": semantic_score,
+                    "_keyword": keyword_score
                 })
-            return out
+            
+            # Sort by combined score
+            out.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            print(f"📊 Top {min(top_k, len(out))} results:")
+            for i, doc in enumerate(out[:top_k]):
+                print(f"   {i+1}. {doc['filename'][:60]} | score={doc['relevance']:.3f} (sem={doc['_semantic']:.3f} + kw={doc['_keyword']:.3f})")
+            
+            return out[:top_k]
+            
         except Exception as e:
-            print(f"Error querying Chroma: {e}")
+            print(f"❌ Error querying Chroma: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def analyze_query_intent(self, query: str) -> Dict[str, str]:
@@ -776,24 +923,27 @@ RULES:
             # Start timing
             start_time = time.time()
             
-            # Optional typo correction
-            if correct_spelling and len(query) < 50:
-                corrected_query = correct_typos(query)
-                if corrected_query.lower() != query.lower():
-                    query = corrected_query
-                    yield {"info": f"Corrected query: '{query}' → '{corrected_query}'"}
+            # DISABLE typo correction - it's causing issues
+            # if correct_spelling and len(query) < 50:
+            #     corrected_query = correct_typos(query)
+            #     if corrected_query.lower() != query.lower():
+            #         query = corrected_query
+            #         yield {"info": f"Corrected query: '{query}' → '{corrected_query}'"}
 
-            # Retrieve docs (same logic as process_query)
+            # SIMPLE RETRIEVAL - No context expansion
+            # expanded_query = self._expand_query_with_context(query)
+
+            # Retrieve docs with original query
             try:
                 relevant_docs = self.retrieve_documents(query)
             except Exception as e:
                 yield {"error": f"Retrieval error: {e}"}
                 return
 
-            # Add debug info before filtering to see what we're getting from ChromaDB
+            # Add debug info
             print(f"🔍 RAW RETRIEVAL DEBUG:")
-            print(f"📊 Query: '{query}'")
-            print(f"�� Raw retrieved docs: {len(relevant_docs)}")
+            print(f"📝 Query: '{query}'")
+            print(f"📄 Raw retrieved docs: {len(relevant_docs)}")
             for i, doc in enumerate(relevant_docs):
                 print(f"   Raw Doc {i+1}: {doc['id']} (Relevance: {doc.get('relevance', 'N/A'):.3f})")
             print(f"📏 Min relevance threshold: {min_relevance}")
@@ -832,79 +982,40 @@ RULES:
                 yield {"done": True}
                 return
 
-            # Build context from retrieved docs (same as process_query)
+            # Build context from retrieved docs
             doc_context = "\n\n".join([
                 f"Source: {doc.get('id','')}\n{doc['content']}"
                 for doc in relevant_docs[:3]
             ])
 
-            # History context (same as process_query)
+            # History context
             history_context = ""
             if use_history and self.dialogue_history:
-                # Calculate available token budget for history
                 base_prompt = f"Context information:\n{doc_context}\nQuestion: {query}\nInstructions: You must answer strictly and only using the context above.\nAnswer:"
-                base_tokens = len(base_prompt.split())  # This is ~187 tokens
-                available_for_history = 3700 - base_tokens  # 3700 - 187 = 3513 tokens
-                
-                # Use smart history building
+                base_tokens = len(base_prompt.split())
+                available_for_history = 3700 - base_tokens
                 history_context = self.build_smart_history_context(query, available_for_history)
             else:
                 history_context = ""
 
-            # Build prompt optimized for complete responses
+            # Build prompt
             prompt = f"""<|system|>
-You are AdmissionsRAG Assistant, a grounded, retrieval-augmented chatbot for first-year admissions. 
+You are an admissions assistant. Answer questions using ONLY the provided context.
 
-CORE INSTRUCTIONS:
-- Use ONLY information from the provided ChromaDB context below
-- NEVER use external knowledge, web results, or model priors
-- NEVER fabricate facts, dates, fees, URLs, names, or policies
-- If relevant data is not found in retrieved chunks, use the grounded fallback response
-- Cite document titles or IDs from ChromaDB when appropriate (no external links)
-
-COMPLETENESS REQUIREMENT:
-- PROVIDE COMPLETE AND COMPREHENSIVE answers using ALL relevant information from the context
-- Include ALL steps, requirements, documents, fees, and details mentioned in the context
-- Do NOT truncate, summarize, or skip any important information from the retrieved context
-- If the context contains multiple sections, include ALL of them in your response
-
-FORMATTING RULES:
-- Keep paragraphs short and scannable
-- Use clear headings when helpful (e.g., "Enrollment Process", "Required Documents", "Additional Fees", "Curricullum for X Program", " X Year - X Semester Courses")
-- When listing items, put each list number on its own line:
-  1. First item
-  2. Second item
-  3. Third item
-- Use tables only if the retrieved data is tabular (fees, dates, score bands)
-- Bold sparingly for emphasis on critical terms (dates, fees, must-have documents)
-
-TONE & ATTITUDE:
-- Friendly, direct, and student-first
-- Confident when data is available; transparent when it isn't
-- No fluff, no hype, no speculation
-
-SCOPE CONTROL:
-- Answer only admissions-related questions using ChromaDB content
-- For anything outside admissions scope, decline and redirect to supported topics
-
-FALLBACK RESPONSE:
-If retrieval returns no relevant results or confidence is low, respond with:
-"I don't have that information in my admissions knowledge base. Here are some ways I can help you:
-1. Specify your campus or program of interest
-2. Ask about application deadlines or requirements
-3. Inquire about specific intake terms"
-
-SAFETY & INTEGRITY:
-- Do not provide legal, medical, or immigration advice beyond what's in ChromaDB
-- If documents conflict, present the conflict and suggest confirming with admissions office
-- Cite sources as: [doc_title or doc_id, section/page if available]
+RULES:
+- Be direct and concise
+- Use simple formatting
+- No introductory phrases like "Based on the provided documentation"
+- No closing phrases like "I hope this helps"
+- Start directly with the answer
+- Use numbered lists for steps
+- Use bullet points for items
+- Bold important terms only when necessary
 </|system|>
 
 <|context|>
 {doc_context}
 </|context|>
-
-{history_context}
 
 <|user|>
 {query}
@@ -913,64 +1024,32 @@ SAFETY & INTEGRITY:
 <|assistant|>
 """
 
-            print(f"🔍 DEBUG INFO:")
-            print(f"📊 Query: '{query}'")
+            # Generate streaming response
+            from .together_ai_interface import stream_response_together
+            
+            print(f"\n🔍 DEBUG INFO:")
+            print(f"📝 Query: '{query}'")
             print(f"📄 Retrieved docs: {len(relevant_docs)}")
             for i, doc in enumerate(relevant_docs):
                 print(f"   Doc {i+1}: {doc['id']} (Relevance: {doc.get('relevance', 'N/A'):.3f})")
-            print(f"�� History entries: {len(self.dialogue_history)}")
-            print(f"📏 Doc context: {len(doc_context)} chars (~{len(doc_context.split())} tokens)")
-            print(f"�� History context: {len(history_context)} chars (~{len(history_context.split())} tokens)")
-            print(f"�� Total prompt: {len(prompt)} chars (~{len(prompt.split())} tokens)")
-            print(f"📏 Estimated tokens left for response: {4096 - len(prompt.split())}")
-            print("=" * 70)
             
-            # Stream from Together AI
             full_response = ""
+            for chunk in stream_response_together(prompt, max_tokens=max_tokens):
+                full_response += chunk
+                yield {"chunk": chunk}
             
-            # Create streaming config optimized for complete responses
-            stream_config = TOGETHER_CONFIG.copy()
-            stream_config.update({
-                "stream": True,
-                "max_tokens": max_tokens,
-                "temperature": 0.1,  # Much more deterministic
-                "top_p": 0.8,        # More focused
-                "top_k": 20,         # More focused
-                "repetition_penalty": 1.1,
-                "stop": ["</|assistant|>", "<|user|>", "<|system|>", "USER QUESTION:", "CONTEXT:", "<|context|>", "I hope this helps", "Based on the provided"]
-            })
+            # Add to history
+            self.add_to_history(query, full_response)
             
-            try:
-                # Generate streaming response from Together AI
-                for chunk in llm(prompt, echo=False, **stream_config):
-                    if isinstance(chunk, dict):
-                        # Handle Together AI response format
-                        if 'choices' in chunk and len(chunk['choices']) > 0:
-                            choice = chunk['choices'][0]
-                            
-                            # Handle different response formats
-                            text_chunk = ""
-                            if 'delta' in choice and 'content' in choice['delta']:
-                                text_chunk = choice['delta']['content']
-                            elif 'text' in choice:
-                                text_chunk = choice['text']
-                            
-                            if text_chunk:
-                                full_response += text_chunk
-                                yield {"chunk": text_chunk}
-                
-                # Add to conversation history
-                self.add_to_history(query, full_response)
-                
-                # Calculate total time
-                total_time = time.time() - start_time
-                yield {"info": f"Total processing time: {total_time:.2f}s"}
-                yield {"done": True}
-                
-            except Exception as e:
-                yield {"error": f"Together AI generation error: {e}"}
-                
+            total_time = time.time() - start_time
+            print(f"⏱️ Total processing time: {total_time:.2f}s")
+            
+            yield {"done": True}
+            
         except Exception as e:
+            print(f"❌ Streaming error: {e}")
+            import traceback
+            traceback.print_exc()
             yield {"error": f"Processing error: {e}"}
 
     def _discover_programs_from_data(self):
