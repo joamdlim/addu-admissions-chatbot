@@ -23,18 +23,18 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-[#063970] text-white p-4 flex justify-between items-center shadow-md">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-gray-100">
+      {/* Header - Fixed Height */}
+      <header className="bg-[#063970] text-white p-3 flex justify-between items-center shadow-md flex-shrink-0">
         <div className="flex items-center">
           <img
             src={adduLogo}
             alt="Ateneo de Davao University Logo"
-            className="w-16 h-16 rounded-full mr-4"
+            className="w-12 h-12 rounded-full mr-3"
           />
           <div>
-            <h1 className="text-xl font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
-            <p className="text-sm">
+            <h1 className="text-lg font-bold">ATENEO DE DAVAO UNIVERSITY</h1>
+            <p className="text-xs">
               ADMISSIONS AI ASSISTANT - ADMIN PANEL
               {currentPage === "editor" && " - DOCUMENT EDITOR"}
             </p>
@@ -50,7 +50,7 @@ function App() {
         )}
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - Remaining Height */}
       <div className="flex-1 overflow-hidden">
         {currentPage === "admin" && (
           <AdminPage onFileForReview={handleFileForReview} />

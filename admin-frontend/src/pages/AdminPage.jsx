@@ -658,8 +658,9 @@ const AdminPage = ({ onFileForReview }) => {
           </div>
         </div>
 
-        {/* Documents Table - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Documents Section with Fixed Header and Scrollable Table */}
+        <div className="flex-1 flex flex-col overflow-hidden p-4">
+          {/* Fixed Header */}
           <div className="mb-3 flex justify-between items-center">
             <div>
               <h3 className="text-base font-bold text-gray-900">Documents</h3>
@@ -688,38 +689,51 @@ const AdminPage = ({ onFileForReview }) => {
             )}
           </div>
 
-          {/* Documents Table */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-[#063970] text-white">
+          {/* Table Container with Fixed Height and Scrollable Body */}
+          <div
+            className="bg-white rounded-lg shadow-md overflow-hidden"
+            style={{ height: "calc(100vh - 350px)" }} // Increased the subtracted value to make it shorter
+          >
+            {/* Table Header (Fixed) */}
+            <div className="sticky top-0 z-10 bg-[#063970]">
+              <table className="w-full table-fixed">
+                <thead className="text-white">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/4 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wider">
                       Document
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/6 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wider">
                       Folder
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/6 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/4 px-4 py-1.5 text-left text-xs font-medium uppercase tracking-wider">
                       Keywords
                     </th>
-                    <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/12 px-4 py-1.5 text-center text-xs font-medium uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider">
+                    <th className="w-1/12 px-4 py-1.5 text-right text-xs font-medium uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
+              </table>
+            </div>
+
+            {/* Table Body (Scrollable) */}
+            <div
+              className="overflow-y-auto"
+              style={{ maxHeight: "calc(100vh - 400px)" }} // Increased the subtracted value to make it shorter
+            >
+              <table className="w-full table-fixed">
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredDocuments.length === 0 ? (
                     <tr>
                       <td
                         colSpan="6"
-                        className="px-4 py-6 text-center text-gray-500 text-sm"
+                        className="px-4 py-4 text-center text-gray-500 text-sm"
                       >
                         {selectedFolder
                           ? `No documents in "${selectedFolder.name}" folder`
@@ -729,10 +743,10 @@ const AdminPage = ({ onFileForReview }) => {
                   ) : (
                     filteredDocuments.map((doc, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-xs text-gray-900">
+                        <td className="w-1/4 px-4 py-2 text-xs text-gray-900">
                           <div className="font-medium">{doc.filename}</div>
                         </td>
-                        <td className="px-4 py-3 text-xs">
+                        <td className="w-1/6 px-4 py-2 text-xs">
                           <div className="flex items-center">
                             <div
                               className="w-2.5 h-2.5 rounded mr-1.5"
@@ -743,10 +757,10 @@ const AdminPage = ({ onFileForReview }) => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
+                        <td className="w-1/6 px-4 py-2 text-xs text-gray-500">
                           {doc.document_type_display}
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
+                        <td className="w-1/4 px-4 py-2 text-xs text-gray-500">
                           <div className="max-w-xs">
                             {doc.keywords_list.slice(0, 3).map((keyword) => (
                               <span
@@ -783,7 +797,7 @@ const AdminPage = ({ onFileForReview }) => {
                               )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="w-1/12 px-4 py-2 text-center">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                               doc.synced_to_chroma
@@ -799,7 +813,7 @@ const AdminPage = ({ onFileForReview }) => {
                             {doc.synced_to_chroma ? "✓ Synced" : "✗ Not synced"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right text-xs font-medium space-x-2">
+                        <td className="w-1/12 px-4 py-2 whitespace-nowrap text-right text-xs font-medium space-x-2">
                           <button
                             onClick={() => {
                               setSelectedDocument(doc);
@@ -826,6 +840,10 @@ const AdminPage = ({ onFileForReview }) => {
                       </tr>
                     ))
                   )}
+                  {/* Add empty row at the bottom for padding */}
+                  <tr className="h-4">
+                    <td colSpan="6"></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
