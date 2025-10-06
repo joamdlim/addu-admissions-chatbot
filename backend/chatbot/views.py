@@ -1105,20 +1105,10 @@ def delete_document(request, document_id):
             from .chroma_connection import ChromaService
             collection = ChromaService.get_collection()
             
-            # Delete all chunks for this document
-            # ChromaDB stores document chunks with IDs like "document_id_chunk_0", "document_id_chunk_1", etc.
-            result = collection.get(include=["metadatas"])
-            doc_ids_to_delete = []
-            
-            for i, metadata in enumerate(result.get('metadatas', [])):
-                if metadata and metadata.get('source_document_id') == document_id:
-                    doc_ids_to_delete.append(result['ids'][i])
-            
-            if doc_ids_to_delete:
-                collection.delete(ids=doc_ids_to_delete)
-                print(f"✅ Deleted {len(doc_ids_to_delete)} chunks from ChromaDB for document: {document_id}")
-            else:
-                print(f"⚠️ No ChromaDB chunks found for document: {document_id}")
+            # Delete the document from ChromaDB
+            # Documents are stored with the document_id as the ID
+            collection.delete(ids=[document_id])
+            print(f"✅ Deleted from ChromaDB: {document_id}")
                 
         except Exception as chroma_error:
             print(f"⚠️ ChromaDB deletion failed for {document_id}: {chroma_error}")
