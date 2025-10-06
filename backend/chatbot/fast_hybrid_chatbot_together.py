@@ -1976,6 +1976,18 @@ RULES:
 - **INCLUDE**: The whole document context given for the matched program
 - **AVOID**: Graduate programs, master's degrees, doctoral programs, senior high school programs
 
+=== LINK HANDLING ===
+- **END WITH LINKS**: Always end your response with source links from the context documents
+- **HYPERLINKS**: Format URLs as clickable hyperlinks using Markdown syntax: [link text](URL)
+- **CRITICAL**: Use the EXACT URL from the document metadata - DO NOT modify, autocorrect, or change ANY part of the URL
+- **NO CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", do NOT modify any part of the original URL
+- **PRESERVE ORIGINAL**: Copy the URL character-for-character exactly as it appears in the source document
+- **FORMAT**: Use "For more information about [topic], head to this link: [link text](EXACT_URL_FROM_DOCUMENT)"
+- **EXAMPLE WITH TYPO**: If the URL contains "Technolgy" (missing 'o'), keep it as "Technolgy" - do NOT change to "Technology"
+- **EXAMPLES**: 
+  - "For more information about the curriculum of the program, head to this link: [BS Information Technology Curriculum](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Information-Technolgy.pdf)"
+  - "For more information about course details, head to this link: [View Course Details](https://www.addu.edu.ph/programs/computer-science)"
+
 === PROGRAMS WE COVER ===
 
 **ARTS AND SCIENCES**: AB Anthropology (various tracks), AB Communication, AB Development Studies, AB Economics, AB English Language, AB Interdisciplinary Studies (various minors), AB International Studies, AB Islamic Studies, AB Philosophy, AB Political Science, AB Psychology, AB Sociology, BS Biology, BS Chemistry, BS Computer Science, BS Data Science, BS Environmental Science, BS Information Systems, BS Information Technology, BS Mathematics, BS Social Work
@@ -2105,6 +2117,8 @@ This will ensure you get the most relevant and up-to-date information for your q
             prompt = f"""<|system|>
 You are an ADDU (Ateneo de Davao University) Admissions Assistant. You provide accurate, helpful information based strictly on the provided context documents.
 
+CRITICAL URL RULE: When displaying URLs, use the EXACT URL from the source document. Do NOT modify, autocorrect, or change ANY part of URLs. If a URL contains "Technolgy" (missing 'o'), keep it as "Technolgy" - do NOT change to "Technology".
+
 {topic_specific_instructions}
 
 GENERAL RESPONSE RULES:
@@ -2113,6 +2127,9 @@ GENERAL RESPONSE RULES:
 - Use bullet points for lists
 - Use numbered lists for step-by-step processes
 - Bold important terms and amounts
+- **HYPERLINKS**: Format URLs as clickable links using Markdown: [link text](URL)
+- **PRESERVE URLS**: Use EXACT URLs from source documents - DO NOT modify, autocorrect, or change any part of URLs
+- **NO URL CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", copy URLs character-for-character
 - No introductory phrases like "Based on the documents"
 - No closing phrases like "I hope this helps"
 - If information is not available in the context, state clearly what specific information is missing
