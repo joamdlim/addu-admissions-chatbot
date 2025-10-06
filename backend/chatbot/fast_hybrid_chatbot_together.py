@@ -1978,7 +1978,7 @@ RULES:
 
 === PROGRAMS WE COVER ===
 
-**ARTS AND SCIENCES**: AB Anthropology (various tracks), AB Communication, AB Development Studies, AB Economics, AB English Language, AB Interdisciplinary Studies (various minors), AB International Studies, AB Islamic Studies, AB Philosophy, AB Political Studies, AB Psychology, AB Sociology, BS Biology, BS Chemistry, BS Computer Science, BS Data Science, BS Environmental Science, BS Information Systems, BS Information Technology, BS Mathematics, BS Social Work
+**ARTS AND SCIENCES**: AB Anthropology (various tracks), AB Communication, AB Development Studies, AB Economics, AB English Language, AB Interdisciplinary Studies (various minors), AB International Studies, AB Islamic Studies, AB Philosophy, AB Political Science, AB Psychology, AB Sociology, BS Biology, BS Chemistry, BS Computer Science, BS Data Science, BS Environmental Science, BS Information Systems, BS Information Technology, BS Mathematics, BS Social Work
 
 **BUSINESS AND GOVERNANCE**: Bachelor in Public Management, BSA, BSMA, BSBM, BS Entrepreneurship (including Agri-Business), BS Finance, BS HRDM, BS Marketing
 
