@@ -944,15 +944,57 @@ def manage_folder_detail(request, folder_id):
     elif request.method == 'DELETE':
         try:
             folder_name = folder.name
-            document_count = folder.documents.count()
+            documents_in_folder = folder.documents.all()
+            document_count = documents_in_folder.count()
             
             if document_count > 0:
-                return JsonResponse({
-                    "error": f"Cannot delete folder '{folder_name}' - it contains {document_count} documents. Move or delete documents first."
-                }, status=400)
-            
-            folder.delete()
-            return JsonResponse({"message": f"Folder '{folder_name}' deleted successfully"})
+                # Delete all documents from Supabase, ChromaDB, and database
+                deleted_count = 0
+                failed_deletions = []
+                
+                for doc_metadata in documents_in_folder:
+                    try:
+                        # Delete from Supabase storage
+                        try:
+                            supabase = get_supabase_client()
+                            supabase.storage.from_("original-pdfs").remove([doc_metadata.filename])
+                            print(f"✅ Deleted from Supabase: {doc_metadata.filename}")
+                        except Exception as supabase_error:
+                            print(f"⚠️ Supabase deletion failed for {doc_metadata.filename}: {supabase_error}")
+                        
+                        # Delete from ChromaDB
+                        try:
+                            from .chroma_connection import ChromaService
+                            collection = ChromaService.get_collection()
+                            collection.delete(ids=[doc_metadata.document_id])
+                            print(f"✅ Deleted from ChromaDB: {doc_metadata.document_id}")
+                        except Exception as chroma_error:
+                            print(f"⚠️ ChromaDB deletion failed for {doc_metadata.document_id}: {chroma_error}")
+                        
+                        # Delete from database
+                        doc_metadata.delete()
+                        deleted_count += 1
+                        print(f"✅ Deleted from database: {doc_metadata.document_id}")
+                        
+                    except Exception as doc_error:
+                        print(f"❌ Failed to delete document {doc_metadata.filename}: {doc_error}")
+                        failed_deletions.append(doc_metadata.filename)
+                
+                # Delete the folder
+                folder.delete()
+                
+                if failed_deletions:
+                    return JsonResponse({
+                        "message": f"Folder '{folder_name}' deleted with {deleted_count} documents. Failed to delete: {', '.join(failed_deletions)}"
+                    })
+                else:
+                    return JsonResponse({
+                        "message": f"Folder '{folder_name}' and all {deleted_count} documents deleted successfully from all systems"
+                    })
+            else:
+                # Folder is empty, just delete it
+                folder.delete()
+                return JsonResponse({"message": f"Empty folder '{folder_name}' deleted successfully"})
             
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
