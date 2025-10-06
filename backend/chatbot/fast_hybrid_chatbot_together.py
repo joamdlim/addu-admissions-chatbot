@@ -54,6 +54,11 @@ except ImportError:
 
 from chatbot.chroma_connection import ChromaService
 from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
+from chatbot.topics import (
+    TOPICS, CONVERSATION_STATES, BUTTON_CONFIGS, 
+    get_topic_keywords, find_matching_topics, 
+    get_topic_retrieval_strategy, get_retrieval_strategy_config
+)
 
 def sparse_to_array(sparse_matrix):
     """Convert sparse matrix to numpy array safely"""
@@ -116,6 +121,13 @@ class FastHybridChatbotTogether:
         # Initialize dialogue history
         self.dialogue_history = []
         self.max_history_length = 5  # Keep last 5 exchanges
+        
+        # Session state for guided conversation
+        self.session_state = {
+            'current_topic': None,
+            'conversation_state': CONVERSATION_STATES['TOPIC_SELECTION'],
+            'session_id': None
+        }
         
         self.use_chroma = use_chroma
         self.chroma_collection_name = chroma_collection_name or os.getenv("CHROMA_COLLECTION", "documents")
@@ -224,6 +236,825 @@ class FastHybridChatbotTogether:
         
         return hybrid_vector
     
+    def retrieve_documents_by_topic_keywords_simple(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+        """
+        Simplified topic-filtered retrieval that avoids complex ChromaDB queries.
+        Uses keyword filtering first, then basic semantic search.
+        """
+        import re
+        
+        print(f"🎯 Simple topic-filtered retrieval for: '{query}' (topic: {topic_id})")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get topic keywords
+            topic_keywords = get_topic_keywords(topic_id)
+            if not topic_keywords:
+                print(f"⚠️ No keywords found for topic: {topic_id}")
+                return []
+            
+            print(f"📝 Topic keywords: {topic_keywords}")
+            
+            # Get ALL documents to filter by keywords
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Searching through {len(all_ids)} documents...")
+            
+            # Filter documents by topic keywords
+            topic_filtered_results = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                
+                # Check if document keywords match any topic keywords
+                keyword_matches = 0
+                matched_keywords = []
+                
+                for topic_keyword in topic_keywords:
+                    topic_keyword_lower = topic_keyword.lower()
+                    # Use word boundaries to avoid substring matches
+                    pattern = r'\b' + re.escape(topic_keyword_lower) + r'\b'
+                    
+                    if re.search(pattern, doc_keywords) or re.search(pattern, filename):
+                        keyword_matches += 1
+                        matched_keywords.append(topic_keyword)
+                
+                # Only include documents that match at least one topic keyword
+                if keyword_matches > 0:
+                    topic_relevance = keyword_matches / len(topic_keywords)
+                    
+                    topic_filtered_results.append({
+                        'id': doc_id,
+                        'content': content,
+                        'relevance': topic_relevance,
+                        'folder': metadata.get('folder_name', 'Unknown'),
+                        'document_type': metadata.get('document_type', 'other'),
+                        'target_program': metadata.get('target_program', 'all'),
+                        'filename': metadata.get('filename', ''),
+                        'retrieval_strategy': 'simple-topic-filtered',
+                        'current_topic': topic_id,
+                        '_debug': {
+                            'topic_score': topic_relevance,
+                            'semantic_score': 0.0,
+                            'topic_keyword_matches': keyword_matches,
+                            'matched_keywords': matched_keywords
+                        }
+                    })
+            
+            print(f"🎯 Found {len(topic_filtered_results)} documents matching topic keywords")
+            
+            if not topic_filtered_results:
+                print(f"❌ No documents found for topic: {topic_id}")
+                return []
+            
+            # Sort by topic relevance and return top results
+            topic_filtered_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            # Debug output
+            print(f"✅ Top {min(top_k, len(topic_filtered_results))} simple topic-filtered results:")
+            for i, doc in enumerate(topic_filtered_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:70]}")
+                print(f"       Score: {doc['relevance']:.3f} (topic matches: {debug['topic_keyword_matches']})")
+                print(f"       Matched keywords: {debug['matched_keywords']}")
+            
+            return topic_filtered_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Simple topic-filtered retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    # ===== HELPER METHODS FOR SPECIALIZED RETRIEVAL =====
+    
+    def _detect_student_type(self, query: str) -> str:
+        """Detect student type from query for admissions specialization"""
+        query_lower = query.lower()
+        
+        if any(term in query_lower for term in ['transfer', 'shifter', 'lateral']):
+            return 'transfer'
+        elif any(term in query_lower for term in ['international', 'foreign', 'overseas']):
+            return 'international'
+        elif any(term in query_lower for term in ['scholar', 'scholarship', 'financial aid']):
+            return 'scholar'
+        elif any(term in query_lower for term in ['new student', 'freshman', 'first year', 'incoming']):
+            return 'new'
+        else:
+            return 'general'
+    
+    def _detect_requirement_type(self, query: str) -> str:
+        """Detect requirement type from query"""
+        query_lower = query.lower()
+        
+        if any(term in query_lower for term in ['documents', 'requirements', 'needed', 'submit']):
+            return 'documents'
+        elif any(term in query_lower for term in ['process', 'procedure', 'steps', 'how to']):
+            return 'process'
+        elif any(term in query_lower for term in ['exam', 'test', 'assessment']):
+            return 'examination'
+        else:
+            return 'general'
+    
+    def _extract_program_info(self, query: str) -> dict:
+        """Extract program information from query for programs specialization"""
+        query_lower = query.lower()
+        
+        program_info = {
+            'program_name': None,
+            'degree_level': None,
+            'year_level': None,
+            'course_code': None
+        }
+        
+        # Detect program names
+        program_patterns = {
+            'computer science': ['computer science', 'cs', 'compsci'],
+            'information technology': ['information technology', 'it', 'infotech'],
+            'business administration': ['business administration', 'business', 'ba', 'bsba'],
+            'engineering': ['engineering', 'engr'],
+            'nursing': ['nursing', 'bsn'],
+            'education': ['education', 'teaching']
+        }
+        
+        for program, patterns in program_patterns.items():
+            if any(pattern in query_lower for pattern in patterns):
+                program_info['program_name'] = program
+                break
+        
+        # Detect degree level
+        if any(term in query_lower for term in ['undergraduate', 'bachelor', 'bs', 'ba']):
+            program_info['degree_level'] = 'undergraduate'
+        elif any(term in query_lower for term in ['graduate', 'master', 'ms', 'ma']):
+            program_info['degree_level'] = 'graduate'
+        elif any(term in query_lower for term in ['senior high', 'shs']):
+            program_info['degree_level'] = 'senior_high'
+        
+        # Detect year level
+        year_patterns = {
+            'first': ['first year', '1st year', 'freshman'],
+            'second': ['second year', '2nd year', 'sophomore'],
+            'third': ['third year', '3rd year', 'junior'],
+            'fourth': ['fourth year', '4th year', 'senior']
+        }
+        
+        for year, patterns in year_patterns.items():
+            if any(pattern in query_lower for pattern in patterns):
+                program_info['year_level'] = year
+                break
+        
+        return program_info
+    
+    def _extract_fee_info(self, query: str) -> dict:
+        """Extract fee information from query for fees specialization"""
+        import re
+        query_lower = query.lower()
+        
+        fee_info = {
+            'fee_type': None,
+            'amount_mentioned': False,
+            'payment_term': None,
+            'program_level': None
+        }
+        
+        # Detect fee types
+        fee_types = {
+            'tuition': ['tuition', 'tuition fee'],
+            'miscellaneous': ['miscellaneous', 'misc fee', 'other fees'],
+            'laboratory': ['laboratory', 'lab fee'],
+            'registration': ['registration', 'enrollment fee'],
+            'graduation': ['graduation', 'graduation fee']
+        }
+        
+        for fee_type, patterns in fee_types.items():
+            if any(pattern in query_lower for pattern in patterns):
+                fee_info['fee_type'] = fee_type
+                break
+        
+        # Check if amount is mentioned
+        if re.search(r'\d+', query_lower) or any(term in query_lower for term in ['cost', 'price', 'amount', 'how much']):
+            fee_info['amount_mentioned'] = True
+        
+        # Detect payment terms
+        if any(term in query_lower for term in ['installment', 'payment plan', 'schedule']):
+            fee_info['payment_term'] = 'installment'
+        elif any(term in query_lower for term in ['full payment', 'lump sum']):
+            fee_info['payment_term'] = 'full'
+        
+        # Detect program level for fee differentiation
+        if any(term in query_lower for term in ['undergraduate', 'bachelor']):
+            fee_info['program_level'] = 'undergraduate'
+        elif any(term in query_lower for term in ['graduate', 'master']):
+            fee_info['program_level'] = 'graduate'
+        
+        return fee_info
+    
+    def _calculate_admissions_filename_score(self, filename: str, student_type: str, requirement_type: str) -> float:
+        """Calculate filename score for admissions documents"""
+        score = 0.0
+        
+        # Base score for admissions-related filenames
+        if any(term in filename for term in ['admission', 'enrollment', 'requirement']):
+            score += 0.5
+        
+        # Bonus for student type match
+        if student_type != 'general':
+            if student_type in filename:
+                score += 0.3
+        
+        # Bonus for requirement type match
+        if requirement_type != 'general':
+            if requirement_type in filename or (requirement_type == 'documents' and 'requirement' in filename):
+                score += 0.2
+        
+        return min(score, 1.0)
+    
+    def _calculate_programs_filename_score(self, filename: str, program_info: dict) -> float:
+        """Calculate filename score for programs documents"""
+        score = 0.0
+        
+        # Base score for program-related filenames
+        if any(term in filename for term in ['curriculum', 'program', 'course', 'syllabus']):
+            score += 0.4
+        
+        # Bonus for program name match
+        if program_info['program_name'] and program_info['program_name'].replace(' ', '') in filename.replace(' ', ''):
+            score += 0.4
+        
+        # Bonus for year level match
+        if program_info['year_level']:
+            year_patterns = {
+                'first': ['1st', 'first', '1'],
+                'second': ['2nd', 'second', '2'],
+                'third': ['3rd', 'third', '3'],
+                'fourth': ['4th', 'fourth', '4']
+            }
+            patterns = year_patterns.get(program_info['year_level'], [])
+            if any(pattern in filename for pattern in patterns):
+                score += 0.2
+        
+        return min(score, 1.0)
+    
+    def _calculate_fees_filename_score(self, filename: str, fee_info: dict) -> float:
+        """Calculate filename score for fees documents"""
+        score = 0.0
+        
+        # Base score for fee-related filenames
+        if any(term in filename for term in ['fee', 'tuition', 'payment', 'cost']):
+            score += 0.4
+        
+        # Bonus for specific fee type match
+        if fee_info['fee_type'] and fee_info['fee_type'] in filename:
+            score += 0.3
+        
+        # Bonus for program level match
+        if fee_info['program_level'] and fee_info['program_level'] in filename:
+            score += 0.2
+        
+        return min(score, 1.0)
+    
+    def _calculate_keyword_score(self, doc_keywords: str, query_lower: str) -> float:
+        """Calculate keyword matching score (shared across specializations)"""
+        if not doc_keywords or not query_lower:
+            return 0.0
+        
+        query_terms = set(query_lower.split())
+        keyword_terms = set(doc_keywords.split())
+        
+        if not query_terms:
+            return 0.0
+        
+        matches = len(query_terms.intersection(keyword_terms))
+        return matches / len(query_terms)
+    
+    def _calculate_admissions_content_score(self, content: str, query_lower: str, student_type: str) -> float:
+        """Calculate content score for admissions documents"""
+        score = 0.0
+        query_terms = query_lower.split()
+        
+        # Basic term matching
+        matches = sum(1 for term in query_terms if term in content)
+        if query_terms:
+            score += (matches / len(query_terms)) * 0.5
+        
+        # Bonus for student type context
+        if student_type != 'general' and student_type in content:
+            score += 0.3
+        
+        return min(score, 1.0)
+    
+    def _calculate_programs_content_score(self, content: str, query_lower: str, program_info: dict) -> float:
+        """Calculate content score for programs documents"""
+        score = 0.0
+        query_terms = query_lower.split()
+        
+        # Basic term matching
+        matches = sum(1 for term in query_terms if term in content)
+        if query_terms:
+            score += (matches / len(query_terms)) * 0.4
+        
+        # Bonus for program name in content
+        if program_info['program_name'] and program_info['program_name'] in content:
+            score += 0.4
+        
+        return min(score, 1.0)
+    
+    def _calculate_fees_content_score(self, content: str, query_lower: str, fee_info: dict) -> float:
+        """Calculate content score for fees documents"""
+        score = 0.0
+        query_terms = query_lower.split()
+        
+        # Basic term matching
+        matches = sum(1 for term in query_terms if term in content)
+        if query_terms:
+            score += (matches / len(query_terms)) * 0.4
+        
+        # Bonus for fee type in content
+        if fee_info['fee_type'] and fee_info['fee_type'] in content:
+            score += 0.3
+        
+        # Bonus for amount-related content if amount was mentioned in query
+        if fee_info['amount_mentioned'] and any(term in content for term in ['php', 'peso', 'amount', 'cost']):
+            score += 0.2
+        
+        return min(score, 1.0)
+
+    # ===== SPECIALIZED TOPIC RETRIEVAL FUNCTIONS =====
+    
+    def retrieve_admissions_documents(self, query: str, top_k: int = 2) -> List[Dict]:
+        """
+        Specialized retrieval for admissions, enrollment, requirements, and documents.
+        Optimized for detecting student types and requirement-specific queries.
+        """
+        import re
+        
+        print(f"🎓 Admissions-specialized retrieval for: '{query}'")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get strategy configuration
+            strategy_config = get_retrieval_strategy_config('admissions_specialized')
+            document_types = strategy_config.get('document_types', ['admission', 'enrollment', 'scholarship'])
+            priorities = strategy_config.get('metadata_priorities', {})
+            
+            # Detect student type from query
+            student_type = self._detect_student_type(query)
+            print(f"📝 Detected student type: {student_type}")
+            
+            # Detect requirement type
+            requirement_type = self._detect_requirement_type(query)
+            print(f"📋 Detected requirement type: {requirement_type}")
+            
+            # Get documents with admissions-specific filtering
+            where_clause = {
+                "$and": [
+                    {"source": "pdf_scrape"},
+                    {"$or": [{"document_type": doc_type} for doc_type in document_types]}
+                ]
+            }
+            
+            all_docs = collection.get(
+                where=where_clause,
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Found {len(all_ids)} admissions-related documents")
+            
+            # Score documents with admissions-specific logic
+            scored_results = []
+            query_lower = query.lower()
+            
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                filename = metadata.get('filename', '').lower()
+                doc_keywords = metadata.get('keywords', '').lower()
+                content_lower = content.lower()
+                
+                # Calculate specialized scores
+                filename_score = self._calculate_admissions_filename_score(filename, student_type, requirement_type)
+                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
+                content_score = self._calculate_admissions_content_score(content_lower, query_lower, student_type)
+                
+                # Apply strategy priorities
+                final_score = (
+                    filename_score * priorities.get('filename', 0.4) +
+                    keyword_score * priorities.get('keywords', 0.3) +
+                    content_score * priorities.get('content', 0.3)
+                )
+                
+                if final_score > 0:
+                    scored_results.append({
+                        'id': doc_id,
+                        'content': content,
+                        'relevance': final_score,
+                        'folder': metadata.get('folder_name', 'Unknown'),
+                        'document_type': metadata.get('document_type', 'other'),
+                        'target_program': metadata.get('target_program', 'all'),
+                        'filename': metadata.get('filename', ''),
+                        'retrieval_strategy': 'admissions_specialized',
+                        'current_topic': 'admissions_enrollment',
+                        '_debug': {
+                            'filename_score': filename_score,
+                            'keyword_score': keyword_score,
+                            'content_score': content_score,
+                            'student_type': student_type,
+                            'requirement_type': requirement_type
+                        }
+                    })
+            
+            # Sort and return top results
+            scored_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            print(f"✅ Top {min(top_k, len(scored_results))} admissions results:")
+            for i, doc in enumerate(scored_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:60]}")
+                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
+                print(f"       Student type: {debug['student_type']}, Requirement: {debug['requirement_type']}")
+            
+            return scored_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Admissions retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def retrieve_programs_documents(self, query: str, top_k: int = 2) -> List[Dict]:
+        """
+        Specialized retrieval for programs, courses, and curriculum.
+        Optimized for program name extraction and curriculum document matching.
+        """
+        import re
+        
+        print(f"📚 Programs-specialized retrieval for: '{query}'")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get strategy configuration
+            strategy_config = get_retrieval_strategy_config('programs_specialized')
+            document_types = strategy_config.get('document_types', ['academic', 'curriculum'])
+            priorities = strategy_config.get('metadata_priorities', {})
+            
+            # Extract program information from query
+            program_info = self._extract_program_info(query)
+            print(f"🎯 Extracted program info: {program_info}")
+            
+            # Get documents with programs-specific filtering
+            where_clause = {
+                "$and": [
+                    {"source": "pdf_scrape"},
+                    {"$or": [{"document_type": doc_type} for doc_type in document_types]}
+                ]
+            }
+            
+            all_docs = collection.get(
+                where=where_clause,
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Found {len(all_ids)} program-related documents")
+            
+            # Score documents with programs-specific logic
+            scored_results = []
+            query_lower = query.lower()
+            
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                filename = metadata.get('filename', '').lower()
+                doc_keywords = metadata.get('keywords', '').lower()
+                content_lower = content.lower()
+                
+                # Calculate specialized scores
+                filename_score = self._calculate_programs_filename_score(filename, program_info)
+                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
+                content_score = self._calculate_programs_content_score(content_lower, query_lower, program_info)
+                
+                # Apply strategy priorities
+                final_score = (
+                    filename_score * priorities.get('filename', 0.5) +
+                    keyword_score * priorities.get('keywords', 0.3) +
+                    content_score * priorities.get('content', 0.2)
+                )
+                
+                if final_score > 0:
+                    scored_results.append({
+                        'id': doc_id,
+                        'content': content,
+                        'relevance': final_score,
+                        'folder': metadata.get('folder_name', 'Unknown'),
+                        'document_type': metadata.get('document_type', 'other'),
+                        'target_program': metadata.get('target_program', 'all'),
+                        'filename': metadata.get('filename', ''),
+                        'retrieval_strategy': 'programs_specialized',
+                        'current_topic': 'programs_courses',
+                        '_debug': {
+                            'filename_score': filename_score,
+                            'keyword_score': keyword_score,
+                            'content_score': content_score,
+                            'program_info': program_info
+                        }
+                    })
+            
+            # Sort and return top results
+            scored_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            print(f"✅ Top {min(top_k, len(scored_results))} programs results:")
+            for i, doc in enumerate(scored_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:60]}")
+                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
+                print(f"       Program info: {debug['program_info']}")
+            
+            return scored_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Programs retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def retrieve_fees_documents(self, query: str, top_k: int = 2) -> List[Dict]:
+        """
+        Specialized retrieval for fees, payments, and financial information.
+        Optimized for fee amount extraction and payment term matching.
+        """
+        import re
+        
+        print(f"💰 Fees-specialized retrieval for: '{query}'")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get strategy configuration
+            strategy_config = get_retrieval_strategy_config('fees_specialized')
+            document_types = strategy_config.get('document_types', ['fees', 'financial'])
+            priorities = strategy_config.get('metadata_priorities', {})
+            
+            # Extract fee-related information from query
+            fee_info = self._extract_fee_info(query)
+            print(f"💳 Extracted fee info: {fee_info}")
+            
+            # Get documents with fees-specific filtering
+            where_clause = {
+                "$and": [
+                    {"source": "pdf_scrape"},
+                    {"$or": [{"document_type": doc_type} for doc_type in document_types]}
+                ]
+            }
+            
+            all_docs = collection.get(
+                where=where_clause,
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Found {len(all_ids)} fee-related documents")
+            
+            # Score documents with fees-specific logic
+            scored_results = []
+            query_lower = query.lower()
+            
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                filename = metadata.get('filename', '').lower()
+                doc_keywords = metadata.get('keywords', '').lower()
+                content_lower = content.lower()
+                
+                # Calculate specialized scores
+                filename_score = self._calculate_fees_filename_score(filename, fee_info)
+                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
+                content_score = self._calculate_fees_content_score(content_lower, query_lower, fee_info)
+                
+                # Apply strategy priorities
+                final_score = (
+                    filename_score * priorities.get('filename', 0.3) +
+                    keyword_score * priorities.get('keywords', 0.4) +
+                    content_score * priorities.get('content', 0.3)
+                )
+                
+                if final_score > 0:
+                    scored_results.append({
+                        'id': doc_id,
+                        'content': content,
+                        'relevance': final_score,
+                        'folder': metadata.get('folder_name', 'Unknown'),
+                        'document_type': metadata.get('document_type', 'other'),
+                        'target_program': metadata.get('target_program', 'all'),
+                        'filename': metadata.get('filename', ''),
+                        'retrieval_strategy': 'fees_specialized',
+                        'current_topic': 'fees',
+                        '_debug': {
+                            'filename_score': filename_score,
+                            'keyword_score': keyword_score,
+                            'content_score': content_score,
+                            'fee_info': fee_info
+                        }
+                    })
+            
+            # Sort and return top results
+            scored_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            print(f"✅ Top {min(top_k, len(scored_results))} fees results:")
+            for i, doc in enumerate(scored_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:60]}")
+                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
+                print(f"       Fee info: {debug['fee_info']}")
+            
+            return scored_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Fees retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def retrieve_documents_by_topic_keywords(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+        """
+        Retrieve documents filtered by topic keywords.
+        Matches document metadata keywords field against topic keywords.
+        """
+        import re
+        
+        print(f"🎯 Topic-filtered retrieval for: '{query}' (topic: {topic_id})")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get topic keywords
+            topic_keywords = get_topic_keywords(topic_id)
+            if not topic_keywords:
+                print(f"⚠️ No keywords found for topic: {topic_id}")
+                return []
+            
+            print(f"📝 Topic keywords: {topic_keywords}")
+            
+            # Get ALL documents to filter by keywords
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Searching through {len(all_ids)} documents...")
+            
+            # Filter documents by topic keywords
+            topic_filtered_candidates = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                
+                # Check if document keywords match any topic keywords
+                keyword_matches = 0
+                matched_keywords = []
+                
+                for topic_keyword in topic_keywords:
+                    topic_keyword_lower = topic_keyword.lower()
+                    # Use word boundaries to avoid substring matches
+                    pattern = r'\b' + re.escape(topic_keyword_lower) + r'\b'
+                    
+                    if re.search(pattern, doc_keywords) or re.search(pattern, filename):
+                        keyword_matches += 1
+                        matched_keywords.append(topic_keyword)
+                
+                # Only include documents that match at least one topic keyword
+                if keyword_matches > 0:
+                    topic_filtered_candidates.append({
+                        'id': doc_id,
+                        'content': content,
+                        'metadata': metadata,
+                        'topic_keyword_matches': keyword_matches,
+                        'matched_keywords': matched_keywords,
+                        'topic_relevance': keyword_matches / len(topic_keywords)
+                    })
+            
+            print(f"🎯 Found {len(topic_filtered_candidates)} documents matching topic keywords")
+            
+            if not topic_filtered_candidates:
+                print(f"❌ No documents found for topic: {topic_id}")
+                return []
+            
+            # Now perform semantic search on ALL documents (simpler approach)
+            q_emb = _embed_text(query)
+            
+            # Get semantic scores for all documents, then filter later
+            semantic_results = collection.query(
+                query_embeddings=[q_emb],
+                n_results=50,  # Get more results to ensure we have matches with our filtered candidates
+                include=["documents", "distances", "metadatas"],
+                where={"source": "pdf_scrape"}
+            )
+            
+            semantic_ids = semantic_results.get("ids", [[]])[0]
+            semantic_distances = semantic_results.get("distances", [[]])[0]
+            
+            # Create semantic score lookup
+            semantic_scores = {}
+            for doc_id, distance in zip(semantic_ids, semantic_distances):
+                semantic_scores[doc_id] = float(1.0 / (1.0 + distance))
+            
+            # Combine topic relevance with semantic scores
+            final_results = []
+            for candidate in topic_filtered_candidates:
+                doc_id = candidate['id']
+                topic_score = candidate['topic_relevance']
+                semantic_score = semantic_scores.get(doc_id, 0.3)  # Default if not in semantic results
+                
+                # Weighted combination: 70% topic relevance, 30% semantic
+                final_score = (topic_score * 0.7) + (semantic_score * 0.3)
+                
+                final_results.append({
+                    'id': doc_id,
+                    'content': candidate['content'],
+                    'relevance': final_score,
+                    'folder': candidate['metadata'].get('folder_name', 'Unknown'),
+                    'document_type': candidate['metadata'].get('document_type', 'other'),
+                    'target_program': candidate['metadata'].get('target_program', 'all'),
+                    'filename': candidate['metadata'].get('filename', ''),
+                    'retrieval_strategy': 'topic-filtered',
+                    'current_topic': topic_id,
+                    '_debug': {
+                        'topic_score': topic_score,
+                        'semantic_score': semantic_score,
+                        'topic_keyword_matches': candidate['topic_keyword_matches'],
+                        'matched_keywords': candidate['matched_keywords']
+                    }
+                })
+            
+            # Sort by final score
+            final_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            # Debug output
+            print(f"✅ Top {min(top_k, len(final_results))} topic-filtered results:")
+            for i, doc in enumerate(final_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:70]}")
+                print(f"       Score: {doc['relevance']:.3f} (topic={debug['topic_score']:.3f}, sem={debug['semantic_score']:.3f})")
+                print(f"       Matched keywords: {debug['matched_keywords']}")
+            
+            return final_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Topic-filtered retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback: Use simple topic filtering method
+            print("🔄 Falling back to simple topic filtering...")
+            return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+
+    def retrieve_documents_by_topic_specialized(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+        """
+        Main dispatcher for topic-specialized retrieval.
+        Routes to appropriate specialized function based on topic.
+        """
+        print(f"🎯 Dispatching specialized retrieval for topic: {topic_id}")
+        
+        # Topic to specialized function mapping
+        TOPIC_RETRIEVERS = {
+            'admissions_enrollment': self.retrieve_admissions_documents,
+            'programs_courses': self.retrieve_programs_documents,
+            'fees': self.retrieve_fees_documents
+        }
+        
+        # Get the appropriate retriever function
+        retriever = TOPIC_RETRIEVERS.get(topic_id)
+        
+        if retriever:
+            print(f"✅ Using specialized retriever for {topic_id}")
+            try:
+                return retriever(query, top_k)
+            except Exception as e:
+                print(f"❌ Specialized retrieval failed for {topic_id}: {e}")
+                # Fallback to simple method
+                print("🔄 Falling back to simple topic filtering...")
+                return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+        else:
+            print(f"⚠️ No specialized retriever for {topic_id}, using simple method")
+            return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+
     def retrieve_documents_hybrid(self, query: str, top_k: int = 2) -> List[Dict]:
         """
         TWO-STAGE RETRIEVAL:
@@ -682,6 +1513,31 @@ class FastHybridChatbotTogether:
         self.dialogue_history = []
         print("🧹 Dialogue history cleared")
     
+    def set_session_state(self, session_id: str = None, current_topic: str = None, conversation_state: str = None):
+        """Set session state for guided conversation"""
+        if session_id is not None:
+            self.session_state['session_id'] = session_id
+        if current_topic is not None:
+            self.session_state['current_topic'] = current_topic
+        if conversation_state is not None:
+            self.session_state['conversation_state'] = conversation_state
+        
+        print(f"🔄 Session state updated: topic={self.session_state['current_topic']}, state={self.session_state['conversation_state']}")
+    
+    def get_session_state(self):
+        """Get current session state"""
+        return self.session_state.copy()
+    
+    def reset_session(self):
+        """Reset session to initial state"""
+        self.session_state = {
+            'current_topic': None,
+            'conversation_state': CONVERSATION_STATES['TOPIC_SELECTION'],
+            'session_id': self.session_state.get('session_id')  # Keep session_id
+        }
+        self.clear_history()
+        print("🔄 Session reset to topic selection")
+    
     def analyze_query_relationship(self, current_query: str, previous_exchanges: list) -> dict:
         """
         Multi-model AI analysis using all available NLP models
@@ -911,8 +1767,386 @@ RULES:
         print(f"⏱️ Total processing time: {total_time:.2f}s")
 
         return response, relevant_docs
+    
+    def process_guided_conversation(self, user_input: str, action_type: str = 'message', action_data: str = None) -> Dict:
+        """
+        Process guided conversation with topic-based filtering.
+        Returns response with conversation state and UI controls.
+        """
+        try:
+            current_state = self.session_state['conversation_state']
+            current_topic = self.session_state['current_topic']
+            
+            print(f"🎯 Processing guided conversation: state={current_state}, topic={current_topic}, action={action_type}")
+            
+            # Handle different action types
+            if action_type == 'topic_selection':
+                # User selected a topic
+                topic_id = action_data
+                if topic_id not in TOPICS:
+                    return {
+                        'error': f'Invalid topic: {topic_id}',
+                        'state': current_state,
+                        'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                        'input_enabled': False,
+                        'current_topic': None
+                    }
+                
+                # Set topic and move to conversation state
+                self.set_session_state(
+                    current_topic=topic_id,
+                    conversation_state=CONVERSATION_STATES['TOPIC_CONVERSATION']
+                )
+                
+                topic_info = TOPICS[topic_id]
+                welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
+                
+                return {
+                    'response': welcome_message,
+                    'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                    'buttons': BUTTON_CONFIGS['topic_conversation']['buttons'],
+                    'input_enabled': BUTTON_CONFIGS['topic_conversation']['input_enabled'],
+                    'current_topic': topic_id,
+                    'topic_info': topic_info
+                }
+            
+            elif action_type == 'action':
+                # Handle follow-up actions
+                if action_data == 'ask_another':
+                    # Stay in current topic, enable input
+                    return {
+                        'response': "What else would you like to know about this topic?",
+                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                        'buttons': BUTTON_CONFIGS['topic_conversation']['buttons'],
+                        'input_enabled': BUTTON_CONFIGS['topic_conversation']['input_enabled'],
+                        'current_topic': current_topic
+                    }
+                
+                elif action_data == 'change_topic':
+                    # Reset to topic selection
+                    self.set_session_state(
+                        current_topic=None,
+                        conversation_state=CONVERSATION_STATES['TOPIC_SELECTION']
+                    )
+                    
+                    return {
+                        'response': BUTTON_CONFIGS['topic_selection']['message'],
+                        'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                        'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                        'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                        'current_topic': None
+                    }
+            
+            elif action_type == 'message':
+                # Handle text message in current context
+                if current_state == CONVERSATION_STATES['TOPIC_SELECTION']:
+                    # User sent text when they should select a topic
+                    # Try to auto-detect topic from message
+                    matching_topics = find_matching_topics(user_input)
+                    
+                    if matching_topics and matching_topics[0]['match_count'] >= 2:
+                        # Strong topic match found, auto-select it
+                        best_topic = matching_topics[0]
+                        topic_id = best_topic['topic_id']
+                        
+                        self.set_session_state(
+                            current_topic=topic_id,
+                            conversation_state=CONVERSATION_STATES['TOPIC_CONVERSATION']
+                        )
+                        
+                        # Process the query with topic filtering
+                        response, sources = self._process_topic_query(user_input, topic_id)
+                        
+                        return {
+                            'response': response,
+                            'state': CONVERSATION_STATES['FOLLOW_UP'],
+                            'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
+                            'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                            'current_topic': topic_id,
+                            'sources': sources,
+                            'auto_detected_topic': TOPICS[topic_id]['label']
+                        }
+                    else:
+                        # No clear topic match, ask user to select
+                        return {
+                            'response': f"I understand you're asking: \"{user_input}\"\n\n{BUTTON_CONFIGS['topic_selection']['message']}",
+                            'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'current_topic': None
+                        }
+                
+                elif current_state == CONVERSATION_STATES['TOPIC_CONVERSATION']:
+                    # Process query within current topic
+                    if not current_topic:
+                        # Fallback to topic selection
+                        self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+                        return {
+                            'response': BUTTON_CONFIGS['topic_selection']['message'],
+                            'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'current_topic': None
+                        }
+                    
+                    # Process query with topic filtering
+                    response, sources = self._process_topic_query(user_input, current_topic)
+                    
+                    return {
+                        'response': response,
+                        'state': CONVERSATION_STATES['FOLLOW_UP'],
+                        'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
+                        'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                        'current_topic': current_topic,
+                        'sources': sources
+                    }
+                
+                elif current_state == CONVERSATION_STATES['FOLLOW_UP']:
+                    # User sent another message after getting an answer
+                    # Process as follow-up question in same topic
+                    if current_topic:
+                        response, sources = self._process_topic_query(user_input, current_topic)
+                        
+                        return {
+                            'response': response,
+                            'state': CONVERSATION_STATES['FOLLOW_UP'],
+                            'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
+                            'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                            'current_topic': current_topic,
+                            'sources': sources
+                        }
+                    else:
+                        # No current topic, reset to selection
+                        self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+                        return {
+                            'response': BUTTON_CONFIGS['topic_selection']['message'],
+                            'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'current_topic': None
+                        }
+            
+            # Default fallback
+            return {
+                'response': "I'm not sure how to handle that. Let me help you select a topic.",
+                'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                'current_topic': None
+            }
+            
+        except Exception as e:
+            print(f"❌ Guided conversation error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Reset to safe state
+            self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+            return {
+                'error': f'Processing error: {str(e)}',
+                'response': BUTTON_CONFIGS['topic_selection']['message'],
+                'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                'current_topic': None
+            }
+    
+    def _get_topic_specific_instructions(self, topic_id: str) -> str:
+        """Get specialized instructions based on the topic"""
+        if topic_id == 'admissions_enrollment':
+            return """TOPIC-SPECIFIC INSTRUCTIONS FOR ADMISSIONS AND ENROLLMENT:
 
-    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 3000,
+=== STUDENT TYPE HANDLING ===
+- **DEFAULT BEHAVIOR**: If the user asks generally about "admissions" or "requirements" WITHOUT specifying a student type, provide information for **NEW STUDENTS ONLY** (first-time college students, freshmen, incoming students)
+- **SPECIFIC STUDENT TYPES**: If the user mentions a specific student type, provide information ONLY for that type:
+  * **NEW STUDENTS**: First-time college students, freshmen, incoming students
+  * **TRANSFER STUDENTS**: Students transferring from other institutions, shifters, lateral entry
+  * **INTERNATIONAL STUDENTS**: Foreign students, overseas students, non-Filipino students
+  * **SCHOLAR STUDENTS**: Scholarship recipients, financial aid recipients, grant holders
+- **DO NOT MIX**: Never mix information from different student types in a single response
+- **FOCUS**: Cover admission requirements, required documents, processes, and procedures specific to the identified student type"""
+
+        elif topic_id == 'programs_courses':
+            return """TOPIC-SPECIFIC INSTRUCTIONS FOR PROGRAMS AND COURSES:
+
+=== PROGRAM MATCHING ===
+- **BASE RESPONSES** on the specific COURSE NAME and ACRONYM mentioned by the user
+- **SCOPE**: Cover UNDERGRADUATE PROGRAMS ONLY (Bachelor's degrees, BS, BA programs)
+- **MATCH VARIATIONS**: If user mentions a course name (e.g., "Computer Science") or acronym (e.g., "BSCS", "BS CS", "BS COMSCI"), provide information specific to that program
+- **INCLUDE**: The whole document context given for the matched program
+- **AVOID**: Graduate programs, master's degrees, doctoral programs, senior high school programs
+
+=== PROGRAMS WE COVER ===
+
+**ARTS AND SCIENCES**: AB Anthropology (various tracks), AB Communication, AB Development Studies, AB Economics, AB English Language, AB Interdisciplinary Studies (various minors), AB International Studies, AB Islamic Studies, AB Philosophy, AB Political Studies, AB Psychology, AB Sociology, BS Biology, BS Chemistry, BS Computer Science, BS Data Science, BS Environmental Science, BS Information Systems, BS Information Technology, BS Mathematics, BS Social Work
+
+**BUSINESS AND GOVERNANCE**: Bachelor in Public Management, BSA, BSMA, BSBM, BS Entrepreneurship (including Agri-Business), BS Finance, BS HRDM, BS Marketing
+
+**EDUCATION**: BECE, BEED, BSED (English, Math, Science, Social Studies)
+
+**ENGINEERING AND ARCHITECTURE**: BS Aerospace Engineering, BS Architecture, BS Chemical Engineering, BS Civil Engineering, BS Computer Engineering, BS Electrical Engineering, BS Electronics Engineering, BS Industrial Engineering, BS Mechanical Engineering, BS Robotics Engineering
+
+**NURSING**: BSN"""
+
+        elif topic_id == 'fees':
+            return """TOPIC-SPECIFIC INSTRUCTIONS FOR FEES:
+
+=== FEE INFORMATION HANDLING ===
+- **BASE RESPONSES** on the specific COURSE/PROGRAM mentioned by the user
+- **MATCH**: Provide fee information specific to the program the user asked about
+- **INCLUDE**: Tuition fees, miscellaneous fees, payment schedules, installment options for that specific program
+- **DIFFERENTIATE**: Different programs may have different fee structures
+- **SCOPE**: Undergraduate program fees only"""
+
+        else:
+            # Generic instructions for any other topics
+            return """TOPIC-SPECIFIC INSTRUCTIONS:
+- Focus on answering questions within this topic area
+- Use only information from the provided context documents"""
+    
+    def _detect_cross_topic_query(self, query: str) -> Optional[str]:
+        """Detect if user is asking about a different topic than the current one"""
+        query_lower = query.lower()
+        
+        # Define topic detection keywords
+        topic_keywords = {
+            'admissions_enrollment': [
+                'admission', 'requirements', 'application', 'entrance', 'apply', 'qualifying',
+                'enrollment', 'registration', 'enroll', 'register', 'sign up',
+                'new student', 'freshman', 'first year', 'incoming',
+                'scholar', 'scholarship', 'financial aid', 'grant', 'funding',
+                'transferee', 'transfer', 'shifter', 'lateral entry',
+                'international', 'foreign student', 'foreign', 'overseas',
+                'documents', 'documents needed', 'requirements list',
+                'transcript', 'diploma', 'certificate', 'form 137', 'form 138',
+                'birth certificate', 'medical certificate', 'clearance',
+                'recommendation letter', 'essay', 'portfolio',
+                'entrance exam', 'interview', 'assessment'
+            ],
+            'programs_courses': [
+                'program', 'degree', 'course', 'major', 'bachelor',
+                'undergraduate', 'college', 'school', 'department', 'faculty',
+                'BS', 'BA', 'curriculum', 'courses', 'subjects', 'syllabus',
+                'computer science', 'information technology', 'business administration',
+                'engineering', 'nursing', 'education', 'psychology',
+                'computer science', 'BS CS', 'BSCS', 'BS COMSCI',
+                'information technology', 'BS IT', 'BSIT',
+                'business management', 'BSBM', 'accountancy', 'BSA',
+                'nursing', 'BSN', 'BS Nursing'
+            ],
+            'fees': [
+                'fees', 'tuition', 'payment', 'cost', 'price', 'amount', 'billing',
+                'payment plan', 'installment', 'due date', 'payment schedule',
+                'down payment', 'balance', 'discount',
+                'miscellaneous fees', 'laboratory fees', 'library fees',
+                'graduation fee', 'examination fee', 'registration fee',
+                'development fee', 'student activities fee',
+                'scholarship', 'financial aid', 'grant', 'subsidy'
+            ]
+        }
+        
+        # Count keyword matches for each topic
+        topic_scores = {}
+        for topic, keywords in topic_keywords.items():
+            matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
+            if matches > 0:
+                topic_scores[topic] = matches
+        
+        # Return the topic with the highest score if it's significant
+        if topic_scores:
+            best_topic = max(topic_scores, key=topic_scores.get)
+            # Only consider it a cross-topic query if there are at least 2 keyword matches
+            if topic_scores[best_topic] >= 2:
+                return best_topic
+        
+        return None
+    
+    def _process_topic_query(self, query: str, topic_id: str) -> Tuple[str, List[Dict]]:
+        """Process a query within a specific topic context"""
+        try:
+            # Check if user is asking about a different topic
+            detected_topic = self._detect_cross_topic_query(query)
+            
+            if detected_topic and detected_topic != topic_id:
+                # User is asking about a different topic - provide helpful guidance
+                current_topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                detected_topic_label = TOPICS.get(detected_topic, {}).get('label', detected_topic)
+                
+                return f"""I notice you're asking about **{detected_topic_label}**, but we're currently in the **{current_topic_label}** section.
+
+To get the most accurate information about {detected_topic_label}, please:
+
+1. Click **"Change Topic"** below
+2. Select **"{detected_topic_label}"** from the topic list
+3. Ask your question again
+
+This will ensure you get the most relevant and up-to-date information for your query.""", []
+            
+            # Use specialized topic retrieval for better accuracy and efficiency
+            relevant_docs = self.retrieve_documents_by_topic_specialized(query, topic_id, top_k=3)
+            
+            if not relevant_docs:
+                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                return f"I don't have specific information about that in the {topic_label} topic. Could you try rephrasing your question?", []
+            
+            # Build context from retrieved docs
+            doc_context = "\n\n".join([
+                f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+                for doc in relevant_docs[:3]
+            ])
+            
+            # Build prompt with topic context and specialized instructions
+            topic_info = TOPICS.get(topic_id, {})
+            topic_label = topic_info.get('label', topic_id)
+            
+            # Build topic-specific instructions
+            topic_specific_instructions = self._get_topic_specific_instructions(topic_id)
+            
+            prompt = f"""<|system|>
+You are an ADDU (Ateneo de Davao University) Admissions Assistant. You provide accurate, helpful information based strictly on the provided context documents.
+
+{topic_specific_instructions}
+
+GENERAL RESPONSE RULES:
+- Be direct and concise
+- Start directly with the answer
+- Use bullet points for lists
+- Use numbered lists for step-by-step processes
+- Bold important terms and amounts
+- No introductory phrases like "Based on the documents"
+- No closing phrases like "I hope this helps"
+- If information is not available in the context, state clearly what specific information is missing
+
+CONTEXT MATCHING:
+- Only use information that directly matches the user's specific query
+- If context contains multiple student types/programs but user asked about one specific type, filter accordingly
+- Prioritize exact matches over general information
+</|system|>
+
+<|context|>
+{doc_context}
+</|context|>
+
+<|user|>
+{query}
+</|user|>
+
+<|assistant|>
+"""
+            
+            # Generate response
+            response = generate_response(prompt, max_tokens=3000)
+            
+            # Add to history
+            self.add_to_history(query, response)
+            
+            return response, relevant_docs
+            
+        except Exception as e:
+            print(f"❌ Topic query processing error: {e}")
+            return f"I encountered an error processing your question. Please try again.", []
+
+    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 5000,
                         use_history: bool = True, require_context: bool = True, 
                         min_relevance: float = 0.1) -> Generator[Dict, None, None]:
         """

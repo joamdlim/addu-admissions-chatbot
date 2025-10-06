@@ -14,6 +14,7 @@ from .models import Conversation, ConversationTurn, SystemPrompt
 
 # Add the Together AI chatbot import
 from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
+from .topics import TOPICS, CONVERSATION_STATES
 import os, json
 import uuid
 import io  # Add this import at the top
@@ -29,6 +30,62 @@ print("✅ Together AI chatbot ready!")
 @api_view(['GET'])
 def evaluate(request):
     return Response({"f1": 0.85, "bleu": 0.72, "satisfaction": 4.2})
+
+@api_view(['GET'])
+def get_topics(request):
+    """Get all available topics for guided conversation"""
+    try:
+        topics_list = []
+        for topic_id, topic_data in TOPICS.items():
+            topics_list.append({
+                'id': topic_id,
+                'label': topic_data['label'],
+                'description': topic_data['description'],
+                'keywords': topic_data['keywords']
+            })
+        
+        return Response({
+            "topics": topics_list,
+            "conversation_states": CONVERSATION_STATES
+        })
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+def guided_chat_view(request):
+    """Guided conversation chat view with topic-based filtering"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_input = data.get("user_input", "")
+            action_type = data.get("action_type", "message")  # 'message', 'topic_selection', 'action'
+            action_data = data.get("action_data", None)
+            session_id = data.get("session_id", None)
+            
+            # Set session ID if provided
+            if session_id:
+                together_chatbot.set_session_state(session_id=session_id)
+            
+            # Process guided conversation
+            result = together_chatbot.process_guided_conversation(
+                user_input=user_input,
+                action_type=action_type,
+                action_data=action_data
+            )
+            
+            # Add session info to response
+            result['session_id'] = together_chatbot.get_session_state().get('session_id', session_id)
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            print(f"❌ Guided chat error: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "POST request required"}, status=400)
 
 @csrf_exempt
 def upload_pdf_view(request):

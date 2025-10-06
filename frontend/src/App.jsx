@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { ChatPage } from "./pages/ChatPage";
+import { GuidedChatPage } from "./pages/GuidedChatPage";
 import adduLogo from "./assets/addu.png"; // Make sure this path is correct!
 
 function App() {
   const navigate = useNavigate();
+  const [isGuidedMode, setIsGuidedMode] = useState(true); // Default to guided mode
 
   return (
     <div className="flex flex-col h-screen">
@@ -24,20 +26,27 @@ function App() {
           </div>
         </div>
 
-        {/* <button
-          onClick={() => navigate("/admin")}
-          className="bg-white text-[#063970] px-4 py-2 rounded shadow hover:bg-gray-100 transition"
-        >
-          Admin Page
-        </button> */}
+        {/* Mode Toggle */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm">Chat Mode:</span>
+            <button
+              onClick={() => setIsGuidedMode(!isGuidedMode)}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                isGuidedMode
+                  ? "bg-white text-[#063970]"
+                  : "bg-transparent border border-white text-white hover:bg-white hover:text-[#063970]"
+              }`}
+            >
+              {isGuidedMode ? "Guided" : "Free Chat"}
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto">
-        <Routes>
-          <Route path="/" element={<ChatPage />} />
-          {/* <Route path="/admin" element={<AdminPage />} /> */}
-        </Routes>
+        {isGuidedMode ? <GuidedChatPage /> : <ChatPage />}
       </div>
     </div>
   );

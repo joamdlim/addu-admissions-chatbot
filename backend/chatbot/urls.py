@@ -5,6 +5,10 @@ urlpatterns = [
     # Main chat endpoints
     path('chat/', views.chat_view, name='chat'),  # Enhanced chat with conversation memory
     path('chat/legacy/', views.chat_legacy_view, name='chat_legacy'),  # Backward compatibility
+    path('chat/guided/', views.guided_chat_view, name='guided_chat'),  # Guided conversation with topics
+    
+    # Topics endpoint
+    path('topics/', views.get_topics, name='get_topics'),
     
     # Conversation management endpoints
     path('conversations/', views.create_conversation, name='create_conversation'),
