@@ -37,14 +37,40 @@ TOPICS = {
             'program', 'degree', 'course', 'major', 'bachelor',
             'undergraduate',
             'college', 'school', 'department', 'faculty',
-            'BS', 'BA'
+            'BS', 'BA', 'BPM', 'BSA', 'BSMA', 'BSBM', 'BSFIN', 'BSHRDM', 'BECE', 'BEED', 'BSED', 'BSN',
+            
             # Curriculum and courses
             'curriculum', 'courses', 'subjects', 'syllabus', 'course outline', 'academic plan',
             'first year', 'second year', 'third year', 'fourth year',
             'semester', 'units', 'credits',
-            # Specific program names (can be expanded)
-            'computer science', 'information technology', 'business administration',
-            'engineering', 'nursing', 'education', 'psychology'
+            
+            # Arts and Sciences Programs
+            'anthropology', 'communication', 'development studies', 'economics', 'english language',
+            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy',
+            'political science', 'psychology', 'sociology', 'biology', 'chemistry', 'computer science',
+            'data science', 'environmental science', 'information systems', 'information technology',
+            'mathematics', 'social work',
+            
+            # Business and Governance Programs
+            'public management', 'accountancy', 'accounting', 'management accounting', 'business management',
+            'entrepreneurship', 'finance', 'human resource development', 'marketing',
+            
+            # Education Programs
+            'early childhood education', 'elementary education', 'secondary education',
+            
+            # Engineering and Architecture Programs
+            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering',
+            'computer engineering', 'electrical engineering', 'electronics engineering',
+            'industrial engineering', 'mechanical engineering', 'robotics engineering',
+            
+            # Nursing
+            'nursing',
+            
+            # Common abbreviations and alternative names
+            'anthro', 'comm', 'dev studies', 'econ', 'english', 'philo', 'polsci', 'psych', 'socio',
+            'bio', 'chem', 'cs', 'envisci', 'is', 'it', 'math', 'bpm', 'bsa', 'bsma', 'bsbm',
+            'entrep', 'fin', 'hrdm', 'mktg', 'ece', 'elem ed', 'sec ed', 'ae', 'arch', 'che',
+            'ce', 'comp eng', 'ee', 'electronics eng', 'ie', 'me', 're', 'bsn'
         ],
         'description': 'Learn about available academic programs, degrees, curriculum, and course offerings',
         'retrieval_strategy': 'programs_specialized'
@@ -77,6 +103,46 @@ CONVERSATION_STATES = {
 }
 
 # Button configurations for different states
+def get_button_configs():
+    """Get button configurations using database topics"""
+    try:
+        from .models import Topic
+        topics = Topic.objects.filter(is_active=True).order_by('topic_id')
+        topic_buttons = [
+            {'id': topic.topic_id, 'label': topic.label, 'type': 'topic'}
+            for topic in topics
+        ]
+    except Exception as e:
+        print(f"⚠️ Error fetching topics for buttons from database: {e}")
+        # Fallback to hardcoded topics
+        topic_buttons = [
+            {'id': topic_id, 'label': topic_data['label'], 'type': 'topic'}
+            for topic_id, topic_data in TOPICS.items()
+        ]
+    
+    return {
+        'topic_selection': {
+            'buttons': topic_buttons,
+            'input_enabled': False,
+            'message': 'Please select a topic you\'d like to learn about:'
+        },
+        'follow_up': {
+            'buttons': [
+                {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
+            ],
+            'input_enabled': False,
+            'message': None  # No additional message needed
+        },
+        'topic_conversation': {
+            'buttons': [
+                {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
+            ],
+            'input_enabled': True,
+            'message': None
+        }
+    }
+
+# Legacy static configuration for backward compatibility
 BUTTON_CONFIGS = {
     'topic_selection': {
         'buttons': [
@@ -88,58 +154,125 @@ BUTTON_CONFIGS = {
     },
     'follow_up': {
         'buttons': [
-            {'id': 'ask_another', 'label': 'Ask Another Question', 'type': 'action'},
             {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
         ],
         'input_enabled': False,
         'message': None  # No additional message needed
     },
     'topic_conversation': {
-        'buttons': [],
+        'buttons': [
+            {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
+        ],
         'input_enabled': True,
         'message': None
     }
 }
 
 def get_topic_keywords(topic_id):
-    """Get keywords for a specific topic"""
-    return TOPICS.get(topic_id, {}).get('keywords', [])
+    """Get keywords for a specific topic from database"""
+    try:
+        from .models import Topic
+        topic = Topic.objects.get(topic_id=topic_id, is_active=True)
+        return topic.get_keywords_list()  # Returns only active keywords
+    except Topic.DoesNotExist:
+        # Fallback to hardcoded topics if database topic not found
+        return TOPICS.get(topic_id, {}).get('keywords', [])
+    except Exception as e:
+        print(f"⚠️ Error fetching keywords from database: {e}")
+        # Fallback to hardcoded topics on error
+        return TOPICS.get(topic_id, {}).get('keywords', [])
 
 def get_all_topic_keywords():
-    """Get all keywords from all topics as a flat list"""
+    """Get all keywords from all topics as a flat list from database"""
     all_keywords = []
-    for topic_data in TOPICS.values():
-        all_keywords.extend(topic_data.get('keywords', []))
+    try:
+        from .models import Topic
+        topics = Topic.objects.filter(is_active=True)
+        for topic in topics:
+            all_keywords.extend(topic.get_keywords_list())
+    except Exception as e:
+        print(f"⚠️ Error fetching all keywords from database: {e}")
+        # Fallback to hardcoded topics
+        for topic_data in TOPICS.values():
+            all_keywords.extend(topic_data.get('keywords', []))
     return all_keywords
 
 def find_matching_topics(query_text):
-    """Find topics that match keywords in the query text"""
+    """Find topics that match keywords in the query text using database"""
     query_lower = query_text.lower()
     matching_topics = []
     
-    for topic_id, topic_data in TOPICS.items():
-        keywords = topic_data.get('keywords', [])
-        matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
-        if matches > 0:
-            matching_topics.append({
-                'topic_id': topic_id,
-                'topic_data': topic_data,
-                'match_count': matches,
-                'match_ratio': matches / len(keywords)
-            })
+    try:
+        from .models import Topic
+        topics = Topic.objects.filter(is_active=True)
+        
+        for topic in topics:
+            keywords = topic.get_keywords_list()
+            matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
+            if matches > 0:
+                matching_topics.append({
+                    'topic_id': topic.topic_id,
+                    'topic_data': {
+                        'label': topic.label,
+                        'description': topic.description,
+                        'keywords': keywords,
+                        'retrieval_strategy': topic.retrieval_strategy
+                    },
+                    'match_count': matches,
+                    'match_ratio': matches / len(keywords) if keywords else 0
+                })
+    except Exception as e:
+        print(f"⚠️ Error fetching topics from database: {e}")
+        # Fallback to hardcoded topics
+        for topic_id, topic_data in TOPICS.items():
+            keywords = topic_data.get('keywords', [])
+            matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
+            if matches > 0:
+                matching_topics.append({
+                    'topic_id': topic_id,
+                    'topic_data': topic_data,
+                    'match_count': matches,
+                    'match_ratio': matches / len(keywords)
+                })
     
     # Sort by match count (descending)
     matching_topics.sort(key=lambda x: x['match_count'], reverse=True)
     return matching_topics
 
 def get_topic_info(topic_id):
-    """Get complete information about a topic"""
-    return TOPICS.get(topic_id)
+    """Get complete information about a topic from database"""
+    try:
+        from .models import Topic
+        topic = Topic.objects.get(topic_id=topic_id, is_active=True)
+        return {
+            'label': topic.label,
+            'description': topic.description,
+            'keywords': topic.get_keywords_list(),
+            'retrieval_strategy': topic.retrieval_strategy
+        }
+    except Topic.DoesNotExist:
+        # Fallback to hardcoded topics if database topic not found
+        return TOPICS.get(topic_id)
+    except Exception as e:
+        print(f"⚠️ Error fetching topic info from database: {e}")
+        # Fallback to hardcoded topics on error
+        return TOPICS.get(topic_id)
 
 def get_topic_retrieval_strategy(topic_id):
-    """Get the specialized retrieval strategy for a topic"""
-    topic_info = TOPICS.get(topic_id, {})
-    return topic_info.get('retrieval_strategy', 'generic')
+    """Get the specialized retrieval strategy for a topic from database"""
+    try:
+        from .models import Topic
+        topic = Topic.objects.get(topic_id=topic_id, is_active=True)
+        return topic.retrieval_strategy
+    except Topic.DoesNotExist:
+        # Fallback to hardcoded topics if database topic not found
+        topic_info = TOPICS.get(topic_id, {})
+        return topic_info.get('retrieval_strategy', 'generic')
+    except Exception as e:
+        print(f"⚠️ Error fetching retrieval strategy from database: {e}")
+        # Fallback to hardcoded topics on error
+        topic_info = TOPICS.get(topic_id, {})
+        return topic_info.get('retrieval_strategy', 'generic')
 
 # Topic-specific retrieval strategy mapping
 TOPIC_RETRIEVAL_STRATEGIES = {

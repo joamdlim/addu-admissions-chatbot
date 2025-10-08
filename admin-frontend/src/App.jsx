@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import AdminPage from "./pages/AdminPage";
 import TextEditorPage from "./pages/TextEditorPage";
+import TopicManagementPage from "./pages/TopicManagementPage";
 import adduLogo from "./assets/addu.png";
 
 function App() {
@@ -37,17 +38,38 @@ function App() {
             <p className="text-xs">
               ADMISSIONS AI ASSISTANT - ADMIN PANEL
               {currentPage === "editor" && " - DOCUMENT EDITOR"}
+              {currentPage === "topics" && " - TOPIC MANAGEMENT"}
             </p>
           </div>
         </div>
-        {currentPage === "editor" && (
-          <button
-            onClick={handleCancel}
-            className="text-white hover:text-gray-300 transition"
-          >
-            ← Back to Admin
-          </button>
-        )}
+
+        {/* Navigation */}
+        <div className="flex items-center space-x-4">
+          {currentPage !== "admin" && (
+            <button
+              onClick={() => setCurrentPage("admin")}
+              className="text-white hover:text-gray-300 transition text-sm"
+            >
+              📄 Documents
+            </button>
+          )}
+          {currentPage !== "topics" && (
+            <button
+              onClick={() => setCurrentPage("topics")}
+              className="text-white hover:text-gray-300 transition text-sm"
+            >
+              🏷️ Topics
+            </button>
+          )}
+          {(currentPage === "editor" || currentPage === "topics") && (
+            <button
+              onClick={handleCancel}
+              className="text-white hover:text-gray-300 transition"
+            >
+              ← Back to Admin
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main Content Area - Remaining Height */}
@@ -62,6 +84,7 @@ function App() {
             onCancel={handleCancel}
           />
         )}
+        {currentPage === "topics" && <TopicManagementPage />}
       </div>
     </div>
   );

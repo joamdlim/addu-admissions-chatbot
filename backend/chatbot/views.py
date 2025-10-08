@@ -7,7 +7,7 @@ import json
 from .chroma_connection import ChromaService
 from .improved_pdf_to_chroma import sync_supabase_to_chroma_improved
 from .supabase_client import get_supabase_client
-from .models import Conversation, ConversationTurn, SystemPrompt
+from .models import Conversation, ConversationTurn, SystemPrompt, Topic, TopicKeyword
 # Remove the enhanced chatbot import
 # from .enhanced_hybrid_chatbot import get_enhanced_chatbot
 # from .fast_hybrid_chatbot import FastHybridChatbot
@@ -62,12 +62,11 @@ def guided_chat_view(request):
             action_type = data.get("action_type", "message")  # 'message', 'topic_selection', 'action'
             action_data = data.get("action_data", None)
             session_id = data.get("session_id", None)
-            
             # Set session ID if provided
             if session_id:
                 together_chatbot.set_session_state(session_id=session_id)
             
-            # Process guided conversation
+            # Process the guided conversation
             result = together_chatbot.process_guided_conversation(
                 user_input=user_input,
                 action_type=action_type,
@@ -1220,5 +1219,182 @@ def enhanced_chat_query(request):
             "applied_filters": manual_filters if manual_filters else chatbot.analyze_query_intent(query)
         })
         
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+# ==========================================
+# TOPIC MANAGEMENT API ENDPOINTS
+# ==========================================
+
+@api_view(['GET'])
+def get_topics_admin(request):
+    """Get all topics with keyword counts for admin management"""
+    try:
+        from django.db import models
+        topics = Topic.objects.all().annotate(
+            keyword_count=models.Count('keywords', filter=models.Q(keywords__is_active=True))
+        ).order_by('topic_id')
+        
+        topics_data = []
+        for topic in topics:
+            topics_data.append({
+                'topic_id': topic.topic_id,
+                'label': topic.label,
+                'description': topic.description,
+                'retrieval_strategy': topic.retrieval_strategy,
+                'is_active': topic.is_active,
+                'keyword_count': topic.keyword_count,
+                'created_at': topic.created_at.isoformat(),
+                'updated_at': topic.updated_at.isoformat(),
+            })
+        
+        return Response({"topics": topics_data})
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['GET'])
+def get_topic_keywords(request, topic_id):
+    """Get all keywords for a specific topic"""
+    try:
+        topic = Topic.objects.get(topic_id=topic_id)
+        keywords = TopicKeyword.objects.filter(topic=topic).order_by('-is_active', 'keyword')
+        
+        keywords_data = []
+        for keyword in keywords:
+            keywords_data.append({
+                'id': keyword.id,
+                'keyword': keyword.keyword,
+                'is_active': keyword.is_active,
+                'created_at': keyword.created_at.isoformat(),
+                'created_by': keyword.created_by,
+            })
+        
+        return Response({"keywords": keywords_data})
+        
+    except Topic.DoesNotExist:
+        return Response({"error": "Topic not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['POST'])
+def add_topic_keyword(request, topic_id):
+    """Add a new keyword to a topic"""
+    try:
+        topic = Topic.objects.get(topic_id=topic_id)
+        data = json.loads(request.body)
+        keyword_text = data.get('keyword', '').strip()
+        
+        if not keyword_text:
+            return Response({"error": "Keyword is required"}, status=400)
+        
+        # Check if keyword already exists for this topic
+        if TopicKeyword.objects.filter(topic=topic, keyword__iexact=keyword_text).exists():
+            return Response({"error": "Keyword already exists for this topic"}, status=400)
+        
+        # Create new keyword
+        keyword = TopicKeyword.objects.create(
+            topic=topic,
+            keyword=keyword_text,
+            created_by=getattr(request.user, 'username', 'admin') if hasattr(request, 'user') else 'admin'
+        )
+        
+        return Response({
+            "message": "Keyword added successfully",
+            "keyword": {
+                'id': keyword.id,
+                'keyword': keyword.keyword,
+                'is_active': keyword.is_active,
+                'created_at': keyword.created_at.isoformat(),
+                'created_by': keyword.created_by,
+            }
+        })
+        
+    except Topic.DoesNotExist:
+        return Response({"error": "Topic not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['POST'])
+def bulk_add_topic_keywords(request, topic_id):
+    """Bulk add keywords to a topic"""
+    try:
+        topic = Topic.objects.get(topic_id=topic_id)
+        data = json.loads(request.body)
+        keywords_list = data.get('keywords', [])
+        
+        if not keywords_list:
+            return Response({"error": "Keywords list is required"}, status=400)
+        
+        added_count = 0
+        skipped_count = 0
+        created_by = getattr(request.user, 'username', 'admin') if hasattr(request, 'user') else 'admin'
+        
+        for keyword_text in keywords_list:
+            keyword_text = keyword_text.strip()
+            if not keyword_text:
+                continue
+                
+            # Check if keyword already exists for this topic
+            if TopicKeyword.objects.filter(topic=topic, keyword__iexact=keyword_text).exists():
+                skipped_count += 1
+                continue
+            
+            # Create new keyword
+            TopicKeyword.objects.create(
+                topic=topic,
+                keyword=keyword_text,
+                created_by=created_by
+            )
+            added_count += 1
+        
+        return Response({
+            "message": f"Bulk add completed",
+            "added_count": added_count,
+            "skipped_count": skipped_count
+        })
+        
+    except Topic.DoesNotExist:
+        return Response({"error": "Topic not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['PUT'])
+def update_keyword(request, keyword_id):
+    """Update a keyword (toggle active status)"""
+    try:
+        keyword = TopicKeyword.objects.get(id=keyword_id)
+        data = json.loads(request.body)
+        
+        if 'is_active' in data:
+            keyword.is_active = data['is_active']
+            keyword.save()
+        
+        return Response({
+            "message": "Keyword updated successfully",
+            "keyword": {
+                'id': keyword.id,
+                'keyword': keyword.keyword,
+                'is_active': keyword.is_active,
+            }
+        })
+        
+    except TopicKeyword.DoesNotExist:
+        return Response({"error": "Keyword not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['DELETE'])
+def delete_keyword(request, keyword_id):
+    """Delete a keyword"""
+    try:
+        keyword = TopicKeyword.objects.get(id=keyword_id)
+        keyword_text = keyword.keyword
+        keyword.delete()
+        
+        return Response({"message": f"Keyword '{keyword_text}' deleted successfully"})
+        
+    except TopicKeyword.DoesNotExist:
+        return Response({"error": "Keyword not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)

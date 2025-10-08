@@ -62,12 +62,66 @@ const GuidedChatPage = () => {
     }
   }, [topics, messages.length]);
 
+  // Function to animate text streaming word by word
+  const animateTextStreaming = (fullText, sources, autoDetectedTopic) => {
+    const words = fullText.split(" ");
+    let currentText = "";
+    let wordIndex = 0;
+
+    const streamInterval = setInterval(() => {
+      if (wordIndex < words.length) {
+        currentText += (wordIndex > 0 ? " " : "") + words[wordIndex];
+        wordIndex++;
+
+        // Update the last bot message with the current text
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (
+            lastIndex >= 0 &&
+            updated[lastIndex].role === "bot" &&
+            updated[lastIndex].isStreaming
+          ) {
+            updated[lastIndex] = {
+              ...updated[lastIndex],
+              content: currentText,
+            };
+          }
+          return updated;
+        });
+      } else {
+        // Streaming complete - finalize the message
+        clearInterval(streamInterval);
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (
+            lastIndex >= 0 &&
+            updated[lastIndex].role === "bot" &&
+            updated[lastIndex].isStreaming
+          ) {
+            updated[lastIndex] = {
+              ...updated[lastIndex],
+              content: fullText,
+              sources: sources,
+              autoDetectedTopic: autoDetectedTopic,
+              isStreaming: false,
+            };
+          }
+          return updated;
+        });
+        setIsLoading(false);
+      }
+    }, 50); // Adjust speed: lower = faster, higher = slower
+  };
+
   const handleGuidedRequest = async (
     userInput,
     actionType,
     actionData = null
   ) => {
     setIsLoading(true);
+    let isStreaming = false;
 
     try {
       const requestBody = {
@@ -121,16 +175,26 @@ const GuidedChatPage = () => {
           });
         }
 
-        // Add bot response
-        newMessages.push({
+        // Add bot response placeholder for streaming animation
+        const botMessage = {
           role: "bot",
-          content: data.response,
+          content: "",
           timestamp: new Date().toISOString(),
           sources: data.sources || [],
           autoDetectedTopic: data.auto_detected_topic,
-        });
+          isStreaming: true,
+        };
 
+        newMessages.push(botMessage);
         setMessages((prev) => [...prev, ...newMessages]);
+
+        // Simulate streaming by displaying words one by one
+        isStreaming = true;
+        animateTextStreaming(
+          data.response,
+          data.sources || [],
+          data.auto_detected_topic
+        );
       }
 
       // Handle errors
@@ -153,7 +217,10 @@ const GuidedChatPage = () => {
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setIsLoading(false);
+      // Only set loading to false if we're not streaming (streaming animation will handle it)
+      if (!isStreaming) {
+        setIsLoading(false);
+      }
       setQuery(""); // Clear input after sending
     }
   };
@@ -203,56 +270,63 @@ const GuidedChatPage = () => {
                 {isUser ? (
                   m.content
                 ) : (
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => (
-                        <p className="mb-2 last:mb-0">{children}</p>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="list-disc list-inside mb-2 space-y-1">
-                          {children}
-                        </ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="list-decimal list-inside mb-2 space-y-1">
-                          {children}
-                        </ol>
-                      ),
-                      li: ({ children }) => (
-                        <li className="mb-1">{children}</li>
-                      ),
-                      strong: ({ children }) => (
-                        <strong className="font-semibold text-gray-900">
-                          {children}
-                        </strong>
-                      ),
-                      h1: ({ children }) => (
-                        <h1 className="text-xl font-bold mb-2">{children}</h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2 className="text-lg font-semibold mb-2">
-                          {children}
-                        </h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 className="text-md font-semibold mb-1">
-                          {children}
-                        </h3>
-                      ),
-                      a: ({ href, children }) => (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  >
-                    {m.content}
-                  </ReactMarkdown>
+                  <div>
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => (
+                          <p className="mb-2 last:mb-0">{children}</p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-disc list-inside mb-2 space-y-1">
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="list-decimal list-inside mb-2 space-y-1">
+                            {children}
+                          </ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="mb-1">{children}</li>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-gray-900">
+                            {children}
+                          </strong>
+                        ),
+                        h1: ({ children }) => (
+                          <h1 className="text-xl font-bold mb-2">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-lg font-semibold mb-2">
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-md font-semibold mb-1">
+                            {children}
+                          </h3>
+                        ),
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
+                          >
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+
+                    {/* Typing indicator for streaming messages */}
+                    {m.isStreaming && (
+                      <span className="inline-block w-2 h-5 bg-gray-400 ml-1 animate-pulse"></span>
+                    )}
+                  </div>
                 )}
 
                 {/* Sources */}

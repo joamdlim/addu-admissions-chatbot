@@ -55,8 +55,8 @@ except ImportError:
 from chatbot.chroma_connection import ChromaService
 from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
 from chatbot.topics import (
-    TOPICS, CONVERSATION_STATES, BUTTON_CONFIGS, 
-    get_topic_keywords, find_matching_topics, 
+    TOPICS, CONVERSATION_STATES, BUTTON_CONFIGS, get_button_configs,
+    get_topic_keywords, find_matching_topics, get_topic_info,
     get_topic_retrieval_strategy, get_retrieval_strategy_config
 )
 
@@ -375,14 +375,64 @@ class FastHybridChatbotTogether:
             'course_code': None
         }
         
-        # Detect program names
+        # Detect program names - comprehensive ADDU programs list
         program_patterns = {
-            'computer science': ['computer science', 'cs', 'compsci'],
-            'information technology': ['information technology', 'it', 'infotech'],
-            'business administration': ['business administration', 'business', 'ba', 'bsba'],
-            'engineering': ['engineering', 'engr'],
-            'nursing': ['nursing', 'bsn'],
-            'education': ['education', 'teaching']
+            # Business and Governance
+            'accountancy': ['accountancy', 'bsa', 'bs a', 'accounting'],
+            'management accounting': ['management accounting', 'bsma', 'bs ma'],
+            'business management': ['business management', 'bsbm', 'bs bm'],
+            'entrepreneurship': ['entrepreneurship', 'bs entrep', 'bsentrep', 'entrepreneur'],
+            'finance': ['finance', 'bsfin', 'bs fin'],
+            'human resource development': ['human resource', 'hrdm', 'bshrdm', 'bs hrdm', 'hr'],
+            'marketing': ['marketing', 'bs mktg', 'bsmktg'],
+            'public management': ['public management', 'bpm', 'governance'],
+            
+            # Technology Programs
+            'computer science': ['computer science', 'cs', 'bscs', 'bs cs', 'compsci', 'comsci'],
+            'information technology': ['information technology', 'it', 'bsit', 'bs it', 'infotech'],
+            'information systems': ['information systems', 'bsis', 'bs is'],
+            'data science': ['data science', 'bsds', 'bs ds'],
+            
+            # Science Programs
+            'biology': ['biology', 'bsbio', 'bs bio', 'bio'],
+            'chemistry': ['chemistry', 'bschem', 'bs chem', 'chem'],
+            'mathematics': ['mathematics', 'bsmath', 'bs math', 'math'],
+            'environmental science': ['environmental science', 'bsenvisci', 'bs envisci', 'envisci'],
+            'social work': ['social work', 'bssocialwork', 'bs social work', 'bssw'],
+            
+            # Arts Programs
+            'anthropology': ['anthropology', 'abanthro', 'ab anthro', 'abanth', 'anthro'],
+            'communication': ['communication', 'abc', 'ab c', 'abcomm', 'comm'],
+            'development studies': ['development studies', 'abds', 'ab ds'],
+            'economics': ['economics', 'abecon', 'ab econ', 'econ'],
+            'english language': ['english language', 'abel', 'ab el', 'english'],
+            'interdisciplinary studies': ['interdisciplinary', 'abis', 'ab is'],
+            'international studies': ['international studies', 'abis', 'ab is'],
+            'islamic studies': ['islamic studies', 'abis', 'ab is', 'islamic'],
+            'philosophy': ['philosophy', 'abphilo', 'ab philo', 'philo'],
+            'political science': ['political science', 'abpolsci', 'ab polsci', 'polsci'],
+            'psychology': ['psychology', 'abpsych', 'ab psych', 'psych'],
+            'sociology': ['sociology', 'absocio', 'ab socio', 'socio'],
+            
+            # Education
+            'early childhood education': ['early childhood', 'bece', 'ece'],
+            'elementary education': ['elementary education', 'beed', 'elem ed'],
+            'secondary education': ['secondary education', 'bsed', 'sec ed'],
+            
+            # Engineering and Architecture
+            'aerospace engineering': ['aerospace', 'bsae', 'bs ae', 'aero'],
+            'architecture': ['architecture', 'bsarch', 'bs arch', 'archi'],
+            'chemical engineering': ['chemical engineering', 'bsche', 'bs che', 'chemeng'],
+            'civil engineering': ['civil engineering', 'bsce', 'bs ce', 'civil'],
+            'computer engineering': ['computer engineering', 'bscompeng', 'bs comp eng', 'bscpe', 'compeng'],
+            'electrical engineering': ['electrical engineering', 'bsee', 'bs ee', 'electrical'],
+            'electronics engineering': ['electronics engineering', 'bselectronicseng', 'bs electronics eng', 'electronics'],
+            'industrial engineering': ['industrial engineering', 'bsie', 'bs ie', 'industrial'],
+            'mechanical engineering': ['mechanical engineering', 'bsme', 'bs me', 'mechanical'],
+            'robotics engineering': ['robotics', 'bsre', 'bs re', 'robot'],
+            
+            # Nursing
+            'nursing': ['nursing', 'bsn', 'nurse']
         }
         
         for program, patterns in program_patterns.items():
@@ -1707,9 +1757,9 @@ class FastHybridChatbotTogether:
             print("\r" + " " * 40 + "\r", end="", flush=True)
         print(f"⏱️ Document retrieval: {retrieval_time:.2f}s")
 
-        # Build context from retrieved docs
+        # Build context from retrieved docs (use full content to preserve URLs)
         doc_context = "\n\n".join([
-            f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+            f"Source: {doc.get('id','')}\n{doc['content']}"  # Use full content - no truncation
             for doc in relevant_docs[:3]
         ])
 
@@ -1768,7 +1818,7 @@ RULES:
 
         return response, relevant_docs
     
-    def process_guided_conversation(self, user_input: str, action_type: str = 'message', action_data: str = None) -> Dict:
+    def process_guided_conversation(self, user_input: str, action_type: str = 'message', action_data: str = None):
         """
         Process guided conversation with topic-based filtering.
         Returns response with conversation state and UI controls.
@@ -1784,10 +1834,11 @@ RULES:
                 # User selected a topic
                 topic_id = action_data
                 if topic_id not in TOPICS:
+                    button_configs = get_button_configs()
                     return {
                         'error': f'Invalid topic: {topic_id}',
                         'state': current_state,
-                        'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
+                        'buttons': button_configs['topic_selection']['buttons'],
                         'input_enabled': False,
                         'current_topic': None
                     }
@@ -1798,42 +1849,43 @@ RULES:
                     conversation_state=CONVERSATION_STATES['TOPIC_CONVERSATION']
                 )
                 
-                topic_info = TOPICS[topic_id]
+                topic_info = get_topic_info(topic_id)
+                if not topic_info:
+                    return {
+                        'response': "Sorry, I couldn't find information about that topic.",
+                        'state': CONVERSATION_STATES['TOPIC_SELECTION'],
+                        'buttons': get_button_configs()['topic_selection']['buttons'],
+                        'input_enabled': get_button_configs()['topic_selection']['input_enabled'],
+                        'current_topic': None
+                    }
+                
                 welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
                 
+                button_configs = get_button_configs()
                 return {
                     'response': welcome_message,
                     'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                    'buttons': BUTTON_CONFIGS['topic_conversation']['buttons'],
-                    'input_enabled': BUTTON_CONFIGS['topic_conversation']['input_enabled'],
+                    'buttons': button_configs['topic_conversation']['buttons'],
+                    'input_enabled': button_configs['topic_conversation']['input_enabled'],
                     'current_topic': topic_id,
                     'topic_info': topic_info
                 }
             
             elif action_type == 'action':
                 # Handle follow-up actions
-                if action_data == 'ask_another':
-                    # Stay in current topic, enable input
-                    return {
-                        'response': "What else would you like to know about this topic?",
-                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                        'buttons': BUTTON_CONFIGS['topic_conversation']['buttons'],
-                        'input_enabled': BUTTON_CONFIGS['topic_conversation']['input_enabled'],
-                        'current_topic': current_topic
-                    }
-                
-                elif action_data == 'change_topic':
+                if action_data == 'change_topic':
                     # Reset to topic selection
                     self.set_session_state(
                         current_topic=None,
                         conversation_state=CONVERSATION_STATES['TOPIC_SELECTION']
                     )
                     
+                    button_configs = get_button_configs()
                     return {
-                        'response': BUTTON_CONFIGS['topic_selection']['message'],
+                        'response': button_configs['topic_selection']['message'],
                         'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                        'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                        'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                        'buttons': button_configs['topic_selection']['buttons'],
+                        'input_enabled': button_configs['topic_selection']['input_enabled'],
                         'current_topic': None
                     }
             
@@ -1848,6 +1900,7 @@ RULES:
                         # Strong topic match found, auto-select it
                         best_topic = matching_topics[0]
                         topic_id = best_topic['topic_id']
+                        topic_info = best_topic['topic_data']
                         
                         self.set_session_state(
                             current_topic=topic_id,
@@ -1857,22 +1910,24 @@ RULES:
                         # Process the query with topic filtering
                         response, sources = self._process_topic_query(user_input, topic_id)
                         
+                        button_configs = get_button_configs()
                         return {
                             'response': response,
-                            'state': CONVERSATION_STATES['FOLLOW_UP'],
-                            'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
-                            'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                            'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                            'buttons': button_configs['topic_conversation']['buttons'],
+                            'input_enabled': button_configs['topic_conversation']['input_enabled'],
                             'current_topic': topic_id,
                             'sources': sources,
-                            'auto_detected_topic': TOPICS[topic_id]['label']
+                            'auto_detected_topic': topic_info.get('label', 'Unknown Topic') if topic_info else 'Unknown Topic'
                         }
                     else:
                         # No clear topic match, ask user to select
+                        button_configs = get_button_configs()
                         return {
-                            'response': f"I understand you're asking: \"{user_input}\"\n\n{BUTTON_CONFIGS['topic_selection']['message']}",
+                            'response': f"I understand you're asking: \"{user_input}\"\n\n{button_configs['topic_selection']['message']}",
                             'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'buttons': button_configs['topic_selection']['buttons'],
+                            'input_enabled': button_configs['topic_selection']['input_enabled'],
                             'current_topic': None
                         }
                 
@@ -1881,22 +1936,24 @@ RULES:
                     if not current_topic:
                         # Fallback to topic selection
                         self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+                        button_configs = get_button_configs()
                         return {
-                            'response': BUTTON_CONFIGS['topic_selection']['message'],
+                            'response': button_configs['topic_selection']['message'],
                             'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'buttons': button_configs['topic_selection']['buttons'],
+                            'input_enabled': button_configs['topic_selection']['input_enabled'],
                             'current_topic': None
                         }
                     
                     # Process query with topic filtering
                     response, sources = self._process_topic_query(user_input, current_topic)
                     
+                    button_configs = get_button_configs()
                     return {
                         'response': response,
-                        'state': CONVERSATION_STATES['FOLLOW_UP'],
-                        'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
-                        'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                        'buttons': button_configs['topic_conversation']['buttons'],
+                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
                         'current_topic': current_topic,
                         'sources': sources
                     }
@@ -1907,31 +1964,34 @@ RULES:
                     if current_topic:
                         response, sources = self._process_topic_query(user_input, current_topic)
                         
+                        button_configs = get_button_configs()
                         return {
                             'response': response,
-                            'state': CONVERSATION_STATES['FOLLOW_UP'],
-                            'buttons': BUTTON_CONFIGS['follow_up']['buttons'],
-                            'input_enabled': BUTTON_CONFIGS['follow_up']['input_enabled'],
+                            'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                            'buttons': button_configs['topic_conversation']['buttons'],
+                            'input_enabled': button_configs['topic_conversation']['input_enabled'],
                             'current_topic': current_topic,
                             'sources': sources
                         }
                     else:
                         # No current topic, reset to selection
                         self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+                        button_configs = get_button_configs()
                         return {
-                            'response': BUTTON_CONFIGS['topic_selection']['message'],
+                            'response': button_configs['topic_selection']['message'],
                             'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                            'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                            'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                            'buttons': button_configs['topic_selection']['buttons'],
+                            'input_enabled': button_configs['topic_selection']['input_enabled'],
                             'current_topic': None
                         }
             
             # Default fallback
+            button_configs = get_button_configs()
             return {
                 'response': "I'm not sure how to handle that. Let me help you select a topic.",
                 'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                'buttons': button_configs['topic_selection']['buttons'],
+                'input_enabled': button_configs['topic_selection']['input_enabled'],
                 'current_topic': None
             }
             
@@ -1942,12 +2002,13 @@ RULES:
             
             # Reset to safe state
             self.set_session_state(conversation_state=CONVERSATION_STATES['TOPIC_SELECTION'])
+            button_configs = get_button_configs()
             return {
                 'error': f'Processing error: {str(e)}',
-                'response': BUTTON_CONFIGS['topic_selection']['message'],
+                'response': button_configs['topic_selection']['message'],
                 'state': CONVERSATION_STATES['TOPIC_SELECTION'],
-                'buttons': BUTTON_CONFIGS['topic_selection']['buttons'],
-                'input_enabled': BUTTON_CONFIGS['topic_selection']['input_enabled'],
+                'buttons': button_configs['topic_selection']['buttons'],
+                'input_enabled': button_configs['topic_selection']['input_enabled'],
                 'current_topic': None
             }
     
@@ -2016,6 +2077,164 @@ RULES:
 - Focus on answering questions within this topic area
 - Use only information from the provided context documents"""
     
+    def _normalize_program_acronyms(self, query: str) -> str:
+        """Normalize program acronyms to include space after BS/BA/AB (e.g., 'bsa' -> 'bs a')"""
+        import re
+        
+        # Define common program acronyms and their variations (based on ADDU official programs)
+        program_mappings = {
+            # Business and Governance
+            r'\bbpm\b': 'BPM',  # Public Management
+            r'\bbsa\b': 'BSA',  # Accountancy
+            r'\bbsma\b': 'BSMA',  # Management Accounting
+            r'\bbsbm\b': 'BSBM',  # Business Management
+            r'\bbsentrep\b': 'BS ENTREP',  # Entrepreneurship
+            r'\bbsfin\b': 'BSFIN',  # Finance
+            r'\bbshrdm\b': 'BSHRDM',  # Human Resource Development Management
+            r'\bbsmktg\b': 'BS MKTG',  # Marketing
+            
+            # Arts and Sciences - Technology
+            r'\bbsit\b': 'BS IT',  # Information Technology
+            r'\bbscs\b': 'BS CS',  # Computer Science
+            r'\bbsis\b': 'BS IS',  # Information Systems
+            r'\bbsds\b': 'BS DS',  # Data Science
+            
+            # Arts and Sciences - Science
+            r'\bbsbio\b': 'BS BIO',  # Biology
+            r'\bbschem\b': 'BS CHEM',  # Chemistry
+            r'\bbsmath\b': 'BS MATH',  # Mathematics
+            r'\bbsenvisci\b': 'BS ENVISCI',  # Environmental Science
+            r'\bbssocialwork\b': 'BS SOCIAL WORK',  # Social Work
+            
+            # Arts and Sciences - Arts
+            r'\babanthro\b': 'AB ANTHRO',  # Anthropology (all tracks)
+            r'\babanth\b': 'AB ANTHRO',  # Anthropology (short form)
+            r'\babc\b': 'AB C',  # Communication
+            r'\babcomm\b': 'AB C',  # Communication (alternate)
+            r'\babds\b': 'AB DS',  # Development Studies
+            r'\babecon\b': 'AB ECON',  # Economics
+            r'\babel\b': 'AB EL',  # English Language
+            r'\babis\b': 'AB IS',  # Interdisciplinary Studies / International Studies / Islamic Studies
+            r'\babphilo\b': 'AB PHILO',  # Philosophy
+            r'\babpolsci\b': 'AB POLSCI',  # Political Science
+            r'\babpsych\b': 'AB PSYCH',  # Psychology
+            r'\babsocio\b': 'AB SOCIO',  # Sociology
+            
+            # Education
+            r'\bbece\b': 'BECE',  # Early Childhood Education
+            r'\bbeed\b': 'BEED',  # Elementary Education
+            r'\bbsed\b': 'BSED',  # Secondary Education
+            
+            # Engineering and Architecture
+            r'\bbsae\b': 'BS AE',  # Aerospace Engineering
+            r'\bbsarch\b': 'BS ARCH',  # Architecture
+            r'\bbsche\b': 'BS CHE',  # Chemical Engineering
+            r'\bbsce\b': 'BS CE',  # Civil Engineering
+            r'\bbscompeng\b': 'BS COMP ENG',  # Computer Engineering
+            r'\bbscpe\b': 'BS COMP ENG',  # Computer Engineering (alternate)
+            r'\bbsee\b': 'BS EE',  # Electrical Engineering
+            r'\bbselectronicseng\b': 'BS ELECTRONICS ENG',  # Electronics Engineering
+            r'\bbsie\b': 'BS IE',  # Industrial Engineering
+            r'\bbsme\b': 'BS ME',  # Mechanical Engineering
+            r'\bbsre\b': 'BS RE',  # Robotics Engineering
+            
+            # Nursing
+            r'\bbsn\b': 'BSN',  # Nursing
+        }
+        
+        # Apply normalizations (case insensitive)
+        normalized_query = query
+        for pattern, replacement in program_mappings.items():
+            normalized_query = re.sub(pattern, replacement, normalized_query, flags=re.IGNORECASE)
+        
+        return normalized_query
+
+    def _is_nonsensical_query(self, query: str) -> bool:
+        """Detect if the query is nonsensical, unclear, or doesn't contain meaningful content"""
+        query_lower = query.lower().strip()
+        
+        # Check for very short queries (less than 3 characters)
+        if len(query_lower) < 3:
+            return True
+            
+        # Check for repeated characters (like "ggg", "aaa", "xxx")
+        if len(set(query_lower)) <= 2 and len(query_lower) >= 3:
+            return True
+        
+        # Check for random character sequences (no vowels pattern, too random)
+        vowels = set('aeiou')
+        consonants = set('bcdfghjklmnpqrstvwxyz')
+        
+        # If it's all consonants and longer than 6 chars, likely nonsensical
+        if len(query_lower) > 6 and all(c in consonants for c in query_lower if c.isalpha()):
+            return True
+        
+        # Check for excessive consonant-to-vowel ratio (random typing indicator)
+        alpha_chars = [c for c in query_lower if c.isalpha()]
+        if len(alpha_chars) > 5:
+            vowel_count = sum(1 for c in alpha_chars if c in vowels)
+            consonant_count = sum(1 for c in alpha_chars if c in consonants)
+            
+            # If less than 20% vowels in a word longer than 5 chars, likely nonsensical
+            if vowel_count / len(alpha_chars) < 0.2:
+                return True
+            
+        # Check for common nonsensical patterns
+        nonsensical_patterns = [
+            r'^[a-z]{1,2}$',  # Single or double letters only
+            r'^[^a-zA-Z0-9\s]+$',  # Only special characters
+            r'^(.)\1{2,}$',  # Repeated characters (3+ times) like "aaa", "ggg", "xxx"
+        ]
+        
+        import re
+        for pattern in nonsensical_patterns:
+            if re.match(pattern, query_lower):
+                return True
+                
+        # Check for queries that are just numbers or special characters
+        if query_lower.isdigit() or not any(c.isalpha() for c in query_lower):
+            return True
+            
+        return False
+
+    def _is_privacy_related_query(self, query: str, topic_id: str) -> bool:
+        """Detect if the query is asking for confidential/private information"""
+        query_lower = query.lower().strip()
+        
+        # Only apply privacy checks for admissions/enrollment topic
+        if topic_id != 'admissions_enrollment':
+            return False
+        
+        # Privacy-sensitive keywords and phrases
+        privacy_keywords = [
+            # Grades and scores
+            'my grade', 'my score', 'my result', 'my exam result',
+            'what grade', 'what score', 'my stanine', 'stanine score',
+            'entrance exam score', 'entrance exam result', 'exam grade',
+            'test score', 'test result', 'assessment score', 'assessment result',
+            
+            # Passing scores/thresholds
+            'passing grade', 'passing score', 'minimum score', 'minimum grade',
+            'cut off', 'cutoff', 'cut-off', 'threshold', 'required score',
+            'required grade', 'qualifying score', 'qualifying grade',
+            
+            # Personal information
+            'my application', 'my status', 'application status',
+            'admission status', 'acceptance status', 'my admission',
+            
+            # Specific score inquiries
+            'what is the passing', 'what is passing', 'how much to pass',
+            'score to pass', 'grade to pass', 'need to pass',
+            'score needed', 'grade needed', 'minimum to pass'
+        ]
+        
+        # Check if query contains any privacy-sensitive keywords
+        for keyword in privacy_keywords:
+            if keyword in query_lower:
+                return True
+        
+        return False
+
     def _detect_cross_topic_query(self, query: str) -> Optional[str]:
         """Detect if user is asking about a different topic than the current one"""
         query_lower = query.lower()
@@ -2073,9 +2292,57 @@ RULES:
         
         return None
     
-    def _process_topic_query(self, query: str, topic_id: str) -> Tuple[str, List[Dict]]:
+    def _process_topic_query(self, query: str, topic_id: str):
         """Process a query within a specific topic context"""
         try:
+            # Normalize program acronyms (e.g., 'bsa' -> 'BS A')
+            normalized_query = self._normalize_program_acronyms(query)
+            
+            # Check if query is nonsensical or unclear (use original query for this check)
+            if self._is_nonsensical_query(query):
+                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                
+                # Provide topic-specific examples
+                if topic_id == 'admissions_enrollment':
+                    examples = "- What are the admission requirements?\n- How do I apply as a new student?\n- What documents do I need?"
+                elif topic_id == 'programs_courses':
+                    examples = "- What programs are available?\n- Tell me about Computer Science\n- What courses are in BS IT?"
+                elif topic_id == 'fees':
+                    examples = "- What are the tuition fees?\n- How much does BS Computer Science cost?\n- What are the payment options?"
+                else:
+                    examples = "- What information do you need?\n- How can I help you?\n- What would you like to know?"
+                
+                response_text = f"""I'm sorry, I don't understand your query. 
+
+Please ask a clear question about **{topic_label}**. For example:
+{examples}
+
+Try rephrasing your question with more specific details."""
+
+                return response_text, []
+            
+            # Check if query is asking for private/confidential information
+            if self._is_privacy_related_query(query, topic_id):
+                response_text = """I apologize, but I cannot provide information about:
+
+- **Individual exam scores or grades** (including stanine scores, entrance exam results)
+- **Passing scores or cut-off grades** (these are confidential and not publicly disclosed)
+- **Personal application status** (this requires accessing your personal records)
+- **Specific score thresholds** (minimum/required scores are not disclosed)
+
+**For privacy and security reasons**, this information is confidential and not disclosed publicly.
+
+
+**What I can help you with:**
+- General admission requirements and processes
+- Required documents for application
+- Application procedures and timelines
+- Contact information for the Admissions Office
+
+Feel free to ask about these general admission topics!"""
+
+                return response_text, []
+            
             # Check if user is asking about a different topic
             detected_topic = self._detect_cross_topic_query(query)
             
@@ -2084,7 +2351,7 @@ RULES:
                 current_topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
                 detected_topic_label = TOPICS.get(detected_topic, {}).get('label', detected_topic)
                 
-                return f"""I notice you're asking about **{detected_topic_label}**, but we're currently in the **{current_topic_label}** section.
+                response_text = f"""I notice you're asking about **{detected_topic_label}**, but we're currently in the **{current_topic_label}** section.
 
 To get the most accurate information about {detected_topic_label}, please:
 
@@ -2092,18 +2359,22 @@ To get the most accurate information about {detected_topic_label}, please:
 2. Select **"{detected_topic_label}"** from the topic list
 3. Ask your question again
 
-This will ensure you get the most relevant and up-to-date information for your query.""", []
+This will ensure you get the most relevant and up-to-date information for your query."""
+
+                return response_text, []
             
-            # Use specialized topic retrieval for better accuracy and efficiency
-            relevant_docs = self.retrieve_documents_by_topic_specialized(query, topic_id, top_k=3)
+            # Use specialized topic retrieval for better accuracy and efficiency (with normalized query)
+            relevant_docs = self.retrieve_documents_by_topic_specialized(normalized_query, topic_id, top_k=3)
             
             if not relevant_docs:
                 topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
-                return f"I don't have specific information about that in the {topic_label} topic. Could you try rephrasing your question?", []
+                response_text = f"I don't have specific information about that in the {topic_label} topic. Could you try rephrasing your question?"
+                
+                return response_text, []
             
-            # Build context from retrieved docs
+            # Build context from retrieved docs (use full content to preserve URLs)
             doc_context = "\n\n".join([
-                f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+                f"Source: {doc.get('id','')}\n{doc['content']}"  # Use full content - no truncation
                 for doc in relevant_docs[:3]
             ])
             
@@ -2145,23 +2416,29 @@ CONTEXT MATCHING:
 </|context|>
 
 <|user|>
-{query}
+{normalized_query}
 </|user|>
 
 <|assistant|>
 """
             
-            # Generate response
-            response = generate_response(prompt, max_tokens=3000)
+            # Generate response (non-streaming)
+            from .together_ai_interface import stream_response_together, generate_response
             
-            # Add to history
-            self.add_to_history(query, response)
+            # Non-streaming mode - return complete response
+            full_response = ""
+            for chunk in stream_response_together(prompt, max_tokens=3000):
+                full_response += chunk
             
-            return response, relevant_docs
+            # Add to history (use original query for history)
+            self.add_to_history(query, full_response)
+            
+            return full_response, relevant_docs
             
         except Exception as e:
             print(f"❌ Topic query processing error: {e}")
-            return f"I encountered an error processing your question. Please try again.", []
+            response_text = f"I encountered an error processing your question. Please try again."
+            return response_text, []
 
     def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 5000,
                         use_history: bool = True, require_context: bool = True, 

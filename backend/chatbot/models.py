@@ -9,6 +9,48 @@ class TestItem(models.Model):
 
     def __str__(self):
         return self.name
+
+class Topic(models.Model):
+    """Predefined topics for guided conversation"""
+    TOPIC_CHOICES = [
+        ('admissions_enrollment', 'General Admissions and Enrollment'),
+        ('programs_courses', 'Programs and Courses'),
+        ('fees', 'Fees'),
+    ]
+    
+    topic_id = models.CharField(max_length=50, choices=TOPIC_CHOICES, unique=True)
+    label = models.CharField(max_length=255)
+    description = models.TextField()
+    retrieval_strategy = models.CharField(max_length=50, default='generic')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.label} ({self.topic_id})"
+    
+    def get_keywords_list(self):
+        """Get all keywords for this topic as a list"""
+        return [keyword.keyword for keyword in self.keywords.filter(is_active=True)]
+    
+    def get_keywords_string(self):
+        """Get all keywords for this topic as a comma-separated string"""
+        return ', '.join(self.get_keywords_list())
+
+class TopicKeyword(models.Model):
+    """Keywords associated with topics for document filtering"""
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='keywords')
+    keyword = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=255, blank=True, help_text="Admin who added this keyword")
+    
+    class Meta:
+        unique_together = ['topic', 'keyword']
+        ordering = ['keyword']
+    
+    def __str__(self):
+        return f"{self.topic.topic_id}: {self.keyword}"
     
 class Conversation(models.Model):
     """Represents a conversation session"""
@@ -127,7 +169,7 @@ class DocumentMetadata(models.Model):
     
     # Keywords for better searchability
     keywords = models.TextField(blank=True, help_text="Comma-separated keywords")
-    
+       
     # Administrative tracking
     uploaded_by = models.CharField(max_length=255, blank=True)
     last_modified = models.DateTimeField(auto_now=True)

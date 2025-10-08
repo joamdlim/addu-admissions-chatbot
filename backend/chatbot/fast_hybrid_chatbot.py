@@ -483,9 +483,9 @@ class FastHybridChatbot:
             print("\r" + " " * 40 + "\r", end="", flush=True)
         print(f"⏱️ Document retrieval: {retrieval_time:.2f}s")
 
-        # Build context from retrieved docs
+        # Build context from retrieved docs (preserve URLs by using more content)
         doc_context = "\n\n".join([
-            f"Source: {doc.get('id','')}\n{doc['content'][:1000]}"
+            f"Source: {doc.get('id','')}\n{doc['content'][:2000]}"  # Increased from 1000 to 2000 to preserve URLs
             for doc in relevant_docs[:3]
         ])
 

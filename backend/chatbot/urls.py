@@ -47,4 +47,12 @@ urlpatterns = [
     
     # Enhanced chat with filtering
     path("chat/enhanced/", views.enhanced_chat_query, name="enhanced_chat_query"),
+    
+    # Topic management endpoints
+    path("admin/topics/", views.get_topics_admin, name="get_topics_admin"),
+    path("admin/topics/<str:topic_id>/keywords/", views.get_topic_keywords, name="get_topic_keywords"),
+    path("admin/topics/<str:topic_id>/keywords/add/", views.add_topic_keyword, name="add_topic_keyword"),
+    path("admin/topics/<str:topic_id>/keywords/bulk/", views.bulk_add_topic_keywords, name="bulk_add_topic_keywords"),
+    path("admin/keywords/<int:keyword_id>/update/", views.update_keyword, name="update_keyword"),
+    path("admin/keywords/<int:keyword_id>/delete/", views.delete_keyword, name="delete_keyword"),
 ]
