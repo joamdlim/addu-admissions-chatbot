@@ -15,8 +15,14 @@ const AdminPage = ({ onFileForReview }) => {
     name: "",
     description: "",
     color: "#063970",
+    parent_folder_id: null, // NEW: for subfolder creation
   });
   const [selectedFolder, setSelectedFolder] = useState(null);
+
+  // NEW: Navigation state for subfolder support
+  const [currentFolderId, setCurrentFolderId] = useState(null); // Track current location
+  const [folderBreadcrumbs, setFolderBreadcrumbs] = useState([]); // Navigation trail
+  const [allFolders, setAllFolders] = useState([]); // Store all folders for hierarchical display
 
   // Document metadata state
   const [showMetadataPanel, setShowMetadataPanel] = useState(false);
@@ -35,25 +41,57 @@ const AdminPage = ({ onFileForReview }) => {
   // Keywords expansion state
   const [expandedKeywords, setExpandedKeywords] = useState({});
 
+  // Fetch folders for current location
+  const fetchFolders = async (parentId = null) => {
+    try {
+      const url = parentId
+        ? `http://localhost:8000/chatbot/admin/folders/?parent_id=${parentId}`
+        : `http://localhost:8000/chatbot/admin/folders/`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+      setFolders(data.folders || []);
+    } catch (error) {
+      console.error("Error fetching folders:", error);
+    }
+  };
+
+  // Fetch all folders (for dropdown selects)
+  const fetchAllFolders = async () => {
+    try {
+      // This endpoint should return all folders regardless of parent
+      const response = await fetch(
+        "http://localhost:8000/chatbot/admin/folders/all/"
+      );
+      const data = await response.json();
+      setAllFolders(data.folders || []);
+    } catch (error) {
+      console.error("Error fetching all folders:", error);
+      // Fallback: use current folders
+      setAllFolders(folders);
+    }
+  };
+
   // Fetch all data
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [filesRes, foldersRes, docsRes] = await Promise.all([
+      const [filesRes, docsRes] = await Promise.all([
         fetch("http://localhost:8000/chatbot/admin/files/"),
-        fetch("http://localhost:8000/chatbot/admin/folders/"),
         fetch("http://localhost:8000/chatbot/admin/documents/"),
       ]);
 
-      const [filesData, foldersData, docsData] = await Promise.all([
+      const [filesData, docsData] = await Promise.all([
         filesRes.json(),
-        foldersRes.json(),
         docsRes.json(),
       ]);
 
       setFiles(filesData.files || []);
-      setFolders(foldersData.folders || []);
       setDocuments(docsData.documents || []);
+
+      // Fetch folders for current location
+      await fetchFolders(currentFolderId);
+      await fetchAllFolders();
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -63,19 +101,58 @@ const AdminPage = ({ onFileForReview }) => {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [currentFolderId]); // Re-fetch when current folder changes
+
+  // Navigate to a folder (open subfolder or go back)
+  const navigateToFolder = async (folderId, folderName = null) => {
+    setCurrentFolderId(folderId);
+
+    // Update breadcrumbs
+    if (!folderId) {
+      // Going to root
+      setFolderBreadcrumbs([]);
+    } else {
+      // Build breadcrumb trail
+      const folder = allFolders.find((f) => f.id === folderId);
+      if (folder && folder.folder_path) {
+        const pathParts = folder.folder_path.split(" / ");
+        const newBreadcrumbs = pathParts.map((name, index) => {
+          const matchingFolder = allFolders.find(
+            (f) => f.folder_path === pathParts.slice(0, index + 1).join(" / ")
+          );
+          return {
+            id: matchingFolder?.id || folderId,
+            name: name,
+          };
+        });
+        setFolderBreadcrumbs(newBreadcrumbs);
+      } else if (folderName) {
+        setFolderBreadcrumbs([
+          ...folderBreadcrumbs,
+          { id: folderId, name: folderName },
+        ]);
+      }
+    }
+
+    await fetchFolders(folderId);
+  };
 
   // Folder management functions
   const handleCreateFolder = async (e) => {
     e.preventDefault();
 
     try {
+      const folderData = {
+        ...newFolder,
+        parent_folder_id: currentFolderId, // Create in current location
+      };
+
       const response = await fetch(
         "http://localhost:8000/chatbot/admin/folders/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newFolder),
+          body: JSON.stringify(folderData),
         }
       );
 
@@ -83,7 +160,12 @@ const AdminPage = ({ onFileForReview }) => {
 
       if (response.ok) {
         alert(result.message);
-        setNewFolder({ name: "", description: "", color: "#063970" });
+        setNewFolder({
+          name: "",
+          description: "",
+          color: "#063970",
+          parent_folder_id: null,
+        });
         setShowFolderForm(false);
         fetchAllData();
       } else {
@@ -421,9 +503,10 @@ const AdminPage = ({ onFileForReview }) => {
                 required
               >
                 <option value="">Select folder...</option>
-                {folders.map((folder) => (
+                {allFolders.map((folder) => (
                   <option key={folder.id} value={folder.id}>
-                    {folder.name}
+                    {"  ".repeat(folder.level || 0)}
+                    {folder.folder_path || folder.name}
                   </option>
                 ))}
               </select>
@@ -505,6 +588,33 @@ const AdminPage = ({ onFileForReview }) => {
             </button>
           </div>
 
+          {/* Breadcrumb Navigation */}
+          {(currentFolderId || folderBreadcrumbs.length > 0) && (
+            <div className="flex items-center gap-2 mb-3 text-sm bg-gray-50 px-3 py-2 rounded border">
+              <button
+                onClick={() => navigateToFolder(null)}
+                className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+              >
+                <span>🏠</span> Root
+              </button>
+              {folderBreadcrumbs.map((folder, index) => (
+                <React.Fragment key={folder.id}>
+                  <span className="text-gray-400">/</span>
+                  <button
+                    onClick={() => navigateToFolder(folder.id, folder.name)}
+                    className={`hover:text-blue-800 ${
+                      index === folderBreadcrumbs.length - 1
+                        ? "text-gray-900 font-semibold"
+                        : "text-blue-600"
+                    }`}
+                  >
+                    {folder.name}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+
           {/* New Folder Form */}
           {showFolderForm && (
             <form
@@ -562,6 +672,14 @@ const AdminPage = ({ onFileForReview }) => {
                   />
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {currentFolderId
+                  ? `Creating subfolder in: ${
+                      folderBreadcrumbs[folderBreadcrumbs.length - 1]?.name ||
+                      "Current Folder"
+                    }`
+                  : "Creating folder in root"}
+              </p>
               <button
                 type="submit"
                 className="mt-2 bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 transition"
@@ -594,6 +712,31 @@ const AdminPage = ({ onFileForReview }) => {
 
             {/* Vertical Separator */}
             <div className="w-px h-24 bg-gray-300 flex-shrink-0"></div>
+
+            {/* Back Button (when not in root) */}
+            {currentFolderId && (
+              <>
+                <div
+                  onClick={() => {
+                    const parentBreadcrumbs = folderBreadcrumbs.slice(0, -1);
+                    const parentId =
+                      parentBreadcrumbs.length > 0
+                        ? parentBreadcrumbs[parentBreadcrumbs.length - 1].id
+                        : null;
+                    navigateToFolder(parentId);
+                  }}
+                  className="flex-shrink-0 w-44 h-24 border-2 rounded-lg p-3 cursor-pointer transition border-gray-400 hover:bg-gray-100 bg-gray-50"
+                >
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-2xl">⬅️</span>
+                    <span className="ml-2 font-semibold text-sm text-gray-700">
+                      Back
+                    </span>
+                  </div>
+                </div>
+                <div className="w-px h-24 bg-gray-300 flex-shrink-0"></div>
+              </>
+            )}
 
             {/* Scrollable Folders */}
             <div className="flex-1 overflow-x-auto">
@@ -632,6 +775,9 @@ const AdminPage = ({ onFileForReview }) => {
                     </div>
 
                     <div
+                      onDoubleClick={() =>
+                        navigateToFolder(folder.id, folder.name)
+                      }
                       onClick={() => setSelectedFolder(folder)}
                       className="cursor-pointer h-full"
                     >
@@ -647,13 +793,28 @@ const AdminPage = ({ onFileForReview }) => {
                       <p className="text-xs text-gray-600 mb-1 line-clamp-1 h-4">
                         {folder.description}
                       </p>
-                      <p className="text-xs text-gray-500 mt-auto">
-                        {folder.document_count} documents
+                      <p className="text-xs text-gray-500 mt-auto flex items-center justify-between">
+                        <span>
+                          {folder.document_count} docs
+                          {folder.total_document_count >
+                            folder.document_count &&
+                            ` (${folder.total_document_count})`}
+                        </span>
+                        {folder.subfolder_count > 0 && (
+                          <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">
+                            📁 {folder.subfolder_count}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
+              {folders.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No folders here. Create one to get started!
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -967,9 +1128,10 @@ const AdminPage = ({ onFileForReview }) => {
                     defaultValue={selectedDocument.folder.id}
                     className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
                   >
-                    {folders.map((folder) => (
+                    {allFolders.map((folder) => (
                       <option key={folder.id} value={folder.id}>
-                        {folder.name}
+                        {"  ".repeat(folder.level || 0)}
+                        {folder.folder_path || folder.name}
                       </option>
                     ))}
                   </select>

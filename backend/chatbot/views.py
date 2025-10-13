@@ -835,25 +835,74 @@ def process_text_with_existing_embeddings(text: str, file_name: str):
 
 # ===== FOLDER MANAGEMENT API =====
 
-@api_view(['GET', 'POST'])
-def manage_folders(request):
-    """List all folders or create a new folder"""
-    if request.method == 'GET':
-        folders = DocumentFolder.objects.annotate(
-            doc_count=Count('documents')  # Changed from document_count to doc_count
+@api_view(['GET'])
+def get_all_folders(request):
+    """Get all folders (for dropdown selects) - returns all folders regardless of hierarchy"""
+    try:
+        folders = DocumentFolder.objects.all().annotate(
+            doc_count=Count('documents'),
+            subfolder_count=Count('subfolders')
         ).order_by('name')
         
         folder_list = []
         for folder in folders:
-            # Get document type breakdown
-            type_breakdown = DocumentMetadata.objects.filter(folder=folder).values('document_type').annotate(count=Count('document_type'))
+            folder_list.append({
+                'id': folder.id,
+                'name': folder.name,
+                'description': folder.description,
+                'color': folder.color,
+                'parent_folder_id': folder.parent_folder_id,
+                'document_count': folder.doc_count,
+                'total_document_count': folder.total_document_count,
+                'subfolder_count': folder.subfolder_count,
+                'level': folder.level,
+                'folder_path': folder.folder_path,
+            })
+        
+        return Response({"folders": folder_list})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['GET', 'POST'])
+def manage_folders(request):
+    """List all folders or create a new folder (with hierarchical support)"""
+    if request.method == 'GET':
+        # Get parent_id from query params (optional)
+        parent_id = request.GET.get('parent_id', None)
+        
+        # Filter by parent folder
+        if parent_id:
+            try:
+                folders = DocumentFolder.objects.filter(parent_folder_id=parent_id)
+            except ValueError:
+                return Response({"error": "Invalid parent_id"}, status=400)
+        else:
+            # If parent_id is None or not provided, get root folders
+            folders = DocumentFolder.objects.filter(parent_folder__isnull=True)
+        
+        folders = folders.annotate(
+            doc_count=Count('documents'),
+            subfolder_count=Count('subfolders')
+        ).order_by('name')
+        
+        folder_list = []
+        for folder in folders:
+            # Get document type breakdown for this folder only
+            type_breakdown = DocumentMetadata.objects.filter(
+                folder=folder
+            ).values('document_type').annotate(count=Count('document_type'))
             
             folder_list.append({
                 'id': folder.id,
                 'name': folder.name,
                 'description': folder.description,
                 'color': folder.color,
-                'document_count': folder.doc_count,  # Use the annotated field
+                'parent_folder_id': folder.parent_folder_id,
+                'document_count': folder.doc_count,
+                'total_document_count': folder.total_document_count,
+                'subfolder_count': folder.subfolder_count,
+                'level': folder.level,
+                'folder_path': folder.folder_path,
                 'type_breakdown': list(type_breakdown),
                 'created_at': folder.created_at.isoformat(),
                 'updated_at': folder.updated_at.isoformat(),
@@ -867,29 +916,46 @@ def manage_folders(request):
             name = data.get('name', '').strip()
             description = data.get('description', '').strip()
             color = data.get('color', '#063970')
+            parent_folder_id = data.get('parent_folder_id', None)
             
             if not name:
                 return Response({"error": "Folder name is required"}, status=400)
             
-            # Check for duplicate names
-            if DocumentFolder.objects.filter(name=name).exists():
-                return Response({"error": "Folder name already exists"}, status=400)
+            # Validate parent folder if provided
+            parent_folder = None
+            if parent_folder_id:
+                try:
+                    parent_folder = DocumentFolder.objects.get(id=parent_folder_id)
+                except DocumentFolder.DoesNotExist:
+                    return Response({"error": "Parent folder not found"}, status=404)
+            
+            # Check for duplicate names within the same parent
+            if DocumentFolder.objects.filter(
+                name=name, 
+                parent_folder=parent_folder
+            ).exists():
+                parent_name = parent_folder.name if parent_folder else "root"
+                return Response({
+                    "error": f"Folder name already exists in {parent_name}"
+                }, status=400)
             
             folder = DocumentFolder.objects.create(
                 name=name,
                 description=description,
-                color=color
+                color=color,
+                parent_folder=parent_folder
             )
             
             return Response({
-                "message": f"Folder '{name}' created successfully",
+                "message": f"Folder '{folder.folder_path}' created successfully",
                 "folder": {
                     'id': folder.id,
                     'name': folder.name,
                     'description': folder.description,
                     'color': folder.color,
-                    'document_count': 0,
-                    'created_at': folder.created_at.isoformat(),
+                    'parent_folder_id': folder.parent_folder_id,
+                    'folder_path': folder.folder_path,
+                    'level': folder.level,
                 }
             })
             
@@ -913,9 +979,12 @@ def manage_folder_detail(request, folder_id):
                 if not new_name:
                     return JsonResponse({"error": "Folder name cannot be empty"}, status=400)
                 
-                # Check for duplicate names (excluding current folder)
-                if DocumentFolder.objects.filter(name=new_name).exclude(id=folder_id).exists():
-                    return JsonResponse({"error": "Folder name already exists"}, status=400)
+                # Check for duplicate names within the same parent (excluding current folder)
+                if DocumentFolder.objects.filter(
+                    name=new_name,
+                    parent_folder=folder.parent_folder
+                ).exclude(id=folder_id).exists():
+                    return JsonResponse({"error": "Folder name already exists in this location"}, status=400)
                 
                 folder.name = new_name
             
@@ -925,15 +994,44 @@ def manage_folder_detail(request, folder_id):
             if 'color' in data:
                 folder.color = data['color']
             
+            if 'parent_folder_id' in data:
+                # Allow moving folders to different parents
+                new_parent_id = data['parent_folder_id']
+                
+                if new_parent_id:
+                    try:
+                        new_parent = DocumentFolder.objects.get(id=new_parent_id)
+                        
+                        # Prevent circular references (folder can't be its own ancestor)
+                        if new_parent.id == folder.id:
+                            return JsonResponse({"error": "Folder cannot be its own parent"}, status=400)
+                        
+                        # Check if new_parent is a descendant of folder
+                        current = new_parent
+                        while current:
+                            if current.id == folder.id:
+                                return JsonResponse({
+                                    "error": "Cannot move folder into its own subfolder"
+                                }, status=400)
+                            current = current.parent_folder
+                        
+                        folder.parent_folder = new_parent
+                    except DocumentFolder.DoesNotExist:
+                        return JsonResponse({"error": "Parent folder not found"}, status=404)
+                else:
+                    folder.parent_folder = None  # Move to root
+            
             folder.save()
             
             return JsonResponse({
-                "message": f"Folder '{folder.name}' updated successfully",
+                "message": f"Folder '{folder.folder_path}' updated successfully",
                 "folder": {
                     'id': folder.id,
                     'name': folder.name,
                     'description': folder.description,
                     'color': folder.color,
+                    'parent_folder_id': folder.parent_folder_id,
+                    'folder_path': folder.folder_path,
                 }
             })
             
@@ -942,16 +1040,22 @@ def manage_folder_detail(request, folder_id):
     
     elif request.method == 'DELETE':
         try:
-            folder_name = folder.name
-            documents_in_folder = folder.documents.all()
-            document_count = documents_in_folder.count()
+            folder_name = folder.folder_path
             
-            if document_count > 0:
+            # Get all descendant folders
+            all_folders_to_delete = [folder] + folder.get_all_descendant_folders()
+            
+            # Count total documents in all folders
+            total_document_count = sum(
+                f.documents.count() for f in all_folders_to_delete
+            )
+            
+            if total_document_count > 0:
                 # Delete all documents from Supabase, ChromaDB, and database
                 deleted_count = 0
                 failed_deletions = []
                 
-                for doc_metadata in documents_in_folder:
+                for doc_metadata in DocumentMetadata.objects.filter(folder__in=all_folders_to_delete):
                     try:
                         # Delete from Supabase storage
                         try:
@@ -979,16 +1083,16 @@ def manage_folder_detail(request, folder_id):
                         print(f"❌ Failed to delete document {doc_metadata.filename}: {doc_error}")
                         failed_deletions.append(doc_metadata.filename)
                 
-                # Delete the folder
+                # Delete all subfolders and the folder itself (CASCADE will handle this)
                 folder.delete()
                 
                 if failed_deletions:
                     return JsonResponse({
-                        "message": f"Folder '{folder_name}' deleted with {deleted_count} documents. Failed to delete: {', '.join(failed_deletions)}"
+                        "message": f"Folder '{folder_name}' and all subfolders deleted with {deleted_count} documents. Failed to delete: {', '.join(failed_deletions)}"
                     })
                 else:
                     return JsonResponse({
-                        "message": f"Folder '{folder_name}' and all {deleted_count} documents deleted successfully from all systems"
+                        "message": f"Folder '{folder_name}' and all subfolders deleted successfully"
                     })
             else:
                 # Folder is empty, just delete it
@@ -999,6 +1103,73 @@ def manage_folder_detail(request, folder_id):
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@api_view(['GET'])
+def get_folder_tree(request):
+    """Get the complete folder hierarchy as a tree structure"""
+    try:
+        def build_folder_tree(parent_folder=None):
+            """Recursively build folder tree"""
+            folders = DocumentFolder.objects.filter(
+                parent_folder=parent_folder
+            ).annotate(
+                doc_count=Count('documents'),
+                subfolder_count=Count('subfolders')
+            ).order_by('name')
+            
+            tree = []
+            for folder in folders:
+                folder_data = {
+                    'id': folder.id,
+                    'name': folder.name,
+                    'description': folder.description,
+                    'color': folder.color,
+                    'parent_folder_id': folder.parent_folder_id,
+                    'document_count': folder.doc_count,
+                    'total_document_count': folder.total_document_count,
+                    'subfolder_count': folder.subfolder_count,
+                    'level': folder.level,
+                    'folder_path': folder.folder_path,
+                    'children': build_folder_tree(folder)  # Recursive call
+                }
+                tree.append(folder_data)
+            
+            return tree
+        
+        folder_tree = build_folder_tree()
+        
+        return JsonResponse({"folder_tree": folder_tree})
+        
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+def get_folder_tree_legacy(request):
+    """Legacy endpoint for backward compatibility (flat list)"""
+    try:
+        folders = DocumentFolder.objects.filter(parent_folder__isnull=True).annotate(
+            doc_count=Count('documents'),
+            subfolder_count=Count('subfolders')
+        ).order_by('name')
+
+        folder_list = []
+        for folder in folders:
+            folder_list.append({
+                'id': folder.id,
+                'name': folder.name,
+                'description': folder.description,
+                'color': folder.color,
+                'parent_folder_id': folder.parent_folder_id,
+                'document_count': folder.doc_count,
+                'total_document_count': folder.total_document_count,
+                'subfolder_count': folder.subfolder_count,
+                'level': folder.level,
+                'folder_path': folder.folder_path,
+            })
+        
+        return JsonResponse({"folders": folder_list})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @api_view(['GET', 'POST'])
 def manage_document_metadata(request):

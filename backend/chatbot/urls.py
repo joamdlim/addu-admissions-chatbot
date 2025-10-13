@@ -38,7 +38,9 @@ urlpatterns = [
     
     # Folder management endpoints
     path("admin/folders/", views.manage_folders, name="manage_folders"),
+    path("admin/folders/all/", views.get_all_folders, name="get_all_folders"),
     path("admin/folders/<int:folder_id>/", views.manage_folder_detail, name="manage_folder_detail"),
+    path("admin/folder-tree/", views.get_folder_tree, name="get_folder_tree"),
     
     # Document metadata management
     path("admin/documents/", views.manage_document_metadata, name="manage_document_metadata"),

@@ -123,19 +123,72 @@ class SystemPrompt(models.Model):
         return f"{self.name} ({self.token_count} tokens)"
 
 class DocumentFolder(models.Model):
-    """Represents a folder for organizing documents"""
-    name = models.CharField(max_length=255, unique=True)
+    """Represents a folder for organizing documents with hierarchical support"""
+    name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     color = models.CharField(max_length=7, default="#063970")  # Hex color
+    
+    # NEW: Parent folder relationship for hierarchical structure
+    parent_folder = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='subfolders'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        # Ensure unique names only within the same parent folder
+        unique_together = ['name', 'parent_folder']
+    
     def __str__(self):
+        if self.parent_folder:
+            return f"{self.parent_folder.name} / {self.name}"
         return self.name
     
     @property
     def document_count(self):
+        """Count only documents directly in this folder"""
         return self.documents.count()
+    
+    @property
+    def total_document_count(self):
+        """Count documents in this folder and all subfolders recursively"""
+        count = self.documents.count()
+        for subfolder in self.subfolders.all():
+            count += subfolder.total_document_count
+        return count
+    
+    @property
+    def folder_path(self):
+        """Get the full path of this folder"""
+        path_parts = [self.name]
+        current = self.parent_folder
+        while current:
+            path_parts.insert(0, current.name)
+            current = current.parent_folder
+        return " / ".join(path_parts)
+    
+    def get_all_descendant_folders(self):
+        """Get all subfolders recursively"""
+        descendants = []
+        for subfolder in self.subfolders.all():
+            descendants.append(subfolder)
+            descendants.extend(subfolder.get_all_descendant_folders())
+        return descendants
+    
+    @property
+    def level(self):
+        """Get the depth level of this folder (0 for root folders)"""
+        level = 0
+        current = self.parent_folder
+        while current:
+            level += 1
+            current = current.parent_folder
+        return level
 
 class DocumentMetadata(models.Model):
     """Enhanced metadata for documents stored in ChromaDB"""
