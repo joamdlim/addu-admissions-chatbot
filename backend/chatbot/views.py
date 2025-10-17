@@ -447,7 +447,7 @@ def admin_upload_file(request):
                 {"content-type": uploaded_file.content_type}
             )
             
-            # Process and store in ChromaDB immediately for PDFs only
+            # Process and store in ChromaDB for supported file types
             if file_name.lower().endswith('.pdf'):
                 try:
                     from .improved_pdf_to_chroma import process_and_store_pdf_in_chroma_improved
@@ -465,8 +465,68 @@ def admin_upload_file(request):
                 except Exception as chroma_error:
                     print(f"⚠️ ChromaDB processing failed for {file_name}: {chroma_error}")
                     message = f"File '{file_name}' uploaded to Supabase but ChromaDB processing failed: {str(chroma_error)}"
+            elif file_name.lower().endswith(('.csv', '.xlsx', '.xls')):
+                try:
+                    from .excel_csv_processor import process_excel_csv_file, validate_fees_file
+                    import pandas as pd
+                    import io
+                    
+                    # Read the file to validate it first
+                    if file_name.lower().endswith('.csv'):
+                        df = pd.read_csv(io.BytesIO(file_bytes))
+                    else:
+                        df = pd.read_excel(io.BytesIO(file_bytes))
+                    
+                    # Validate if it's fees data
+                    is_valid, message = validate_fees_file(df)
+                    if not is_valid:
+                        return JsonResponse({
+                            "error": f"Invalid fees file: {message}"
+                        }, status=400)
+                    
+                    # Process the Excel/CSV file
+                    processed_text = process_excel_csv_file(file_bytes, file_name)
+                    
+                    # Store in ChromaDB using the existing function
+                    documents_stored = process_text_with_existing_embeddings(processed_text, file_name)
+                    
+                    message = f"File '{file_name}' uploaded and processed successfully ({documents_stored} documents stored in ChromaDB)"
+                    
+                except Exception as excel_error:
+                    print(f"⚠️ Excel/CSV processing failed for {file_name}: {excel_error}")
+                    message = f"File '{file_name}' uploaded to Supabase but Excel/CSV processing failed: {str(excel_error)}"
             else:
-                message = f"File '{file_name}' uploaded successfully (non-PDF files are stored in Supabase only)"
+                message = f"File '{file_name}' uploaded successfully (non-PDF/Excel/CSV files are stored in Supabase only)"
+            
+            # Create DocumentMetadata record for admin page display
+            try:
+                from .models import DocumentMetadata, DocumentFolder
+                import time
+                
+                # Get the folder object
+                folder_obj = None
+                if folder_id:
+                    try:
+                        folder_obj = DocumentFolder.objects.get(id=int(folder_id))
+                    except DocumentFolder.DoesNotExist:
+                        print(f"⚠️ Folder with ID {folder_id} not found")
+                
+                # Create document metadata record with correct field names
+                document_metadata = DocumentMetadata.objects.create(
+                    document_id=f"doc_{file_name}_{int(time.time())}",
+                    filename=file_name,
+                    folder=folder_obj,
+                    document_type=document_type,
+                    target_program=target_program,
+                    keywords=keywords,
+                    synced_to_chroma=True  # Since we processed it for ChromaDB
+                )
+                
+                print(f"✅ Created DocumentMetadata record for {file_name}")
+                
+            except Exception as metadata_error:
+                print(f"⚠️ Failed to create DocumentMetadata record: {metadata_error}")
+                # Don't fail the upload if metadata creation fails
             
             return JsonResponse({
                 "status": "success",
@@ -523,7 +583,7 @@ def admin_delete_file(request):
             print(f"✅ Deleted from Supabase: {file_name}")
             
             # Also remove from ChromaDB for supported file types
-            if file_name.lower().endswith(('.pdf', '.txt', '.docx')):
+            if file_name.lower().endswith(('.pdf', '.txt', '.docx', '.csv', '.xlsx', '.xls')):
                 try:
                     from .chroma_connection import ChromaService
                     collection = ChromaService.get_collection()
@@ -607,8 +667,8 @@ def admin_sync_file_to_chroma(request):
             if not file_name:
                 return JsonResponse({"error": "File name required"}, status=400)
             
-            if not file_name.lower().endswith(('.pdf', '.txt', '.docx')):
-                return JsonResponse({"error": "Only PDF, TXT, and DOCX files can be synced to ChromaDB"}, status=400)
+            if not file_name.lower().endswith(('.pdf', '.txt', '.docx', '.csv', '.xlsx', '.xls')):
+                return JsonResponse({"error": "Only PDF, TXT, DOCX, CSV, and Excel files can be synced to ChromaDB"}, status=400)
             
             supabase = get_supabase_client()
             
@@ -627,7 +687,7 @@ def admin_sync_file_to_chroma(request):
                     overlap=200
                 )
             else:
-                # For TXT/DOCX files, extract text and use single document approach
+                # For TXT/DOCX/Excel/CSV files, extract text and use single document approach
                 if file_name.lower().endswith('.txt'):
                     text_content = file_bytes.decode('utf-8', errors='ignore')
                 elif file_name.lower().endswith('.docx'):
@@ -638,6 +698,14 @@ def admin_sync_file_to_chroma(request):
                         text_content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
                     except Exception as docx_error:
                         return JsonResponse({"error": f"DOCX processing failed: {str(docx_error)}"}, status=500)
+                elif file_name.lower().endswith(('.csv', '.xlsx', '.xls')):
+                    try:
+                        from .excel_csv_processor import process_excel_csv_file
+                        text_content = process_excel_csv_file(file_bytes, file_name)
+                    except Exception as excel_error:
+                        return JsonResponse({"error": f"Excel/CSV processing failed: {str(excel_error)}"}, status=500)
+                else:
+                    return JsonResponse({"error": f"Unsupported file type: {file_name}"}, status=400)
                 
                 # Store as single document
                 result = process_text_with_existing_embeddings(text_content, file_name)
@@ -696,14 +764,34 @@ def extract_text_from_file(request):
                 except Exception as docx_error:
                     print(f"DOCX processing error: {docx_error}")
                     extracted_text = f"DOCX processing failed: {str(docx_error)}\n\nPlease try converting to PDF or TXT format."
-                    
-            else:
-                return JsonResponse({
-                    "error": f"Unsupported file type: {file_name}. Please use PDF, TXT, or DOCX files."
-                }, status=400)
-            
-            print(f"✅ Text extracted successfully: {len(extracted_text)} characters")
-            
+            elif file_name.lower().endswith(('.csv', '.xlsx', '.xls')):
+                print(f"📊 Processing Excel/CSV file: {file_name}")
+                try:
+                    from .excel_csv_processor import process_excel_csv_file, validate_fees_file
+                    import pandas as pd
+                    import io
+                     
+                    # Read the file to validate it first
+                    if file_name.lower().endswith('.csv'):
+                        df = pd.read_csv(io.BytesIO(file_bytes))
+                    else:
+                        df = pd.read_excel(io.BytesIO(file_bytes))
+                     
+                    # Validate if it's fees data
+                    is_valid, message = validate_fees_file(df)
+                    if not is_valid:
+                        return JsonResponse({
+                            "error": f"Invalid fees file: {message}"
+                        }, status=400)
+                     
+                    # Process the file
+                    extracted_text = process_excel_csv_file(file_bytes, file_name)
+                    print(f"✅ Extracted text successfully: {extracted_text}")
+                except Exception as excel_error:
+                    print(f"Excel/CSV processing error: {excel_error}")
+                    extracted_text = f"Excel/CSV processing failed: {str(excel_error)}\n\nPlease ensure the file contains valid fees data with appropriate column headers."
+                else:
+                    return JsonResponse({"error": f"Unsupported file type: {file_name}"}, status=400)
             return JsonResponse({
                 "status": "success",
                 "file_name": file_name,
@@ -753,7 +841,7 @@ def upload_processed_file(request):
             print(f"✅ Uploaded to Supabase: {file_name}")
             
             # Process and store in ChromaDB for supported file types
-            if file_name.lower().endswith(('.pdf', '.txt', '.docx')):
+            if file_name.lower().endswith(('.pdf', '.txt', '.docx', '.csv', '.xlsx', '.xls')):
                 print(f"🔄 Starting ChromaDB processing for {file_name}")
                 try:
                     # Use the EXACT same approach as the working version
@@ -1315,15 +1403,18 @@ def delete_document(request, document_id):
         # Delete from ChromaDB
         try:
             from .chroma_connection import ChromaService
+            import os
             collection = ChromaService.get_collection()
             
+            # ChromaDB uses filename without extension as the document ID
+            chroma_doc_id = os.path.splitext(filename)[0]
+            
             # Delete the document from ChromaDB
-            # Documents are stored with the document_id as the ID
-            collection.delete(ids=[document_id])
-            print(f"✅ Deleted from ChromaDB: {document_id}")
+            collection.delete(ids=[chroma_doc_id])
+            print(f"✅ Deleted from ChromaDB: {chroma_doc_id}")
                 
         except Exception as chroma_error:
-            print(f"⚠️ ChromaDB deletion failed for {document_id}: {chroma_error}")
+            print(f"⚠️ ChromaDB deletion failed for {chroma_doc_id}: {chroma_error}")
             # Continue with database deletion even if ChromaDB fails
         
         # Delete from Django database

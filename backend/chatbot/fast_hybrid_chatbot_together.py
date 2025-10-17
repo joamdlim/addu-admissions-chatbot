@@ -472,7 +472,8 @@ class FastHybridChatbotTogether:
             'fee_type': None,
             'amount_mentioned': False,
             'payment_term': None,
-            'program_level': None
+            'program_level': None,
+            'program_name': None
         }
         
         # Detect fee types
@@ -504,6 +505,47 @@ class FastHybridChatbotTogether:
             fee_info['program_level'] = 'undergraduate'
         elif any(term in query_lower for term in ['graduate', 'master']):
             fee_info['program_level'] = 'graduate'
+        
+        # Extract program name from query
+        program_keywords = [
+            # Business and Governance
+            'bpm', 'bsa', 'bsma', 'bsbm', 'bsentrep', 'bsfin', 'bshrdm', 'bsmktg',
+            'public management', 'accountancy', 'management accounting', 'business management', 
+            'entrepreneurship', 'finance', 'human resource development management', 'marketing',
+            
+            # Arts and Sciences - Technology
+            'bsit', 'bscs', 'bsis', 'bsds', 'bs it', 'bs cs', 'bs is', 'bs ds',
+            'information technology', 'computer science', 'information systems', 'data science',
+            
+            # Arts and Sciences - Science
+            'bsbio', 'bschem', 'bsmath', 'bsenvisci', 'bssocialwork', 'bs bio', 'bs chem', 'bs math', 'bs envisci', 'bs social work',
+            'biology', 'chemistry', 'mathematics', 'environmental science', 'social work',
+            
+            # Arts and Sciences - Arts
+            'abanthro', 'abanth', 'abc', 'abcomm', 'abds', 'abecon', 'abel', 'abis', 'abphilo', 'abpolsci', 'abpsych', 'absocio',
+            'ab anthro', 'ab c', 'ab ds', 'ab econ', 'ab el', 'ab is', 'ab philo', 'ab polsci', 'ab psych', 'ab socio',
+            'anthropology', 'communication', 'development studies', 'economics', 'english language', 
+            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy', 
+            'political science', 'psychology', 'sociology',
+            
+            # Education
+            'bece', 'beed', 'bsed', 'early childhood education', 'elementary education', 'secondary education',
+            
+            # Engineering and Architecture
+            'bsae', 'bsarch', 'bsche', 'bsce', 'bscompeng', 'bscpe', 'bsee', 'bbselectronicseng', 'bsie', 'bsme', 'bsre',
+            'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 'bs electronics eng', 'bs ie', 'bs me', 'bs re',
+            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering', 
+            'computer engineering', 'electrical engineering', 'electronics engineering', 
+            'industrial engineering', 'mechanical engineering', 'robotics engineering',
+            
+            # Nursing
+            'bsn', 'nursing'
+        ]
+        
+        for program in program_keywords:
+            if program in query_lower:
+                fee_info['program_name'] = program
+                break
         
         return fee_info
     
@@ -625,11 +667,15 @@ class FastHybridChatbotTogether:
         # Basic term matching
         matches = sum(1 for term in query_terms if term in content)
         if query_terms:
-            score += (matches / len(query_terms)) * 0.4
+            score += (matches / len(query_terms)) * 0.3  # Reduced from 0.4 to make room for program bonus
         
         # Bonus for fee type in content
         if fee_info['fee_type'] and fee_info['fee_type'] in content:
-            score += 0.3
+            score += 0.2  # Reduced from 0.3 to make room for program bonus
+        
+        # High bonus for program name in content (NEW!)
+        if fee_info['program_name'] and fee_info['program_name'] in content:
+            score += 0.5  # High bonus for specific program match
         
         # Bonus for amount-related content if amount was mentioned in query
         if fee_info['amount_mentioned'] and any(term in content for term in ['php', 'peso', 'amount', 'cost']):
@@ -843,7 +889,7 @@ class FastHybridChatbotTogether:
     def retrieve_fees_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
         Specialized retrieval for fees, payments, and financial information.
-        Optimized for fee amount extraction and payment term matching.
+        Excludes documents with 'regulation' in keywords to avoid policy documents.
         """
         import re
         
@@ -861,7 +907,7 @@ class FastHybridChatbotTogether:
             fee_info = self._extract_fee_info(query)
             print(f"💳 Extracted fee info: {fee_info}")
             
-            # Get documents with fees-specific filtering
+            # Get documents with fees-specific filtering (same pattern as admissions/programs)
             where_clause = {
                 "$and": [
                     {"source": "pdf_scrape"},
@@ -878,13 +924,71 @@ class FastHybridChatbotTogether:
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
             
-            print(f"📚 Found {len(all_ids)} fee-related documents")
+            print(f"📚 Found {len(all_ids)} documents with fees document_type")
+            
+            # Also get documents that might have fee keywords but not the right document_type
+            # This is to catch CSV files that might not have been stored with correct document_type
+            all_docs_by_keywords = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            # Combine and deduplicate documents
+            all_combined_ids = list(set(all_ids + all_docs_by_keywords.get('ids', [])))
+            
+            # Get full data for combined documents
+            if len(all_combined_ids) > len(all_ids):
+                print(f"📚 Expanded search to {len(all_combined_ids)} total documents")
+                combined_docs = collection.get(
+                    ids=all_combined_ids,
+                    include=["documents", "metadatas"]
+                )
+                all_ids = combined_docs.get('ids', [])
+                all_contents = combined_docs.get('documents', [])
+                all_metadatas = combined_docs.get('metadatas', [])
+            
+            # Get topic keywords for additional filtering
+            from .topics import get_topic_keywords
+            topic_keywords = get_topic_keywords('fees')
+            print(f"📝 Using topic keywords for additional filtering: {topic_keywords}")
+            
+            # Filter documents: must have fee keywords AND not have 'regulation'
+            filtered_docs = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                
+                # Skip documents with 'regulation' in keywords
+                if 'regulation' in doc_keywords:
+                    print(f"🚫 Excluding document with 'regulation' in keywords: {metadata.get('filename', 'N/A')}")
+                    continue
+                
+                # Check if document has fee-related keywords or is already from document_type filtering
+                has_fee_keywords = False
+                if topic_keywords:
+                    for keyword in topic_keywords:
+                        if keyword.lower() in doc_keywords or keyword.lower() in filename:
+                            has_fee_keywords = True
+                            break
+                
+                # Include if it has fees document_type OR fee keywords
+                doc_type = metadata.get('document_type', '')
+                if doc_type in ['fees', 'financial'] or has_fee_keywords:
+                    filtered_docs.append((doc_id, content, metadata))
+                    if has_fee_keywords and doc_type not in ['fees', 'financial']:
+                        print(f"✅ Including document with fee keywords: {metadata.get('filename', 'N/A')}")
+            
+            print(f"✅ After filtering: {len(filtered_docs)} documents")
+            
+            if not filtered_docs:
+                print(f"❌ No fee documents found after filtering")
+                return []
             
             # Score documents with fees-specific logic
             scored_results = []
             query_lower = query.lower()
             
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+            for doc_id, content, metadata in filtered_docs:
                 filename = metadata.get('filename', '').lower()
                 doc_keywords = metadata.get('keywords', '').lower()
                 content_lower = content.lower()
@@ -2258,12 +2362,39 @@ RULES:
                 'program', 'degree', 'course', 'major', 'bachelor',
                 'undergraduate', 'college', 'school', 'department', 'faculty',
                 'BS', 'BA', 'curriculum', 'courses', 'subjects', 'syllabus',
-                'computer science', 'information technology', 'business administration',
-                'engineering', 'nursing', 'education', 'psychology',
-                'computer science', 'BS CS', 'BSCS', 'BS COMSCI',
-                'information technology', 'BS IT', 'BSIT',
-                'business management', 'BSBM', 'accountancy', 'BSA',
-                'nursing', 'BSN', 'BS Nursing'
+                
+                # Business and Governance
+                'bpm', 'bsa', 'bsma', 'bsbm', 'bsentrep', 'bsfin', 'bshrdm', 'bsmktg',
+                'public management', 'accountancy', 'management accounting', 'business management', 
+                'entrepreneurship', 'finance', 'human resource development management', 'marketing',
+                
+                # Arts and Sciences - Technology
+                'bsit', 'bscs', 'bsis', 'bsds', 'bs it', 'bs cs', 'bs is', 'bs ds',
+                'information technology', 'computer science', 'information systems', 'data science',
+                
+                # Arts and Sciences - Science
+                'bsbio', 'bschem', 'bsmath', 'bsenvisci', 'bssocialwork', 'bs bio', 'bs chem', 'bs math', 'bs envisci', 'bs social work',
+                'biology', 'chemistry', 'mathematics', 'environmental science', 'social work',
+                
+                # Arts and Sciences - Arts
+                'abanthro', 'abanth', 'abc', 'abcomm', 'abds', 'abecon', 'abel', 'abis', 'abphilo', 'abpolsci', 'abpsych', 'absocio',
+                'ab anthro', 'ab c', 'ab ds', 'ab econ', 'ab el', 'ab is', 'ab philo', 'ab polsci', 'ab psych', 'ab socio',
+                'anthropology', 'communication', 'development studies', 'economics', 'english language', 
+                'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy', 
+                'political science', 'psychology', 'sociology',
+                
+                # Education
+                'bece', 'beed', 'bsed', 'early childhood education', 'elementary education', 'secondary education',
+                
+                # Engineering and Architecture
+                'bsae', 'bsarch', 'bsche', 'bsce', 'bscompeng', 'bscpe', 'bsee', 'bbselectronicseng', 'bsie', 'bsme', 'bsre',
+                'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 'bs electronics eng', 'bs ie', 'bs me', 'bs re',
+                'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering', 
+                'computer engineering', 'electrical engineering', 'electronics engineering', 
+                'industrial engineering', 'mechanical engineering', 'robotics engineering',
+                
+                # Nursing
+                'bsn', 'nursing'
             ],
             'fees': [
                 'fees', 'tuition', 'payment', 'cost', 'price', 'amount', 'billing',
@@ -2275,6 +2406,50 @@ RULES:
                 'scholarship', 'financial aid', 'grant', 'subsidy'
             ]
         }
+        
+        # Special handling for fee-related queries with program names
+        # If the query contains fee keywords AND program keywords, prioritize fees topic
+        fee_keywords = ['fees', 'tuition', 'payment', 'cost', 'price', 'amount', 'billing']
+        program_keywords = [
+            # Business and Governance
+            'bpm', 'bsa', 'bsma', 'bsbm', 'bsentrep', 'bsfin', 'bshrdm', 'bsmktg',
+            'public management', 'accountancy', 'management accounting', 'business management', 
+            'entrepreneurship', 'finance', 'human resource development management', 'marketing',
+            
+            # Arts and Sciences - Technology
+            'bsit', 'bscs', 'bsis', 'bsds', 'bs it', 'bs cs', 'bs is', 'bs ds',
+            'information technology', 'computer science', 'information systems', 'data science',
+            
+            # Arts and Sciences - Science
+            'bsbio', 'bschem', 'bsmath', 'bsenvisci', 'bssocialwork', 'bs bio', 'bs chem', 'bs math', 'bs envisci', 'bs social work',
+            'biology', 'chemistry', 'mathematics', 'environmental science', 'social work',
+            
+            # Arts and Sciences - Arts
+            'abanthro', 'abanth', 'abc', 'abcomm', 'abds', 'abecon', 'abel', 'abis', 'abphilo', 'abpolsci', 'abpsych', 'absocio',
+            'ab anthro', 'ab c', 'ab ds', 'ab econ', 'ab el', 'ab is', 'ab philo', 'ab polsci', 'ab psych', 'ab socio',
+            'anthropology', 'communication', 'development studies', 'economics', 'english language', 
+            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy', 
+            'political science', 'psychology', 'sociology',
+            
+            # Education
+            'bece', 'beed', 'bsed', 'early childhood education', 'elementary education', 'secondary education',
+            
+            # Engineering and Architecture
+            'bsae', 'bsarch', 'bsche', 'bsce', 'bscompeng', 'bscpe', 'bsee', 'bbselectronicseng', 'bsie', 'bsme', 'bsre',
+            'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 'bs electronics eng', 'bs ie', 'bs me', 'bs re',
+            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering', 
+            'computer engineering', 'electrical engineering', 'electronics engineering', 
+            'industrial engineering', 'mechanical engineering', 'robotics engineering',
+            
+            # Nursing
+            'bsn', 'nursing'
+        ]
+        
+        has_fee_keyword = any(keyword in query_lower for keyword in fee_keywords)
+        has_program_keyword = any(keyword in query_lower for keyword in program_keywords)
+        
+        if has_fee_keyword and has_program_keyword:
+            return 'fees'  # Prioritize fees topic for program-specific fee queries
         
         # Count keyword matches for each topic
         topic_scores = {}

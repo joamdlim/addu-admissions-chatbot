@@ -296,20 +296,29 @@ const AdminPage = ({ onFileForReview }) => {
     if (!file) return;
 
     // Validate file type
-    const validTypes = [".pdf", ".txt", ".doc", ".docx"];
+    const validTypes = [
+      ".pdf",
+      ".txt",
+      ".doc",
+      ".docx",
+      ".csv",
+      ".xlsx",
+      ".xls",
+    ];
     const fileExtension = "." + file.name.split(".").pop().toLowerCase();
 
     if (!validTypes.includes(fileExtension)) {
-      alert("Please upload only PDF, TXT, DOC, or DOCX files.");
+      alert("Please upload only PDF, TXT, DOC, DOCX, CSV, or Excel files.");
       return;
     }
 
     setStagedFile(file);
-    // Reset metadata for new file
+    // Reset metadata for new file - suggest fees type for Excel/CSV files
+    const isExcelCsv = [".csv", ".xlsx", ".xls"].includes(fileExtension);
     setUploadMetadata({
       folder_id: "",
-      document_type: "other",
-      keywords: "",
+      document_type: isExcelCsv ? "fees" : "other",
+      keywords: isExcelCsv ? "fees, tuition, payment, cost" : "",
     });
   };
 
@@ -471,7 +480,9 @@ const AdminPage = ({ onFileForReview }) => {
               <p className="text-sm text-gray-600 font-medium">
                 Drop file here or click to upload
               </p>
-              <p className="text-xs text-gray-500 mt-1">PDF, TXT, DOC, DOCX</p>
+              <p className="text-xs text-gray-500 mt-1">
+                PDF, TXT, DOC, DOCX, CSV, Excel
+              </p>
             </div>
           )}
         </div>
@@ -481,12 +492,30 @@ const AdminPage = ({ onFileForReview }) => {
           ref={fileInputRef}
           className="hidden"
           onChange={handleFileInputChange}
-          accept=".pdf,.txt,.doc,.docx"
+          accept=".pdf,.txt,.doc,.docx,.csv,.xlsx,.xls"
         />
 
         {/* Metadata Form - Only shows when file is staged */}
         {stagedFile && (
           <div className="mt-4 space-y-3">
+            {/* Excel/CSV specific note */}
+            {stagedFile.name.toLowerCase().match(/\.(csv|xlsx|xls)$/) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <div className="text-blue-600 text-lg mr-2">📊</div>
+                  <div>
+                    <p className="text-xs font-medium text-blue-800">
+                      Excel/CSV File Detected
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      This file will be processed as structured fees data. Make
+                      sure it contains columns related to fees, costs, or
+                      tuition information.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Folder *
