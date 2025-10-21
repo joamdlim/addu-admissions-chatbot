@@ -364,19 +364,9 @@ class FastHybridChatbotTogether:
         else:
             return 'general'
     
-    def _extract_program_info(self, query: str) -> dict:
-        """Extract program information from query for programs specialization"""
-        query_lower = query.lower()
-        
-        program_info = {
-            'program_name': None,
-            'degree_level': None,
-            'year_level': None,
-            'course_code': None
-        }
-        
-        # Detect program names - comprehensive ADDU programs list
-        program_patterns = {
+    def _get_program_patterns(self) -> dict:
+        """Get comprehensive ADDU programs list with patterns for matching"""
+        return {
             # Business and Governance
             'accountancy': ['accountancy', 'bsa', 'bs a', 'accounting'],
             'management accounting': ['management accounting', 'bsma', 'bs ma'],
@@ -434,10 +424,37 @@ class FastHybridChatbotTogether:
             # Nursing
             'nursing': ['nursing', 'bsn', 'nurse']
         }
+
+    def _extract_program_info(self, query: str) -> dict:
+        """Extract program information from query for programs specialization"""
+        query_lower = query.lower()
         
+        program_info = {
+            'program_name': None,
+            'degree_level': None,
+            'year_level': None,
+            'course_code': None,
+            'context_source': None
+        }
+        
+        # Detect program names using helper method with word boundary matching
+        program_patterns = self._get_program_patterns()
+        
+        import re
         for program, patterns in program_patterns.items():
-            if any(pattern in query_lower for pattern in patterns):
-                program_info['program_name'] = program
+            for pattern in patterns:
+                # Use word boundaries for short patterns that could be substrings
+                if len(pattern) <= 3:
+                    # Use word boundary regex for short patterns like 'it', 'cs', etc.
+                    if re.search(r'\b' + re.escape(pattern) + r'\b', query_lower):
+                        program_info['program_name'] = program
+                        break
+                else:
+                    # Use simple substring matching for longer patterns
+                    if pattern in query_lower:
+                        program_info['program_name'] = program
+                        break
+            if program_info['program_name']:
                 break
         
         # Detect degree level
@@ -460,6 +477,97 @@ class FastHybridChatbotTogether:
             if any(pattern in query_lower for pattern in patterns):
                 program_info['year_level'] = year
                 break
+        
+        return program_info
+    
+    def _extract_program_info_with_history(self, query: str) -> dict:
+        """Extract program information with conversation history awareness for follow-up questions"""
+        query_lower = query.lower().strip()
+        
+        # CRITICAL: Check for pronouns that might be misinterpreted as program codes BEFORE extraction
+        pronoun_indicators = ['its', 'it', 'this', 'that', 'the program', 'the course']
+        curriculum_indicators = ['curriculum', 'courses', 'subjects', 'syllabus', 'course outline', 'academic plan']
+        general_program_indicators = ['tell me about', 'about it', 'information about', 'details about']
+        
+        # Check for pronoun context first
+        has_pronoun = any(pronoun in query_lower for pronoun in pronoun_indicators)
+        has_curriculum_context = any(term in query_lower for term in curriculum_indicators)
+        has_general_program_context = any(term in query_lower for term in general_program_indicators)
+        
+        # If this looks like a pronoun reference, skip normal program extraction and go to history
+        if has_pronoun and (has_curriculum_context or has_general_program_context):
+            context_type = "curriculum" if has_curriculum_context else "general program"
+            print(f"🔍 Detected pronoun reference with {context_type} context: '{query}' - skipping normal extraction")
+            
+            program_info = {
+                'program_name': None,
+                'degree_level': None,
+                'year_level': None,
+                'course_code': None,
+                'context_source': None
+            }
+            
+            # PRIORITY 1: Check recent queries first (most reliable)
+            if self.dialogue_history:
+                for i, exchange in enumerate(reversed(self.dialogue_history[-3:])):
+                    prev_query = exchange.get('query', '')
+                    prev_program_info = self._extract_program_info(prev_query)
+                    if prev_program_info.get('program_name'):
+                        program_info['program_name'] = prev_program_info['program_name']
+                        program_info['context_source'] = f'pronoun_resolution_query_{i+1}'
+                        print(f"✅ Resolved pronoun to program '{program_info['program_name']}' from: '{prev_query[:50]}...'")
+                        return program_info
+            
+            # PRIORITY 2: Check session state
+            if hasattr(self, 'session_state'):
+                session_program = self.session_state.get('current_program')
+                if session_program:
+                    program_info['program_name'] = session_program
+                    program_info['context_source'] = 'pronoun_resolution_session'
+                    print(f"✅ Resolved pronoun to program '{session_program}' from session state")
+                    return program_info
+        
+        # Normal program extraction if not a pronoun reference
+        program_info = self._extract_program_info(query)
+        
+        # If no program found in current query and no pronoun context, check conversation history normally
+        if not program_info.get('program_name'):
+            print(f"🔍 No program in current query '{query}', checking conversation history...")
+            
+            # PRIORITY 1: Check recent queries first (most reliable) - only if dialogue history exists
+            if self.dialogue_history:
+                for i, exchange in enumerate(reversed(self.dialogue_history[-3:])):
+                    prev_query = exchange.get('query', '')
+                    prev_program_info = self._extract_program_info(prev_query)
+                    if prev_program_info.get('program_name'):
+                        program_info['program_name'] = prev_program_info['program_name']
+                        program_info['context_source'] = f'query_history_{i+1}'
+                        print(f"✅ Found program '{program_info['program_name']}' in previous query: '{prev_query[:50]}...'")
+                        return program_info  # Return immediately - highest priority
+            
+            # PRIORITY 2: Check session state (if no query context found)
+            if hasattr(self, 'session_state'):
+                session_program = self.session_state.get('current_program')
+                if session_program:
+                    program_info['program_name'] = session_program
+                    program_info['context_source'] = 'session_state'
+                    print(f"✅ Found program '{session_program}' in session state")
+                    return program_info
+            
+            # PRIORITY 3: Check response context only as last resort - only if dialogue history exists
+            if self.dialogue_history:
+                for i, exchange in enumerate(reversed(self.dialogue_history[-2:])):  # Only check last 2 responses
+                    prev_response = exchange.get('response', '')
+                    
+                    # Be more selective - only check if response is specifically about curriculum/courses
+                    if any(keyword in prev_response.lower() for keyword in ['curriculum', 'courses', 'subjects', 'year']):
+                        program_patterns = self._get_program_patterns()
+                        for prog_name, patterns in program_patterns.items():
+                            if any(pattern in prev_response.lower() for pattern in patterns):
+                                program_info['program_name'] = prog_name
+                                program_info['context_source'] = f'response_history_{i+1}'
+                                print(f"✅ Found program '{prog_name}' in previous response context (fallback)")
+                                return program_info
         
         return program_info
     
@@ -1667,16 +1775,18 @@ class FastHybridChatbotTogether:
         self.dialogue_history = []
         print("🧹 Dialogue history cleared")
     
-    def set_session_state(self, session_id: str = None, current_topic: str = None, conversation_state: str = None):
-        """Set session state for guided conversation"""
+    def set_session_state(self, session_id: str = None, current_topic: str = None, conversation_state: str = None, current_program: str = None):
+        """Set session state for guided conversation with program tracking"""
         if session_id is not None:
             self.session_state['session_id'] = session_id
         if current_topic is not None:
             self.session_state['current_topic'] = current_topic
         if conversation_state is not None:
             self.session_state['conversation_state'] = conversation_state
+        if current_program is not None:
+            self.session_state['current_program'] = current_program
         
-        print(f"🔄 Session state updated: topic={self.session_state['current_topic']}, state={self.session_state['conversation_state']}")
+        print(f"🔄 Session state updated: topic={self.session_state.get('current_topic')}, state={self.session_state.get('conversation_state')}, program={self.session_state.get('current_program')}")
     
     def get_session_state(self):
         """Get current session state"""
@@ -2134,12 +2244,53 @@ RULES:
         elif topic_id == 'programs_courses':
             return """TOPIC-SPECIFIC INSTRUCTIONS FOR PROGRAMS AND COURSES:
 
+=== PRONOUN RESOLUTION ===
+- **CRITICAL**: When user uses pronouns like "its", "it", "this", "that" referring to a program:
+  * Check conversation history for the previously mentioned program
+  * "What is its curriculum?" → "its" refers to the program mentioned in previous query
+  * "Tell me about it" → "it" refers to the program from context
+  * DO NOT interpret "its" as "IT" (Information Technology) unless explicitly stated
+- **CONTEXT PRIORITY**: Always prioritize conversation context over literal interpretation of pronouns
+- **CURRICULUM QUERIES**: When pronouns are used with curriculum-related terms, resolve to the program from conversation history
+
+=== CRITICAL PROGRAM VALIDATION ===
+- **ONLY ANSWER** about programs that are EXPLICITLY mentioned in the provided context documents
+- **NEVER INVENT** or suggest programs that are not in the context
+- **IF NO CONTEXT FOUND** for a program query, respond with: "I don't have information about that program in my knowledge base. Please check our official program list or contact admissions directly."
+- **NO SPECULATION**: Do not suggest similar programs or make assumptions about program availability
+- **NEVER SAY**: "However, we do offer..." or suggest alternative programs unless they are explicitly mentioned in context
+
+=== PROGRAM AVAILABILITY QUERIES ===
+- For questions like "Is [program] available?" or "Do you offer [program]?":
+  * If program is in context documents: Provide information with school and cluster details
+  * If program is NOT in context documents: "I don't have information about [program] in my knowledge base. For the most current list of available programs, please contact our admissions office."
+- **STRICT RULE**: Only confirm programs that appear in the official program list or curriculum documents
+
 === PROGRAM MATCHING ===
 - **BASE RESPONSES** on the specific COURSE NAME and ACRONYM mentioned by the user
 - **SCOPE**: Cover UNDERGRADUATE PROGRAMS ONLY (Bachelor's degrees, BS, BA programs)
 - **MATCH VARIATIONS**: If user mentions a course name (e.g., "Computer Science") or acronym (e.g., "BSCS", "BS CS", "BS COMSCI"), provide information specific to that program
 - **INCLUDE**: The whole document context given for the matched program
 - **AVOID**: Graduate programs, master's degrees, doctoral programs, senior high school programs
+
+=== SCHOOL AND CLUSTER QUERIES ===
+- For questions about schools, clusters, or program lists:
+  * Use the official program list document as primary source
+  * Organize response by School → Cluster → Programs structure
+  * Include full program names and abbreviations as shown in the official list
+- **STRUCTURE**: School of [Name] → [Cluster] (Cluster) → Programs with codes and full names
+
+=== CURRICULUM QUERIES ===
+- For specific program curriculum questions:
+  * First confirm program exists in official list or context
+  * Then provide curriculum details from curriculum documents
+  * Always include links to curriculum documents when available
+
+=== RESPONSE FORMAT ===
+- For availability: Start with clear confirmation based on official documents
+- For program lists: Use the exact structure from the official document
+- For curriculum: Combine program confirmation + curriculum details
+- Always cite sources when providing program information
 
 === LINK HANDLING ===
 - **END WITH LINKS**: Always end your response with source links from the context documents
@@ -2148,22 +2299,24 @@ RULES:
 - **NO CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", do NOT modify any part of the original URL
 - **PRESERVE ORIGINAL**: Copy the URL character-for-character exactly as it appears in the source document
 - **FORMAT**: Use "For more information about [topic], head to this link: [link text](EXACT_URL_FROM_DOCUMENT)"
-- **EXAMPLE WITH TYPO**: If the URL contains "Technolgy" (missing 'o'), keep it as "Technolgy" - do NOT change to "Technology"
-- **EXAMPLES**: 
-  - "For more information about the curriculum of the program, head to this link: [BS Information Technology Curriculum](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Information-Technolgy.pdf)"
-  - "For more information about course details, head to this link: [View Course Details](https://www.addu.edu.ph/programs/computer-science)"
+- **MANDATORY**: Links must use markdown format [text](url) to render as clickable blue hyperlinks
 
-=== PROGRAMS WE COVER ===
+=== OFFICIAL PROGRAM STRUCTURE ===
+**School of Arts & Sciences**:
+- Humanities & Letters (Cluster): AB ENG, AB MC, AB IDS (various minors), AB PHILO
+- Natural Sciences & Mathematics (Cluster): BS BIO, BS CHEM, BS MATH, BS ENVI SCI
+- Computer Studies (Cluster): BS IS, BS IT, BS CS, BS DS
+- Social Sciences (Cluster): AB ECON, AB POLSCI, AB PSYCH, AB SOCIO, AB IS, AB ANTHRO
 
-**ARTS AND SCIENCES**: AB Anthropology (various tracks), AB Communication, AB Development Studies, AB Economics, AB English Language, AB Interdisciplinary Studies (various minors), AB International Studies, AB Islamic Studies, AB Philosophy, AB Political Science, AB Psychology, AB Sociology, BS Biology, BS Chemistry, BS Computer Science, BS Data Science, BS Environmental Science, BS Information Systems, BS Information Technology, BS Mathematics, BS Social Work
+**School of Business & Governance**:
+- Accountancy (Cluster): BS A, BS MA
+- Business Management (Cluster): BS BM, BS ENTREP, BS FIN, BS HRDM, BS MKTG, BPM
 
-**BUSINESS AND GOVERNANCE**: Bachelor in Public Management, BSA, BSMA, BSBM, BS Entrepreneurship (including Agri-Business), BS Finance, BS HRDM, BS Marketing
+**School of Education**: BECE, BEED, BSED (English, Math, Science, Social Studies)
 
-**EDUCATION**: BECE, BEED, BSED (English, Math, Science, Social Studies)
+**School of Engineering & Architecture**: BS AE, BS ARCH, BS CHE, BS CE, BS COMP ENG, BS EE, BS ELECTRONICS ENG, BS IE, BS ME, BS RE
 
-**ENGINEERING AND ARCHITECTURE**: BS Aerospace Engineering, BS Architecture, BS Chemical Engineering, BS Civil Engineering, BS Computer Engineering, BS Electrical Engineering, BS Electronics Engineering, BS Industrial Engineering, BS Mechanical Engineering, BS Robotics Engineering
-
-**NURSING**: BSN"""
+**School of Nursing**: BS N"""
 
         elif topic_id == 'fees':
             return """TOPIC-SPECIFIC INSTRUCTIONS FOR FEES:
@@ -2468,10 +2621,31 @@ RULES:
         return None
     
     def _process_topic_query(self, query: str, topic_id: str):
-        """Process a query within a specific topic context"""
+        """Process a query within a specific topic context with conversation history awareness"""
         try:
+            # Enhanced program extraction with conversation history awareness
+            program_info = self._extract_program_info_with_history(query)
+            
+            # CRITICAL: Preprocess pronouns if we have program context
+            preprocessed_query = query
+            if program_info.get('program_name') and program_info.get('context_source'):
+                preprocessed_query = self._preprocess_pronoun_query(query, program_info['program_name'])
+            
             # Normalize program acronyms (e.g., 'bsa' -> 'BS A')
-            normalized_query = self._normalize_program_acronyms(query)
+            normalized_query = self._normalize_program_acronyms(preprocessed_query)
+            
+            # If we found program context from history, enhance the query
+            enhanced_query = normalized_query
+            if program_info.get('program_name') and program_info.get('context_source'):
+                # Only enhance if the current query doesn't already contain the program name
+                current_program_info = self._extract_program_info(preprocessed_query)
+                if not current_program_info.get('program_name'):
+                    enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                    print(f"🎯 Enhanced query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                else:
+                    print(f"📝 Current query already contains program info, using normalized query: '{enhanced_query}'")
+            else:
+                print(f"📝 No program context found, using normalized query: '{enhanced_query}'")
             
             # Check if query is nonsensical or unclear (use original query for this check)
             if self._is_nonsensical_query(query):
@@ -2538,8 +2712,47 @@ This will ensure you get the most relevant and up-to-date information for your q
 
                 return response_text, []
             
-            # Use specialized topic retrieval for better accuracy and efficiency (with normalized query)
-            relevant_docs = self.retrieve_documents_by_topic_specialized(normalized_query, topic_id, top_k=3)
+            # For programs topic, validate program availability first
+            if topic_id == 'programs_courses':
+                # Check if this is a program availability or list query
+                availability_indicators = ['is there', 'do you have', 'available', 'offer', 'what programs', 'list of programs', 'what clusters', 'programs in', 'does addu have']
+                
+                if any(indicator in query.lower() for indicator in availability_indicators):
+                    print(f"🔍 Detected program availability query: '{query}'")
+                    
+                    # First check our program mappings for quick validation
+                    availability_result = self._parse_program_availability("", query)
+                    
+                    if availability_result['exists'] == False:
+                        # Program definitely doesn't exist - provide clear response
+                        response_text = "Based on our official program list, that program is not currently offered at Ateneo de Davao University. For the most up-to-date list of available programs, please contact our admissions office."
+                        return response_text, []
+                    
+                    elif availability_result['exists'] == True:
+                        # Program exists, enhance query with program context
+                        program_context = f"Program: {availability_result['details']}"
+                        if availability_result['school']:
+                            program_context += f"\nSchool: {availability_result['school']}"
+                        if availability_result['cluster']:
+                            program_context += f"\nCluster: {availability_result['cluster']}"
+                        
+                        enhanced_query = f"{enhanced_query}\n\nProgram Context: {program_context}"
+                        print(f"✅ Program exists, enhanced query with context")
+                    
+                    # For general program list queries, try to retrieve the program list document
+                    elif any(term in query.lower() for term in ['what programs', 'list programs', 'what clusters', 'programs available']):
+                        print(f"🔍 Detected program list query, retrieving official program list")
+                        program_list_doc = self._retrieve_program_list_document()
+                        
+                        if program_list_doc['found']:
+                            # Format and return the program list response
+                            formatted_response = self._format_program_list_response(program_list_doc['content'], query)
+                            return formatted_response, [{'id': 'program_list_official', 'content': program_list_doc['content'], 'metadata': program_list_doc['metadata']}]
+                        else:
+                            print("⚠️ Could not retrieve program list document")
+            
+            # Use specialized topic retrieval for better accuracy and efficiency (with enhanced query)
+            relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
             
             if not relevant_docs:
                 topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
@@ -2569,16 +2782,13 @@ CRITICAL URL RULE: When displaying URLs, use the EXACT URL from the source docum
 
 GENERAL RESPONSE RULES:
 - Be direct and concise
-- Start directly with the answer
-- Use bullet points for lists
-- Use numbered lists for step-by-step processes
-- Bold important terms and amounts
-- **HYPERLINKS**: Format URLs as clickable links using Markdown: [link text](URL)
-- **PRESERVE URLS**: Use EXACT URLs from source documents - DO NOT modify, autocorrect, or change any part of URLs
-- **NO URL CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", copy URLs character-for-character
-- No introductory phrases like "Based on the documents"
+- Use simple formatting
+- No introductory phrases like "Based on the provided documentation"
 - No closing phrases like "I hope this helps"
-- If information is not available in the context, state clearly what specific information is missing
+- Start directly with the answer
+- Use numbered lists for steps
+- Use bullet points for items
+- Bold important terms only when necessary
 
 CONTEXT MATCHING:
 - Only use information that directly matches the user's specific query
@@ -2591,7 +2801,7 @@ CONTEXT MATCHING:
 </|context|>
 
 <|user|>
-{normalized_query}
+{enhanced_query}
 </|user|>
 
 <|assistant|>
@@ -2604,6 +2814,17 @@ CONTEXT MATCHING:
             full_response = ""
             for chunk in stream_response_together(prompt, max_tokens=3000):
                 full_response += chunk
+            
+            # Update session state with current program if found
+            current_program_info = self._extract_program_info(query)
+            if current_program_info.get('program_name'):
+                # Update session state immediately if we found a program in current query
+                self.set_session_state(current_program=current_program_info['program_name'])
+                print(f"📝 Updated session state with current program: {current_program_info['program_name']}")
+            elif program_info.get('program_name') and program_info.get('context_source') == 'query_history_1':
+                # Also update session state if we found a very recent program from query history
+                self.set_session_state(current_program=program_info['program_name'])
+                print(f"📝 Updated session state with recent program from history: {program_info['program_name']}")
             
             # Add to history (use original query for history)
             self.add_to_history(query, full_response)
@@ -3178,6 +3399,274 @@ RULES:
         final_score = base_score + strategy_bonus + filename_bonus + content_bonus
         
         return min(final_score, 1.0)  # Cap at 1.0
+
+    def _retrieve_program_list_document(self) -> Dict:
+        """
+        Retrieve the official program list document from ChromaDB
+        This document contains schools, clusters, and all available programs
+        """
+        try:
+            from .chroma_connection import ChromaService
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Search for the program list document
+            search_terms = [
+                "School of Arts Sciences",
+                "Humanities Letters Cluster", 
+                "Computer Studies Cluster",
+                "School of Business Governance",
+                "School of Education",
+                "School of Engineering Architecture",
+                "School of Nursing",
+                "AB ENG Bachelor of Arts",
+                "BS IS Bachelor of Science"
+            ]
+            
+            for search_term in search_terms:
+                results = collection.query(
+                    query_texts=[search_term],
+                    n_results=5,
+                    include=["documents", "metadatas"]
+                )
+                
+                # Look for document that contains school/cluster structure
+                for i, doc in enumerate(results.get('documents', [[]])[0]):
+                    if any(indicator in doc for indicator in [
+                        "School of Arts & Sciences",
+                        "Humanities & Letters (Cluster)",
+                        "Computer Studies (Cluster)", 
+                        "AB ENG – Bachelor of Arts in English Language",
+                        "BS IS – Bachelor of Science in Information Systems"
+                    ]):
+                        return {
+                            'content': doc,
+                            'metadata': results.get('metadatas', [[]])[0][i] if results.get('metadatas') else {},
+                            'found': True
+                        }
+            
+            return {'content': '', 'metadata': {}, 'found': False}
+            
+        except Exception as e:
+            print(f"Error retrieving program list: {e}")
+            return {'content': '', 'metadata': {}, 'found': False}
+
+    def _parse_program_availability(self, program_list_content: str, query: str) -> Dict:
+        """
+        Parse the program list document to check program availability
+        Returns: {'exists': bool, 'program_name': str, 'details': str, 'school': str, 'cluster': str}
+        """
+        query_lower = query.lower()
+        
+        # Define program mappings from the official list
+        program_mappings = {
+            # School of Arts & Sciences - Humanities & Letters
+            'english': {'code': 'AB ENG', 'full': 'Bachelor of Arts in English Language', 'school': 'School of Arts & Sciences', 'cluster': 'Humanities & Letters'},
+            'mass communication': {'code': 'AB MC', 'full': 'Bachelor of Arts in Mass Communication', 'school': 'School of Arts & Sciences', 'cluster': 'Humanities & Letters'},
+            'communication': {'code': 'AB MC', 'full': 'Bachelor of Arts in Mass Communication', 'school': 'School of Arts & Sciences', 'cluster': 'Humanities & Letters'},
+            'interdisciplinary studies': {'code': 'AB IDS', 'full': 'Bachelor of Arts in Interdisciplinary Studies', 'school': 'School of Arts & Sciences', 'cluster': 'Humanities & Letters'},
+            'philosophy': {'code': 'AB PHILO', 'full': 'Bachelor of Arts Major in Philosophy (Pre-Law)', 'school': 'School of Arts & Sciences', 'cluster': 'Humanities & Letters'},
+            
+            # School of Arts & Sciences - Natural Sciences & Mathematics
+            'biology': {'code': 'BS BIO', 'full': 'Bachelor of Science in Biology', 'school': 'School of Arts & Sciences', 'cluster': 'Natural Sciences & Mathematics'},
+            'chemistry': {'code': 'BS CHEM', 'full': 'Bachelor of Science in Chemistry', 'school': 'School of Arts & Sciences', 'cluster': 'Natural Sciences & Mathematics'},
+            'mathematics': {'code': 'BS MATH', 'full': 'Bachelor of Science in Mathematics', 'school': 'School of Arts & Sciences', 'cluster': 'Natural Sciences & Mathematics'},
+            'environmental science': {'code': 'BS ENVI SCI', 'full': 'Bachelor of Science in Environmental Science', 'school': 'School of Arts & Sciences', 'cluster': 'Natural Sciences & Mathematics'},
+            
+            # School of Arts & Sciences - Computer Studies
+            'information systems': {'code': 'BS IS', 'full': 'Bachelor of Science in Information Systems', 'school': 'School of Arts & Sciences', 'cluster': 'Computer Studies'},
+            'information technology': {'code': 'BS IT', 'full': 'Bachelor of Science in Information Technology', 'school': 'School of Arts & Sciences', 'cluster': 'Computer Studies'},
+            'computer science': {'code': 'BS CS', 'full': 'Bachelor of Science in Computer Science', 'school': 'School of Arts & Sciences', 'cluster': 'Computer Studies'},
+            'data science': {'code': 'BS DS', 'full': 'Bachelor of Science in Data Science', 'school': 'School of Arts & Sciences', 'cluster': 'Computer Studies'},
+            
+            # School of Arts & Sciences - Social Sciences
+            'economics': {'code': 'AB ECON', 'full': 'Bachelor of Arts Major in Economics', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            'political studies': {'code': 'AB POLSCI', 'full': 'Bachelor of Arts Major in Political Studies', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            'psychology': {'code': 'AB PSYCH', 'full': 'Bachelor of Arts Major in Psychology', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            'sociology': {'code': 'AB SOCIO', 'full': 'Bachelor of Arts Major in Sociology', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            'international studies': {'code': 'AB IS', 'full': 'Bachelor of Arts in International Studies', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            'anthropology': {'code': 'AB ANTHRO', 'full': 'Bachelor of Arts in Anthropology', 'school': 'School of Arts & Sciences', 'cluster': 'Social Sciences'},
+            
+            # School of Business & Governance
+            'accountancy': {'code': 'BS A', 'full': 'Bachelor of Science in Accountancy', 'school': 'School of Business & Governance', 'cluster': 'Accountancy'},
+            'management accounting': {'code': 'BS MA', 'full': 'Bachelor of Science in Management Accounting', 'school': 'School of Business & Governance', 'cluster': 'Accountancy'},
+            'business management': {'code': 'BS BM', 'full': 'Bachelor of Science in Business Management', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            'entrepreneurship': {'code': 'BS ENTREP', 'full': 'Bachelor of Science in Entrepreneurship', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            'finance': {'code': 'BS FIN', 'full': 'Bachelor of Science in Finance', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            'human resource development': {'code': 'BS HRDM', 'full': 'Bachelor of Science in Human Resource Development and Management', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            'marketing': {'code': 'BS MKTG', 'full': 'Bachelor of Science in Marketing', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            'public management': {'code': 'BPM', 'full': 'Bachelor of Public Management', 'school': 'School of Business & Governance', 'cluster': 'Business Management'},
+            
+            # School of Education
+            'early childhood education': {'code': 'BECE', 'full': 'Bachelor of Early Childhood Education', 'school': 'School of Education', 'cluster': 'Education'},
+            'elementary education': {'code': 'BEED', 'full': 'Bachelor of Elementary Education', 'school': 'School of Education', 'cluster': 'Education'},
+            'secondary education': {'code': 'BSED', 'full': 'Bachelor of Secondary Education', 'school': 'School of Education', 'cluster': 'Education'},
+            
+            # School of Engineering & Architecture
+            'aerospace engineering': {'code': 'BS AE', 'full': 'Bachelor of Science in Aerospace Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'architecture': {'code': 'BS ARCH', 'full': 'Bachelor of Science in Architecture', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'chemical engineering': {'code': 'BS CHE', 'full': 'Bachelor of Science in Chemical Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'civil engineering': {'code': 'BS CE', 'full': 'Bachelor of Science in Civil Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'computer engineering': {'code': 'BS COMP ENG', 'full': 'Bachelor of Science in Computer Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'electrical engineering': {'code': 'BS EE', 'full': 'Bachelor of Science in Electrical Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'electronics engineering': {'code': 'BS ELECTRONICS ENG', 'full': 'Bachelor of Science in Electronics Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'industrial engineering': {'code': 'BS IE', 'full': 'Bachelor of Science in Industrial Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'mechanical engineering': {'code': 'BS ME', 'full': 'Bachelor of Science in Mechanical Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            'robotics engineering': {'code': 'BS RE', 'full': 'Bachelor of Science in Robotics Engineering', 'school': 'School of Engineering & Architecture', 'cluster': 'Engineering & Architecture'},
+            
+            # School of Nursing
+            'nursing': {'code': 'BS N', 'full': 'Bachelor of Science in Nursing', 'school': 'School of Nursing', 'cluster': 'Nursing'}
+        }
+        
+        # Check for program matches
+        for program_key, program_info in program_mappings.items():
+            # Check various forms of the program name
+            program_variations = [
+                program_key,
+                program_info['code'].lower(),
+                program_info['code'].lower().replace(' ', ''),
+                program_key.replace(' ', ''),
+                program_key.replace(' ', '-')
+            ]
+            
+            if any(variation in query_lower for variation in program_variations):
+                return {
+                    'exists': True,
+                    'program_name': program_info['full'],
+                    'code': program_info['code'],
+                    'details': f"{program_info['code']} – {program_info['full']}",
+                    'school': program_info['school'],
+                    'cluster': program_info['cluster']
+                }
+        
+        # If no match found, program doesn't exist
+        return {'exists': False, 'program_name': None, 'details': None, 'school': None, 'cluster': None}
+
+    def _format_program_list_response(self, program_list_content: str, query: str) -> str:
+        """
+        Format the program list document content based on the query type
+        """
+        query_lower = query.lower()
+        
+        # Detect query type
+        if 'cluster' in query_lower:
+            return self._extract_cluster_info(program_list_content, query_lower)
+        elif any(school in query_lower for school in ['arts', 'sciences', 'business', 'engineering', 'education', 'nursing']):
+            return self._extract_school_info(program_list_content, query_lower)
+        else:
+            # General program list
+            return f"Here are the available undergraduate programs at Ateneo de Davao University:\n\n{program_list_content}"
+
+    def _extract_cluster_info(self, content: str, query: str) -> str:
+        """Extract cluster-specific information"""
+        lines = content.split('\n')
+        result = []
+        in_target_cluster = False
+        current_school = None
+        
+        cluster_keywords = {
+            'computer': 'Computer Studies',
+            'humanities': 'Humanities & Letters', 
+            'natural': 'Natural Sciences & Mathematics',
+            'sciences': 'Natural Sciences & Mathematics',
+            'social': 'Social Sciences',
+            'business': 'Business Management',
+            'accountancy': 'Accountancy',
+            'education': 'Education',
+            'engineering': 'Engineering & Architecture',
+            'architecture': 'Engineering & Architecture',
+            'nursing': 'Nursing'
+        }
+        
+        target_cluster = None
+        for keyword, cluster_name in cluster_keywords.items():
+            if keyword in query:
+                target_cluster = cluster_name
+                break
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('School of'):
+                current_school = line
+            elif '(Cluster)' in line:
+                if target_cluster and target_cluster in line:
+                    in_target_cluster = True
+                    result.append(f"\n{current_school}")
+                    result.append(f"● {line}")
+                else:
+                    in_target_cluster = False
+            elif in_target_cluster and line and (line[0].isdigit() or line.startswith('●')):
+                result.append(line)
+        
+        return '\n'.join(result) if result else "I couldn't find specific cluster information for your query."
+
+    def _extract_school_info(self, content: str, query: str) -> str:
+        """Extract school-specific information"""
+        lines = content.split('\n')
+        result = []
+        in_target_school = False
+        
+        school_keywords = {
+            'arts': 'School of Arts & Sciences',
+            'sciences': 'School of Arts & Sciences',
+            'business': 'School of Business & Governance',
+            'governance': 'School of Business & Governance',
+            'education': 'School of Education',
+            'engineering': 'School of Engineering & Architecture',
+            'architecture': 'School of Engineering & Architecture',
+            'nursing': 'School of Nursing'
+        }
+        
+        target_school = None
+        for keyword, school_name in school_keywords.items():
+            if keyword in query:
+                target_school = school_name
+                break
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('School of'):
+                if target_school and target_school in line:
+                    in_target_school = True
+                    result.append(line)
+                else:
+                    in_target_school = False
+            elif in_target_school and line:
+                result.append(line)
+        
+        return '\n'.join(result) if result else f"I couldn't find information about that school."
+
+    def _preprocess_pronoun_query(self, query: str, program_context: str = None) -> str:
+        """Preprocess queries with pronouns to avoid misinterpretation"""
+        if not program_context:
+            return query
+            
+        query_lower = query.lower().strip()
+        
+        # If query contains pronouns and we have program context, substitute them
+        pronoun_substitutions = {
+            r'\bits\b': program_context,
+            r'\bit\b(?!\s+is|\s+was|\s+has|\s+will|\s+can|\s+should)': program_context,  # Avoid "it is", "it was", etc.
+            r'\bthis\b': program_context,
+            r'\bthat\b': program_context,
+            r'\bthe program\b': program_context,
+            r'\bthe course\b': program_context
+        }
+        
+        import re
+        processed_query = query
+        substitution_made = False
+        
+        for pattern, replacement in pronoun_substitutions.items():
+            new_query = re.sub(pattern, replacement, processed_query, flags=re.IGNORECASE)
+            if new_query != processed_query:
+                processed_query = new_query
+                substitution_made = True
+        
+        if substitution_made:
+            print(f"🔄 Preprocessed pronoun query: '{query}' → '{processed_query}'")
+            return processed_query
+        
+        return query
 
 def test_fast_hybrid_chatbot_together():
     """Test the fast hybrid chatbot with Together AI"""
