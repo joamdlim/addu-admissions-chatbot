@@ -19,15 +19,15 @@ def test_simple_topic_retrieval():
     
     try:
         # Import here to avoid API key issues
-        from chatbot.topics import TOPICS
+        # from chatbot.topics import TOPICS  # TOPICS removed - now database-driven
         
-        print("✅ Topics imported successfully")
-        print(f"📋 Available topics: {list(TOPICS.keys())}")
+        print("✅ Topics module accessible (now database-driven)")
+        # print(f"📋 Available topics: {list(TOPICS.keys())}")  # TOPICS removed
         
         # Test topic keywords
         from chatbot.topics import get_topic_keywords
         
-        for topic_id in list(TOPICS.keys())[:3]:  # Test first 3 topics
+        for topic_id in ['admissions_enrollment', 'programs_courses', 'fees']:  # Test core topics
             keywords = get_topic_keywords(topic_id)
             print(f"🎯 {topic_id}: {len(keywords)} keywords")
             print(f"   Sample keywords: {keywords[:5]}")

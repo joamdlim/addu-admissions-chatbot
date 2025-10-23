@@ -14,7 +14,7 @@ from .models import Conversation, ConversationTurn, SystemPrompt, Topic, TopicKe
 
 # Add the Together AI chatbot import
 from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
-from .topics import TOPICS, CONVERSATION_STATES
+from .topics import CONVERSATION_STATES
 import os, json
 import uuid
 import io  # Add this import at the top
@@ -36,12 +36,18 @@ def get_topics(request):
     """Get all available topics for guided conversation"""
     try:
         topics_list = []
-        for topic_id, topic_data in TOPICS.items():
+        # Get topics from database
+        topics = Topic.objects.filter(is_active=True).prefetch_related('keywords')
+        
+        for topic in topics:
+            # Get keywords for this topic
+            keywords = list(topic.keywords.values_list('keyword', flat=True))
+            
             topics_list.append({
-                'id': topic_id,
-                'label': topic_data['label'],
-                'description': topic_data['description'],
-                'keywords': topic_data['keywords']
+                'id': topic.topic_id,
+                'label': topic.label,
+                'description': topic.description,
+                'keywords': keywords
             })
         
         return Response({

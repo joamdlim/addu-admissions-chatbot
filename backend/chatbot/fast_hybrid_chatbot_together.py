@@ -29,10 +29,10 @@ try:
     import gensim
     from gensim.models import KeyedVectors
     WORD2VEC_AVAILABLE = True
-    print("✅ Gensim Word2Vec available")
+    print("✓ Gensim Word2Vec available")
 except ImportError:
     WORD2VEC_AVAILABLE = False
-    print("⚠️ Gensim Word2Vec not available, using placeholder")
+    print("Warning: Gensim Word2Vec not available, using placeholder")
 
 # Import the Together AI interface instead of llama_interface_optimized
 try:
@@ -55,7 +55,7 @@ except ImportError:
 from chatbot.chroma_connection import ChromaService
 from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
 from chatbot.topics import (
-    TOPICS, CONVERSATION_STATES, BUTTON_CONFIGS, get_button_configs,
+    CONVERSATION_STATES, get_button_configs,
     get_topic_keywords, find_matching_topics, get_topic_info,
     get_topic_retrieval_strategy, get_retrieval_strategy_config
 )
@@ -132,14 +132,8 @@ class FastHybridChatbotTogether:
         self.use_chroma = use_chroma
         self.chroma_collection_name = chroma_collection_name or os.getenv("CHROMA_COLLECTION", "documents")
 
-        # Dynamic program detection cache
-        self._program_cache = {}
-        self._filename_patterns_cache = {}
-        self._last_cache_update = 0
-
         if self.use_chroma:
             _init_embed_models()  # ensure the TF‑IDF + Word2Vec embedder is ready
-            self._discover_programs_from_data()  # Initialize dynamic program detection
         else:
             self._load_data()
         
@@ -580,6 +574,8 @@ class FastHybridChatbotTogether:
             'fee_type': None,
             'amount_mentioned': False,
             'payment_term': None,
+            'payment_method': None,  # NEW: Payment method detection
+            'administrative_action': None,  # NEW: Administrative action detection
             'program_level': None,
             'program_name': None
         }
@@ -590,7 +586,10 @@ class FastHybridChatbotTogether:
             'miscellaneous': ['miscellaneous', 'misc fee', 'other fees'],
             'laboratory': ['laboratory', 'lab fee'],
             'registration': ['registration', 'enrollment fee'],
-            'graduation': ['graduation', 'graduation fee']
+            'graduation': ['graduation', 'graduation fee'],
+            'loa': ['loa', 'leave of absence'],  # NEW
+            'withdrawal': ['withdrawal', 'dropping'],  # NEW
+            'administrative': ['administrative fee', 'processing fee']  # NEW
         }
         
         for fee_type, patterns in fee_types.items():
@@ -607,6 +606,29 @@ class FastHybridChatbotTogether:
             fee_info['payment_term'] = 'installment'
         elif any(term in query_lower for term in ['full payment', 'lump sum']):
             fee_info['payment_term'] = 'full'
+        
+        # NEW: Detect payment methods
+        payment_methods = {
+            'online': ['online', 'online payment', 'pay online', 'e-payment', 'digital'],
+            'bank': ['bank', 'bank payment', 'bank deposit', 'bank transfer', 'over the counter', 'otc'],
+            'cheque': ['cheque', 'check', 'check payment'],
+            'cash': ['cash', 'cash payment'],
+            'gcash': ['gcash', 'g-cash'],
+            'paymaya': ['paymaya', 'pay maya'],
+        }
+        
+        for method, patterns in payment_methods.items():
+            if any(pattern in query_lower for pattern in patterns):
+                fee_info['payment_method'] = method
+                break
+        
+        # NEW: Detect administrative actions
+        if any(term in query_lower for term in ['loa', 'leave of absence']):
+            fee_info['administrative_action'] = 'loa'
+        elif any(term in query_lower for term in ['withdrawal', 'withdraw', 'dropping', 'drop']):
+            fee_info['administrative_action'] = 'withdrawal'
+        elif any(term in query_lower for term in ['refund', 'reimbursement']):
+            fee_info['administrative_action'] = 'refund'
         
         # Detect program level for fee differentiation
         if any(term in query_lower for term in ['undergraduate', 'bachelor']):
@@ -775,19 +797,32 @@ class FastHybridChatbotTogether:
         # Basic term matching
         matches = sum(1 for term in query_terms if term in content)
         if query_terms:
-            score += (matches / len(query_terms)) * 0.3  # Reduced from 0.4 to make room for program bonus
+            score += (matches / len(query_terms)) * 0.2  # Reduced to make room for other bonuses
         
         # Bonus for fee type in content
         if fee_info['fee_type'] and fee_info['fee_type'] in content:
-            score += 0.2  # Reduced from 0.3 to make room for program bonus
+            score += 0.15
         
-        # High bonus for program name in content (NEW!)
+        # High bonus for program name in content
         if fee_info['program_name'] and fee_info['program_name'] in content:
-            score += 0.5  # High bonus for specific program match
+            score += 0.3
+        
+        # NEW: Bonus for payment method in content
+        if fee_info.get('payment_method') and fee_info['payment_method'] in content:
+            score += 0.2
+        
+        # NEW: Bonus for administrative action in content
+        if fee_info.get('administrative_action') and fee_info['administrative_action'] in content:
+            score += 0.25
         
         # Bonus for amount-related content if amount was mentioned in query
         if fee_info['amount_mentioned'] and any(term in content for term in ['php', 'peso', 'amount', 'cost']):
-            score += 0.2
+            score += 0.15
+        
+        # NEW: Bonus for regulation/policy documents when asking "how to pay"
+        if any(term in query_lower for term in ['how to pay', 'payment method', 'payment procedure']):
+            if any(term in content for term in ['regulation', 'policy', 'procedure', 'guidelines']):
+                score += 0.2
         
         return min(score, 1.0)
 
@@ -809,6 +844,8 @@ class FastHybridChatbotTogether:
             strategy_config = get_retrieval_strategy_config('admissions_specialized')
             document_types = strategy_config.get('document_types', ['admission', 'enrollment', 'scholarship'])
             priorities = strategy_config.get('metadata_priorities', {})
+            
+            print(f"📋 Using document types for filtering: {document_types}")
             
             # Detect student type from query
             student_type = self._detect_student_type(query)
@@ -835,13 +872,74 @@ class FastHybridChatbotTogether:
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
             
-            print(f"📚 Found {len(all_ids)} admissions-related documents")
+            print(f"📚 Found {len(all_ids)} documents with enhanced admissions document_type filtering (including policies)")
+            
+            # Also get documents that might have admission keywords but not the right document_type
+            # This is to catch documents that might not have been stored with correct document_type
+            all_docs_by_keywords = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            # Combine and deduplicate documents
+            all_combined_ids = list(set(all_ids + all_docs_by_keywords.get('ids', [])))
+            
+            # Get full data for combined documents
+            if len(all_combined_ids) > len(all_ids):
+                print(f"📚 Expanded search to {len(all_combined_ids)} total documents")
+                combined_docs = collection.get(
+                    ids=all_combined_ids,
+                    include=["documents", "metadatas"]
+                )
+                all_ids = combined_docs.get('ids', [])
+                all_contents = combined_docs.get('documents', [])
+                all_metadatas = combined_docs.get('metadatas', [])
+            
+            # Get topic keywords for additional filtering
+            from .topics import get_topic_keywords
+            topic_keywords = get_topic_keywords('admissions_enrollment')
+            print(f"📝 Using topic keywords for additional filtering: {len(topic_keywords)} keywords")
+            
+            # Filter documents: include admission keywords and relevant document types
+            filtered_docs = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                
+                # Check if document has admission-related keywords or is already from document_type filtering
+                has_admission_keywords = False
+                if topic_keywords:
+                    for keyword in topic_keywords:
+                        keyword_lower = keyword.lower()
+                        # Use word boundaries to avoid substring matches
+                        pattern = r'\b' + re.escape(keyword_lower) + r'\b'
+                        
+                        if re.search(pattern, doc_keywords) or re.search(pattern, filename):
+                            has_admission_keywords = True
+                            break
+                
+                # Include if it has admission document_type OR admission keywords
+                doc_type = metadata.get('document_type', '')
+                if (doc_type in document_types or has_admission_keywords):
+                    filtered_docs.append((doc_id, content, metadata))
+                    if doc_type in document_types:
+                        print(f"✅ Including document by type '{doc_type}': {metadata.get('filename', 'N/A')}")
+                    if has_admission_keywords and doc_type not in document_types:
+                        print(f"✅ Including document with admission keywords: {metadata.get('filename', 'N/A')}")
+                else:
+                    print(f"❌ Excluding document type '{doc_type}': {metadata.get('filename', 'N/A')[:50]}...")
+            
+            print(f"✅ After filtering: {len(filtered_docs)} documents")
+            
+            if not filtered_docs:
+                print(f"❌ No admission documents found after filtering")
+                return []
             
             # Score documents with admissions-specific logic
             scored_results = []
             query_lower = query.lower()
             
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+            for doc_id, content, metadata in filtered_docs:
                 filename = metadata.get('filename', '').lower()
                 doc_keywords = metadata.get('keywords', '').lower()
                 content_lower = content.lower()
@@ -1032,7 +1130,7 @@ class FastHybridChatbotTogether:
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
             
-            print(f"📚 Found {len(all_ids)} documents with fees document_type")
+            print(f"📚 Found {len(all_ids)} documents with enhanced fees document_type filtering (including policies)")
             
             # Also get documents that might have fee keywords but not the right document_type
             # This is to catch CSV files that might not have been stored with correct document_type
@@ -1060,16 +1158,24 @@ class FastHybridChatbotTogether:
             topic_keywords = get_topic_keywords('fees')
             print(f"📝 Using topic keywords for additional filtering: {topic_keywords}")
             
-            # Filter documents: must have fee keywords AND not have 'regulation'
+            # Filter documents: include fee keywords, but be smart about regulations
             filtered_docs = []
             for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
                 doc_keywords = metadata.get('keywords', '').lower()
                 filename = metadata.get('filename', '').lower()
                 
-                # Skip documents with 'regulation' in keywords
-                if 'regulation' in doc_keywords:
-                    print(f"🚫 Excluding document with 'regulation' in keywords: {metadata.get('filename', 'N/A')}")
+                # Smart regulation filtering: Only skip NON-FINANCIAL regulations
+                # Allow financial/payment/fee regulations, but skip academic regulations
+                is_financial_regulation = any(term in doc_keywords or term in filename 
+                                               for term in ['payment', 'fee', 'financial', 'tuition', 'billing'])
+                is_regulation = 'regulation' in doc_keywords
+                
+                # Skip if it's a regulation BUT not financial-related
+                if is_regulation and not is_financial_regulation:
+                    print(f"🚫 Excluding non-financial regulation: {metadata.get('filename', 'N/A')}")
                     continue
+                elif is_regulation and is_financial_regulation:
+                    print(f"✅ Including financial regulation: {metadata.get('filename', 'N/A')}")
                 
                 # Check if document has fee-related keywords or is already from document_type filtering
                 has_fee_keywords = False
@@ -1487,6 +1593,85 @@ class FastHybridChatbotTogether:
             traceback.print_exc()
             return []
 
+    def retrieve_generic_enhanced_documents(self, query: str, top_k: int = 3) -> List[Dict]:
+        """
+        Enhanced generic retrieval that searches across ALL document types.
+        Used as fallback when specialized retrieval doesn't find enough results.
+        """
+        print(f"🔍 Enhanced Generic retrieval for: '{query}'")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get ALL documents without document_type restriction
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Searching across {len(all_ids)} documents (all types)")
+            
+            # Enhanced keyword matching for comprehensive coverage
+            query_lower = query.lower()
+            scored_results = []
+            
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                if not content:
+                    continue
+                
+                content_lower = content.lower()
+                filename = metadata.get('filename', '').lower()
+                keywords = metadata.get('keywords', '').lower()
+                
+                # Multi-factor scoring
+                filename_score = self._calculate_filename_relevance(filename, query_lower)
+                keyword_score = self._calculate_keyword_relevance(keywords, query_lower)
+                content_score = self._calculate_content_relevance(content_lower, query_lower)
+                
+                # Enhanced scoring for policy documents containing procedures
+                if metadata.get('document_type') == 'policy':
+                    if any(term in content_lower for term in ['procedure', 'process', 'how to', 'steps', 'requirements']):
+                        content_score *= 1.2  # Boost policy documents with procedural content
+                
+                total_score = (filename_score * 0.3) + (keyword_score * 0.4) + (content_score * 0.3)
+                
+                if total_score > 0.1:  # Lower threshold for generic search
+                    scored_results.append({
+                        'id': doc_id,
+                        'content': content,
+                        'filename': metadata.get('filename', 'Unknown'),
+                        'relevance': total_score,
+                        'current_topic': 'generic_enhanced',
+                        'document_type': metadata.get('document_type', 'other'),
+                        '_debug': {
+                            'filename_score': filename_score,
+                            'keyword_score': keyword_score,
+                            'content_score': content_score,
+                            'doc_type': metadata.get('document_type', 'other')
+                        }
+                    })
+            
+            # Sort and return top results
+            scored_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            print(f"✅ Top {min(top_k, len(scored_results))} generic enhanced results:")
+            for i, doc in enumerate(scored_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:60]} ({debug['doc_type']})")
+                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
+            
+            return scored_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Error in generic enhanced retrieval: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
     def retrieve_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """Main retrieval - always use simplified hybrid"""
         if self.use_chroma:
@@ -1657,10 +1842,10 @@ class FastHybridChatbotTogether:
             return []
 
     def analyze_query_intent(self, query: str) -> Dict[str, str]:
-        """Analyze query to determine appropriate filters"""
+        """Enhanced query analysis to determine appropriate filters"""
         query_lower = query.lower()
         
-        # Document type detection
+        # Enhanced document type detection with policy inclusion
         document_type = None
         if any(word in query_lower for word in ['admission', 'apply', 'requirement', 'entrance']):
             document_type = 'admission'
@@ -1670,12 +1855,14 @@ class FastHybridChatbotTogether:
             document_type = 'scholarship'
         elif any(word in query_lower for word in ['program', 'course', 'degree', 'major']):
             document_type = 'academic'
-        elif any(word in query_lower for word in ['fee', 'cost', 'payment', 'tuition']):
+        elif any(word in query_lower for word in ['fee', 'cost', 'payment', 'tuition', 'pay online', 'bank', 'gcash', 'paymaya', 'payment channel', 'payment option', 'payment method']):
             document_type = 'fees'
-        elif any(word in query_lower for word in ['contact', 'phone', 'email', 'office']):
+        elif any(word in query_lower for word in ['contact', 'phone', 'email', 'office', 'help', 'assistance']):
             document_type = 'contact'
+        elif any(word in query_lower for word in ['grading', 'grade', 'qpi', 'gpa', 'appeal', 'policy', 'procedure', 'visa', 'immigration', 'international student', 'letter grade', 'grading system']):
+            document_type = 'policy'  # NEW: Detect policy-related queries
         
-        # Program level detection
+        # Enhanced program level detection
         program_filter = None
         if any(word in query_lower for word in ['undergraduate', 'bachelor', 'college']):
             program_filter = 'undergraduate'
@@ -1683,11 +1870,14 @@ class FastHybridChatbotTogether:
             program_filter = 'graduate'
         elif any(word in query_lower for word in ['senior high', 'shs', 'grade 11', 'grade 12']):
             program_filter = 'senior_high'
+        elif any(word in query_lower for word in ['international', 'foreign', 'visa', 'immigration']):
+            program_filter = 'international'  # NEW: International student detection
         
         return {
             'document_type': document_type,
             'program_filter': program_filter,
-            'folder_filter': None  # Can be extended for folder-specific queries
+            'folder_filter': None,
+            'enhanced_search': True  # Flag for enhanced search mode
         }
 
     def process_query_with_intent_analysis(self, query: str, correct_spelling: bool = True, 
@@ -2047,7 +2237,7 @@ RULES:
             if action_type == 'topic_selection':
                 # User selected a topic
                 topic_id = action_data
-                if topic_id not in TOPICS:
+                if not get_topic_info(topic_id):
                     button_configs = get_button_configs()
                     return {
                         'error': f'Invalid topic: {topic_id}',
@@ -2649,7 +2839,8 @@ RULES:
             
             # Check if query is nonsensical or unclear (use original query for this check)
             if self._is_nonsensical_query(query):
-                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                topic_info = get_topic_info(topic_id)
+                topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
                 
                 # Provide topic-specific examples
                 if topic_id == 'admissions_enrollment':
@@ -2697,8 +2888,10 @@ Feel free to ask about these general admission topics!"""
             
             if detected_topic and detected_topic != topic_id:
                 # User is asking about a different topic - provide helpful guidance
-                current_topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
-                detected_topic_label = TOPICS.get(detected_topic, {}).get('label', detected_topic)
+                current_topic_info = get_topic_info(topic_id)
+                detected_topic_info = get_topic_info(detected_topic)
+                current_topic_label = current_topic_info.get('label', topic_id) if current_topic_info else topic_id
+                detected_topic_label = detected_topic_info.get('label', detected_topic) if detected_topic_info else detected_topic
                 
                 response_text = f"""I notice you're asking about **{detected_topic_label}**, but we're currently in the **{current_topic_label}** section.
 
@@ -2755,7 +2948,8 @@ This will ensure you get the most relevant and up-to-date information for your q
             relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
             
             if not relevant_docs:
-                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                topic_info = get_topic_info(topic_id)
+                topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
                 response_text = f"I don't have specific information about that in the {topic_label} topic. Could you try rephrasing your question?"
                 
                 return response_text, []
@@ -2767,8 +2961,8 @@ This will ensure you get the most relevant and up-to-date information for your q
             ])
             
             # Build prompt with topic context and specialized instructions
-            topic_info = TOPICS.get(topic_id, {})
-            topic_label = topic_info.get('label', topic_id)
+            topic_info = get_topic_info(topic_id)
+            topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
             
             # Build topic-specific instructions
             topic_specific_instructions = self._get_topic_specific_instructions(topic_id)
@@ -2976,429 +3170,6 @@ RULES:
             traceback.print_exc()
             yield {"error": f"Processing error: {e}"}
 
-    def _discover_programs_from_data(self):
-        """Automatically discover programs from existing filenames and metadata"""
-        try:
-            from .models import DocumentMetadata
-            
-            # Get all document filenames from your database
-            documents = DocumentMetadata.objects.filter(
-                synced_to_chroma=True
-            ).values('filename', 'document_id', 'keywords', 'folder__name')
-            
-            programs = set()
-            filename_patterns = {}
-            
-            for doc in documents:
-                filename = doc['filename'].lower()
-                folder_name = doc.get('folder__name', '').lower()
-                
-                # Focus on subject/curriculum documents
-                if 'subject' in folder_name or 'curriculum' in filename or 'program' in filename:
-                    # Extract program names from filenames using common patterns
-                    extracted_programs = self._extract_programs_from_filename(filename)
-                    programs.update(extracted_programs)
-                    
-                    # Build reverse mapping: program -> filename patterns
-                    for program in extracted_programs:
-                        if program not in filename_patterns:
-                            filename_patterns[program] = set()
-                        
-                        # Extract keywords from filename
-                        filename_keywords = self._extract_keywords_from_filename(filename)
-                        filename_patterns[program].update(filename_keywords)
-            
-            # Cache the discovered programs
-            self._program_cache = {
-                'programs': list(programs),
-                'patterns': {k: list(v) for k, v in filename_patterns.items()},
-                'last_updated': time.time()
-            }
-            
-            print(f"🔍 Auto-discovered {len(programs)} programs from filenames")
-            print(f"📋 Programs: {', '.join(sorted(programs)[:10])}{'...' if len(programs) > 10 else ''}")
-            
-        except Exception as e:
-            print(f"⚠️ Could not auto-discover programs: {e}")
-            # Fallback to basic patterns
-            self._setup_fallback_patterns()
-
-    def _extract_programs_from_filename(self, filename: str) -> set:
-        """Extract program names from filename using smart patterns"""
-        programs = set()
-        
-        # Common filename patterns
-        filename_clean = filename.replace('_', ' ').replace('-', ' ').replace('.pdf', '')
-        
-        # Split into words and look for program indicators
-        words = filename_clean.split()
-        
-        # Look for multi-word programs
-        for i in range(len(words)):
-            for j in range(i + 1, min(i + 4, len(words) + 1)):  # Check 1-3 word combinations
-                potential_program = ' '.join(words[i:j])
-                
-                # Filter out common non-program words
-                if self._is_likely_program_name(potential_program):
-                    programs.add(potential_program)
-        
-        return programs
-
-    def _is_likely_program_name(self, text: str) -> bool:
-        """Determine if text is likely a program name"""
-        text_lower = text.lower()
-        
-        # Skip common non-program words
-        skip_words = {
-            'curriculum', 'program', 'course', 'courses', 'subject', 'subjects',
-            'undergraduate', 'graduate', 'senior', 'high', 'school', 'college',
-            'bachelor', 'master', 'phd', 'degree', 'diploma', 'certificate',
-            'first', 'second', 'third', 'fourth', 'year', 'semester'
-        }
-        
-        if text_lower in skip_words:
-            return False
-        
-        # Must be at least 2 characters
-        if len(text) < 2:
-            return False
-        
-        # Should contain letters
-        if not any(c.isalpha() for c in text):
-            return False
-        
-        # Common program name patterns
-        program_indicators = [
-            'science', 'studies', 'engineering', 'technology', 'management',
-            'administration', 'education', 'arts', 'business', 'health',
-            'nursing', 'medicine', 'psychology', 'mathematics', 'biology',
-            'chemistry', 'physics', 'economics', 'finance', 'accounting'
-        ]
-        
-        # If it contains program indicators, it's likely a program
-        if any(indicator in text_lower for indicator in program_indicators):
-            return True
-        
-        # Check for acronyms (BS, MS, etc. followed by letters)
-        if len(text) <= 6 and any(c.isupper() for c in text):
-            return True
-        
-        return False
-
-    def _extract_keywords_from_filename(self, filename: str) -> set:
-        """Extract searchable keywords from filename"""
-        keywords = set()
-        
-        # Clean filename
-        clean = filename.replace('_', ' ').replace('-', ' ').replace('.pdf', '').lower()
-        
-        # Add individual words
-        words = clean.split()
-        keywords.update(words)
-        
-        # Add common abbreviations
-        abbreviations = {
-            'computer science': ['cs', 'compsci', 'computing'],
-            'information technology': ['it', 'infotech'],
-            'business administration': ['ba', 'business', 'admin'],
-            'engineering': ['engr', 'eng'],
-            'mathematics': ['math', 'maths'],
-            'bachelor of science': ['bs', 'bsc'],
-            'master of science': ['ms', 'msc']
-        }
-        
-        for full_name, abbrevs in abbreviations.items():
-            if full_name in clean:
-                keywords.update(abbrevs)
-        
-        return keywords
-
-    def _setup_fallback_patterns(self):
-        """Setup basic fallback patterns if auto-discovery fails"""
-        self._program_cache = {
-            'programs': [
-                'computer science', 'business administration', 'engineering',
-                'nursing', 'education', 'psychology', 'biology', 'mathematics'
-            ],
-            'patterns': {
-                'computer science': ['cs', 'computing', 'software', 'programming'],
-                'business administration': ['business', 'management', 'admin'],
-                'engineering': ['engr', 'eng', 'engineering'],
-                'nursing': ['nursing', 'health', 'medical'],
-                'education': ['education', 'teaching', 'pedagogy'],
-                'psychology': ['psych', 'psychology', 'behavioral'],
-                'biology': ['bio', 'biology', 'life science'],
-                'mathematics': ['math', 'mathematics', 'statistics']
-            },
-            'last_updated': time.time()
-        }
-
-    def _detect_program_from_query_dynamic(self, query_lower: str) -> str:
-        """Dynamically detect program from query using discovered patterns"""
-        
-        # Refresh cache if it's old (once per hour)
-        if time.time() - self._program_cache.get('last_updated', 0) > 3600:
-            self._discover_programs_from_data()
-        
-        best_match = None
-        best_score = 0
-        
-        patterns = self._program_cache.get('patterns', {})
-        
-        for program, keywords in patterns.items():
-            score = 0
-            
-            # Check direct program name match
-            if program in query_lower:
-                score += 10
-            
-            # Check keyword matches
-            for keyword in keywords:
-                if keyword in query_lower:
-                    score += 1
-            
-            # Update best match
-            if score > best_score:
-                best_score = score
-                best_match = program
-        
-        return best_match if best_score > 0 else None
-
-    def _get_dynamic_filename_patterns(self, program_hint: str) -> List[str]:
-        """Get filename patterns dynamically from discovered data"""
-        if not program_hint:
-            return []
-        
-        patterns = self._program_cache.get('patterns', {})
-        
-        # Direct lookup
-        if program_hint in patterns:
-            return patterns[program_hint]
-        
-        # Fuzzy matching for partial matches
-        for program, keywords in patterns.items():
-            if program_hint in program or any(program_hint in keyword for keyword in keywords):
-                return keywords
-        
-        # Fallback to the hint itself
-        return [program_hint]
-
-    def _detect_smart_folder_and_filename_dynamic(self, query_lower: str, document_type: str) -> Dict[str, str]:
-        """Dynamic folder and filename detection"""
-        
-        # Detect program using discovered patterns
-        detected_program = self._detect_program_from_query_dynamic(query_lower)
-        
-        # Folder mapping (this stays static)
-        folder_mapping = {
-            'academic': 'Subjects',  # All curricula go here
-            'admission': 'Admissions',
-            'enrollment': 'Enrollment',
-            'scholarship': 'Financial Aid',
-            'fees': 'Fees and Payments',
-            'contact': 'Contact Information'
-        }
-        
-        folder_filter = folder_mapping.get(document_type)
-        
-        return {
-            'folder_filter': folder_filter,
-            'program_hint': detected_program,
-            'document_type': document_type
-        }
-
-    def _detect_document_type_with_confidence(self, query_lower: str) -> Tuple[str, float]:
-        """Detect document type with confidence score"""
-        type_indicators = {
-            'admission': (['admission', 'apply', 'application', 'requirement', 'entrance', 'qualify'], 0.9),
-            'enrollment': (['enroll', 'registration', 'register', 'sign up'], 0.9),
-            'scholarship': (['scholarship', 'financial aid', 'grant', 'funding'], 0.95),
-            'academic': (['program', 'course', 'curriculum', 'degree', 'major', 'subject'], 0.8),
-            'fees': (['fee', 'cost', 'payment', 'tuition', 'price'], 0.9),
-            'contact': (['contact', 'phone', 'email', 'office', 'address'], 0.95)
-        }
-        
-        best_type = None
-        best_confidence = 0
-        
-        for doc_type, (keywords, base_confidence) in type_indicators.items():
-            matches = sum(1 for keyword in keywords if keyword in query_lower)
-            if matches > 0:
-                confidence = base_confidence * (matches / len(keywords))
-                if confidence > best_confidence:
-                    best_type = doc_type
-                    best_confidence = confidence
-        
-        return best_type, best_confidence
-
-    def _detect_program_with_confidence(self, query_lower: str) -> Tuple[str, float]:
-        """Detect program level with confidence"""
-        program_indicators = {
-            'undergraduate': (['undergraduate', 'bachelor', 'college', 'bscs', 'bsit', 'bsba'], 0.9),
-            'graduate': (['graduate', 'master', 'phd', 'doctoral', 'mba', 'ms'], 0.9),
-            'senior_high': (['senior high', 'shs', 'grade 11', 'grade 12', 'strand'], 0.95)
-        }
-        
-        for program, (keywords, confidence) in program_indicators.items():
-            if any(keyword in query_lower for keyword in keywords):
-                return program, confidence
-        
-        return None, 0.0
-
-    def _retrieve_with_filename_intelligence_dynamic(self, query: str, intent: Dict, top_k: int) -> List[Dict]:
-        """Dynamic filename-based retrieval"""
-        
-        # Get base results from the correct folder
-        base_results = self._retrieve_from_chroma(
-            query,
-            top_k=top_k * 3,  # Get more results for better filtering
-            folder_filter=intent.get('folder_filter'),
-            document_type_filter=intent.get('document_type'),
-            program_filter=intent.get('program_filter')
-        )
-        
-        # Apply dynamic filename filtering
-        program_hint = intent.get('program_hint')
-        if program_hint and base_results:
-            filename_filtered = []
-            
-            # Get dynamic patterns for this program
-            filename_patterns = self._get_dynamic_filename_patterns(program_hint)
-            
-            for doc in base_results:
-                filename = doc.get('filename', '').lower()
-                doc_id = doc.get('id', '').lower()
-                
-                # Calculate filename relevance
-                filename_score = 0
-                matched_patterns = []
-                
-                for pattern in filename_patterns:
-                    if pattern in filename or pattern in doc_id:
-                        filename_score += 1
-                        matched_patterns.append(pattern)
-                
-                if filename_score > 0:
-                    doc_copy = doc.copy()
-                    doc_copy['relevance'] = doc_copy.get('relevance', 0) + (filename_score * 0.1)
-                    doc_copy['filename_matches'] = filename_score
-                    doc_copy['matched_patterns'] = matched_patterns
-                    filename_filtered.append(doc_copy)
-            
-            if filename_filtered:
-                filename_filtered.sort(key=lambda x: x['relevance'], reverse=True)
-                return filename_filtered[:top_k]
-        
-        return base_results[:top_k]
-
-    def _retrieve_with_metadata_priority(self, query: str, intent: Dict, top_k: int) -> List[Dict]:
-        """Retrieve with strong metadata filtering"""
-        return self._retrieve_from_chroma(
-            query, 
-            top_k=top_k,
-            folder_filter=None,  # Be flexible on folder
-            document_type_filter=intent.get('document_type'),
-            program_filter=intent.get('program_filter')
-        )
-
-    def _retrieve_with_folder_priority(self, query: str, intent: Dict, top_k: int) -> List[Dict]:
-        """Retrieve with folder intelligence"""
-        return self._retrieve_from_chroma(
-            query,
-            top_k=top_k, 
-            folder_filter=intent.get('folder_filter'),
-            document_type_filter=None,  # Be flexible on type
-            program_filter=intent.get('program_filter')
-        )
-
-    def _retrieve_semantic_only(self, query: str, top_k: int) -> List[Dict]:
-        """Pure semantic retrieval without filters"""
-        return self._retrieve_from_chroma(
-            query,
-            top_k=top_k,
-            folder_filter=None,
-            document_type_filter=None, 
-            program_filter=None
-        )
-
-    def _merge_and_rank_candidates(self, all_candidates: List[Tuple], query: str, top_k: int) -> List[Dict]:
-        """Intelligent merging and ranking of candidates from different strategies"""
-        
-        # Deduplicate by document ID
-        seen_ids = set()
-        unique_candidates = []
-        
-        for doc, strategy, boosted_score in all_candidates:
-            doc_id = doc.get('id', '')
-            if doc_id not in seen_ids:
-                seen_ids.add(doc_id)
-                
-                # Calculate final score
-                final_score = self._calculate_hybrid_score(doc, strategy, boosted_score, query)
-                
-                doc_enhanced = doc.copy()
-                doc_enhanced.update({
-                    'hybrid_score': final_score,
-                    'retrieval_strategy': strategy,
-                    'original_relevance': doc.get('relevance', 0)
-                })
-                unique_candidates.append(doc_enhanced)
-        
-        # Sort by hybrid score and return top-k
-        unique_candidates.sort(key=lambda x: x['hybrid_score'], reverse=True)
-        
-        return unique_candidates[:top_k]
-
-    def _calculate_hybrid_score(self, doc: Dict, strategy: str, boosted_score: float, query: str) -> float:
-        """Enhanced scoring with filename intelligence"""
-        
-        base_score = boosted_score
-        query_terms = set(query.lower().split())
-        
-        # Strategy bonuses (filename gets highest priority)
-        strategy_bonus = {
-            'filename': 0.20,   # Highest - filename matches are very relevant
-            'metadata': 0.15,   # High - precise metadata matches
-            'folder': 0.10,     # Medium - folder organization
-            'semantic': 0.05    # Base - semantic similarity
-        }.get(strategy, 0)
-        
-        # Filename quality bonus
-        filename = doc.get('filename', '').lower()
-        filename_bonus = 0
-        
-        # Check for comprehensive filename patterns
-        filename_terms = set(filename.replace('_', ' ').replace('-', ' ').split())
-        
-        # Filename term coverage
-        coverage = len(query_terms.intersection(filename_terms)) / len(query_terms) if query_terms else 0
-        filename_bonus += coverage * 0.15
-        
-        # Program specificity bonus
-        if any(prog in filename for prog in ['undergraduate', 'graduate', 'senior_high', 'curriculum']):
-            filename_bonus += 0.05
-        
-        # Content quality signals
-        content = doc.get('content', '')
-        content_bonus = 0
-        
-        # Length preference for curricula
-        content_length = len(content)
-        if strategy == 'filename':  # Curricula should be comprehensive
-            if content_length > 2000:  # Substantial curriculum content
-                content_bonus += 0.10
-        else:
-            if 500 <= content_length <= 3000:  # Standard documents
-                content_bonus += 0.05
-        
-        # Query term coverage in content
-        content_terms = set(content.lower().split())
-        content_coverage = len(query_terms.intersection(content_terms)) / len(query_terms) if query_terms else 0
-        content_bonus += content_coverage * 0.08
-        
-        final_score = base_score + strategy_bonus + filename_bonus + content_bonus
-        
-        return min(final_score, 1.0)  # Cap at 1.0
 
     def _retrieve_program_list_document(self) -> Dict:
         """
