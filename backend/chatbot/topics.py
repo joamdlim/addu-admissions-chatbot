@@ -70,7 +70,10 @@ TOPICS = {
             'anthro', 'comm', 'dev studies', 'econ', 'english', 'philo', 'polsci', 'psych', 'socio',
             'bio', 'chem', 'cs', 'envisci', 'is', 'it', 'math', 'bpm', 'bsa', 'bsma', 'bsbm',
             'entrep', 'fin', 'hrdm', 'mktg', 'ece', 'elem ed', 'sec ed', 'ae', 'arch', 'che',
-            'ce', 'comp eng', 'ee', 'electronics eng', 'ie', 'me', 're', 'bsn'
+            'ce', 'comp eng', 'ee', 'electronics eng', 'ie', 'me', 're', 'bsn',
+            
+            # Missing IT abbreviations (fix for BS IT issue)
+            'bs it', 'bsit', 'bs cs', 'bscs', 'bs is', 'bsis', 'bs ds', 'bsds'
         ],
         'description': 'Learn about available academic programs, degrees, curriculum, and course offerings',
         'retrieval_strategy': 'programs_specialized'

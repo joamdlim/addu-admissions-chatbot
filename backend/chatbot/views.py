@@ -24,8 +24,8 @@ from django.db.models import Count
 
 # Initialize Together AI chatbot at startup
 print("🚀 Initializing Together AI chatbot...")
-together_chatbot = FastHybridChatbotTogether(use_chroma=True)
-print("✅ Together AI chatbot ready!")
+together_chatbot = FastHybridChatbotTogether(use_chroma=True, use_hybrid_topic_retrieval=True)
+print("✅ Together AI chatbot ready with hybrid topic + semantic retrieval!")
 
 @api_view(['GET'])
 def evaluate(request):

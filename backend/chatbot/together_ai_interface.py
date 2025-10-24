@@ -10,34 +10,34 @@ from typing import Any, Dict, List, Optional, Union, Iterator
 from together import Together
 import requests
 
-# Configuration for Together AI
+# Configuration for Together AI - Upgraded to Llama-4-Scout for reduced hallucinations
 TOGETHER_CONFIG = {
-    "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",  # Fast and efficient model
-    "max_tokens": 768,
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "top_k": 40,
-    "repetition_penalty": 1.1,
+    "model": "meta-llama/Llama-4-Scout-17B-16E-Instruct",  # Upgraded to Llama-4-Scout for better accuracy
+    "max_tokens": 1024,        # Increased for more complete responses
+    "temperature": 0.3,        # Lower temperature to reduce hallucinations
+    "top_p": 0.8,             # More focused sampling
+    "top_k": 25,              # Reduced for more deterministic output
+    "repetition_penalty": 1.15, # Slightly higher to avoid repetition
     "stop": ["</answer>", "<|user|>", "<|system|>", "<|assistant|>"]
 }
 
-# Typo correction parameters (extremely fast)
+# Typo correction parameters (extremely fast and accurate)
 TYPO_CORRECTION_CONFIG = {
     "max_tokens": 30,
-    "temperature": 0.1,
-    "top_p": 0.9,
-    "top_k": 5
+    "temperature": 0.05,       # Even more deterministic for typo correction
+    "top_p": 0.8,
+    "top_k": 3                 # Very focused for accurate corrections
 }
 
-# Word prediction parameters (extremely fast)
+# Word prediction parameters (fast and accurate)
 WORD_PREDICTION_CONFIG = {
     "max_tokens": 3,
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "top_k": 10
+    "temperature": 0.4,        # Lower for more predictable suggestions
+    "top_p": 0.8,
+    "top_k": 8
 }
 
-print("🧠 Initializing Together AI client...")
+print("🧠 Initializing Together AI client with Llama-4-Scout model...")
 start_time = time.time()
 
 try:
@@ -48,7 +48,8 @@ try:
     
     client = Together(api_key=api_key)
     init_time = time.time() - start_time
-    print(f"✅ Together AI client initialized in {init_time:.2f} seconds")
+    print(f"✅ Together AI client initialized with Llama-4-Scout-17B-16E-Instruct in {init_time:.2f} seconds")
+    print("🎯 Model upgraded to Llama-4-Scout for significantly reduced hallucinations and better context retrieval")
 except Exception as e:
     print(f"❌ Together AI initialization failed: {e}")
     raise
@@ -60,7 +61,7 @@ def extract_response_text(result: Any) -> str:
             return result["choices"][0]["message"]["content"].strip()
     return ""
 
-def generate_fast_response(prompt: str, max_tokens: int = 500, stream: bool = False) -> Union[str, Iterator[Dict[str, Any]]]:
+def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = False) -> Union[str, Iterator[Dict[str, Any]]]:
     """Generate a response using Together AI"""
     
     # Prepare messages for chat completion
@@ -135,12 +136,12 @@ def generate_fast_response(prompt: str, max_tokens: int = 500, stream: bool = Fa
         print(f"❌ Together AI generation error: {e}")
         return ""
 
-def generate_response(prompt: str, max_tokens: int = 150) -> str:
+def generate_response(prompt: str, max_tokens: int = 1024) -> str:
     """Generate a non-streaming response (guaranteed to return a string)"""
     result = generate_fast_response(prompt, max_tokens, stream=False)
     return str(result)
 
-def stream_response(prompt: str, max_tokens: int = 150) -> str:
+def stream_response(prompt: str, max_tokens: int = 1024) -> str:
     """Generate a streaming response with real-time output"""
     # Get streaming result
     stream_result = generate_fast_response(prompt, max_tokens, stream=True)
@@ -250,7 +251,7 @@ class MockLLM:
 # Create the mock llm instance
 llm = MockLLM()
 
-def stream_response_together(prompt: str, max_tokens: int = 150):
+def stream_response_together(prompt: str, max_tokens: int = 1024):
     """
     Generate a streaming response that yields string chunks
     This is for the chatbot's streaming interface

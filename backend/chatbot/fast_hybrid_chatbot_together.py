@@ -95,7 +95,8 @@ class FastHybridChatbotTogether:
     """Fast hybrid chatbot that combines TF-IDF, Word2Vec, and Together AI"""
     
     def __init__(self, embeddings_dir=None, processed_dir=None, 
-                 word2vec_path=None, use_chroma: bool = False, chroma_collection_name: Optional[str] = None):
+                 word2vec_path=None, use_chroma: bool = False, chroma_collection_name: Optional[str] = None,
+                 use_hybrid_topic_retrieval: bool = True):
         # Get the current script's directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
         
@@ -131,6 +132,7 @@ class FastHybridChatbotTogether:
         
         self.use_chroma = use_chroma
         self.chroma_collection_name = chroma_collection_name or os.getenv("CHROMA_COLLECTION", "documents")
+        self.use_hybrid_topic_retrieval = use_hybrid_topic_retrieval
 
         # Dynamic program detection cache
         self._program_cache = {}
@@ -139,6 +141,7 @@ class FastHybridChatbotTogether:
 
         if self.use_chroma:
             _init_embed_models()  # ensure the TF‑IDF + Word2Vec embedder is ready
+            self._init_tfidf_for_chroma()  # Initialize TF-IDF vectorizer for ChromaDB
             self._discover_programs_from_data()  # Initialize dynamic program detection
         else:
             self._load_data()
@@ -206,6 +209,45 @@ class FastHybridChatbotTogether:
                 print("⚠️ Vector file not found, falling back to keyword search")
         except Exception as e:
             print(f"❌ Error loading data: {e}")
+    
+    def _init_tfidf_for_chroma(self):
+        """Initialize TF-IDF vectorizer when using ChromaDB"""
+        try:
+            from .chroma_connection import ChromaService
+            
+            print("🔄 Initializing TF-IDF vectorizer for ChromaDB...")
+            
+            # Get all documents from ChromaDB to build TF-IDF corpus
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get all documents
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents"]
+            )
+            
+            all_contents = all_docs.get('documents', [])
+            
+            if all_contents:
+                print(f"📚 Building TF-IDF vectorizer from {len(all_contents)} documents...")
+                
+                # Preprocess all documents for TF-IDF
+                corpus = []
+                for content in all_contents:
+                    processed_content = preprocess_text(content)
+                    corpus.append(" ".join(processed_content))
+                
+                # Build and fit TF-IDF vectorizer
+                self.tfidf_vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+                self.tfidf_vectorizer.fit(corpus)
+                
+                print(f"✅ TF-IDF vectorizer initialized with {len(self.tfidf_vectorizer.vocabulary_)} features")
+            else:
+                print("⚠️ No documents found in ChromaDB for TF-IDF initialization")
+                
+        except Exception as e:
+            print(f"❌ Error initializing TF-IDF for ChromaDB: {e}")
+            self.tfidf_vectorizer = None
     
     def _vectorize_query(self, query: str) -> np.ndarray:
         """Convert query to vector representation - optimized for speed"""
@@ -1287,6 +1329,243 @@ class FastHybridChatbotTogether:
             print("🔄 Falling back to simple topic filtering...")
             return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
 
+    def retrieve_documents_by_topic_hybrid(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+        """
+        HYBRID TOPIC + SEMANTIC RETRIEVAL:
+        1. Filter documents by topic keywords (same as before)
+        2. Generate TF-IDF + Word2Vec vectors for query and filtered documents
+        3. Calculate semantic similarity using cosine similarity
+        4. Combine topic relevance (60%) + semantic similarity (40%)
+        """
+        import re
+        
+        print(f"🔬 Hybrid topic + semantic retrieval for: '{query}' (topic: {topic_id})")
+        
+        try:
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # STAGE 1: Topic-based filtering (same as original)
+            topic_keywords = get_topic_keywords(topic_id)
+            if not topic_keywords:
+                print(f"⚠️ No keywords found for topic: {topic_id}, falling back to simple retrieval")
+                return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+            
+            print(f"📝 Topic keywords for filtering: {topic_keywords}")
+            
+            # Get all documents
+            all_docs = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            all_ids = all_docs.get('ids', [])
+            all_contents = all_docs.get('documents', [])
+            all_metadatas = all_docs.get('metadatas', [])
+            
+            print(f"📚 Filtering {len(all_ids)} documents by topic keywords...")
+            
+            # Filter documents by topic keywords
+            topic_filtered_docs = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                content_lower = content.lower()
+                
+                # Calculate topic relevance score
+                topic_score = 0.0
+                matched_keywords = []
+                
+                for topic_keyword in topic_keywords:
+                    topic_keyword_lower = topic_keyword.lower()
+                    pattern = r'\b' + re.escape(topic_keyword_lower) + r'\b'
+                    
+                    # Check in keywords, filename, and content (with different weights)
+                    if re.search(pattern, doc_keywords):
+                        topic_score += 3  # High weight for metadata keywords
+                        matched_keywords.append(f"{topic_keyword}(meta)")
+                    elif re.search(pattern, filename):
+                        topic_score += 2  # Medium weight for filename
+                        matched_keywords.append(f"{topic_keyword}(file)")
+                    elif re.search(pattern, content_lower):
+                        topic_score += 1  # Low weight for content
+                        matched_keywords.append(f"{topic_keyword}(content)")
+                
+                # Only include documents with topic relevance
+                if topic_score > 0:
+                    # Normalize topic score
+                    max_possible_score = len(topic_keywords) * 3
+                    normalized_topic_score = topic_score / max_possible_score if max_possible_score > 0 else 0.0
+                    
+                    topic_filtered_docs.append({
+                        'id': doc_id,
+                        'content': content,
+                        'metadata': metadata,
+                        'topic_score': normalized_topic_score,
+                        'matched_keywords': matched_keywords
+                    })
+            
+            print(f"🎯 Found {len(topic_filtered_docs)} documents matching topic keywords")
+            
+            if not topic_filtered_docs:
+                print("⚠️ No documents found after topic filtering")
+                return []
+            
+            # STAGE 2: Semantic similarity scoring on filtered documents
+            print(f"🧠 Applying TF-IDF + Word2Vec semantic scoring to {len(topic_filtered_docs)} filtered documents...")
+            
+            # Generate query vector
+            query_vector = self._vectorize_query(query)
+            print(f"📊 Generated query vector: TF-IDF + Word2Vec (dim: {query_vector.shape[0]})")
+            
+            # Score each filtered document
+            hybrid_scored_results = []
+            
+            for doc_data in topic_filtered_docs:
+                # Generate document vector
+                doc_vector = self._vectorize_query(doc_data['content'])
+                
+                # Calculate semantic similarity
+                try:
+                    from sklearn.metrics.pairwise import cosine_similarity
+                    semantic_similarity = cosine_similarity(
+                        query_vector.reshape(1, -1),
+                        doc_vector.reshape(1, -1)
+                    )[0][0]
+                except Exception as e:
+                    print(f"⚠️ Semantic similarity calculation failed: {e}")
+                    semantic_similarity = 0.0
+                
+                # QUERY-DOCUMENT SPECIFICITY BOOST
+                specificity_boost = self._calculate_query_document_specificity(query, doc_data['metadata'])
+                
+                # HYBRID SCORE: 60% topic relevance + 40% semantic similarity + specificity boost
+                topic_component = doc_data['topic_score'] * 0.6
+                semantic_component = semantic_similarity * 0.4
+                final_score = topic_component + semantic_component + specificity_boost
+                
+                hybrid_scored_results.append({
+                    'id': doc_data['id'],
+                    'content': doc_data['content'],
+                    'relevance': final_score,
+                    'folder': doc_data['metadata'].get('folder_name', 'Unknown'),
+                    'document_type': doc_data['metadata'].get('document_type', 'other'),
+                    'target_program': doc_data['metadata'].get('target_program', 'all'),
+                    'filename': doc_data['metadata'].get('filename', ''),
+                    'retrieval_strategy': 'hybrid-topic-semantic',
+                    'current_topic': topic_id,
+                    '_debug': {
+                        'topic_score': doc_data['topic_score'],
+                        'semantic_similarity': semantic_similarity,
+                        'topic_component': topic_component,
+                        'semantic_component': semantic_component,
+                        'specificity_boost': specificity_boost,
+                        'final_score': final_score,
+                        'matched_keywords': doc_data['matched_keywords'],
+                        'topic_weight': 0.6,
+                        'semantic_weight': 0.4,
+                        'tfidf_word2vec_used': True,
+                        'topic_filtering': True
+                    }
+                })
+            
+            # Sort by final hybrid score
+            hybrid_scored_results.sort(key=lambda x: x['relevance'], reverse=True)
+            
+            # Debug output
+            print(f"✅ Top {min(top_k, len(hybrid_scored_results))} hybrid results:")
+            for i, doc in enumerate(hybrid_scored_results[:top_k]):
+                debug = doc['_debug']
+                print(f"   {i+1}. {doc['filename'][:50]}")
+                print(f"       Final Score: {debug['final_score']:.3f}")
+                print(f"       Topic (60%): {debug['topic_component']:.3f} (raw: {debug['topic_score']:.3f})")
+                print(f"       Semantic (40%): {debug['semantic_component']:.3f} (raw: {debug['semantic_similarity']:.3f})")
+                if debug['specificity_boost'] > 0:
+                    print(f"       🎯 Specificity Boost: +{debug['specificity_boost']:.3f}")
+                print(f"       Keywords: {debug['matched_keywords']}")
+            
+            return hybrid_scored_results[:top_k]
+            
+        except Exception as e:
+            print(f"❌ Hybrid topic + semantic retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback to simple topic retrieval
+            print("🔄 Falling back to simple topic retrieval...")
+            return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+
+    def _calculate_query_document_specificity(self, query: str, metadata: dict) -> float:
+        """
+        Calculate specificity boost when query mentions specific terms that match document keywords/filename.
+        This helps prioritize specific documents (e.g., international student docs when query mentions 'international').
+        """
+        import re
+        
+        query_lower = query.lower()
+        filename = metadata.get('filename', '').lower()
+        doc_keywords = metadata.get('keywords', '').lower()
+        
+        # Define specific terms that should boost matching documents
+        specific_terms = {
+            # Student types
+            'international': ['international', 'foreign'],
+            'transfer': ['transfer', 'transferee', 'shifter'],
+            'scholar': ['scholar', 'scholarship'],
+            'graduate': ['graduate', 'masters', 'phd', 'doctoral'],
+            'undergraduate': ['undergraduate', 'bachelor'],
+            
+            # Program levels
+            'first year': ['first year', '1st year', 'freshman'],
+            'second year': ['second year', '2nd year', 'sophomore'],
+            'third year': ['third year', '3rd year', 'junior'],
+            'fourth year': ['fourth year', '4th year', 'senior'],
+            
+            # Document types
+            'curriculum': ['curriculum', 'syllabus', 'course outline'],
+            'fees': ['fees', 'tuition', 'cost', 'payment'],
+            'visa': ['visa', 'immigration'],
+            'requirements': ['requirements', 'documents needed'],
+            
+            # Specific processes
+            'enrollment': ['enrollment', 'registration'],
+            'admission': ['admission', 'application']
+        }
+        
+        specificity_boost = 0.0
+        matched_specific_terms = []
+        
+        # Check if query contains specific terms
+        for term_category, term_variants in specific_terms.items():
+            query_has_term = any(variant in query_lower for variant in term_variants)
+            
+            if query_has_term:
+                # Check if document specifically addresses this term
+                doc_matches_term = any(
+                    variant in filename or variant in doc_keywords 
+                    for variant in term_variants
+                )
+                
+                if doc_matches_term:
+                    # Boost score for documents that specifically match the query's specific terms
+                    # Higher boost for student type specificity (international, transfer, etc.)
+                    if term_category in ['international', 'transfer', 'scholar', 'graduate', 'undergraduate']:
+                        boost_value = 0.20  # Higher boost for student type specificity
+                    else:
+                        boost_value = 0.15  # Standard boost for other specific terms
+                    specificity_boost += boost_value
+                    matched_specific_terms.append(term_category)
+        
+        # Additional boost for exact filename matches
+        query_words = re.findall(r'\b\w+\b', query_lower)
+        filename_words = re.findall(r'\b\w+\b', filename)
+        
+        # Count exact word matches between query and filename
+        exact_matches = len(set(query_words) & set(filename_words))
+        if exact_matches >= 2:  # At least 2 words match
+            specificity_boost += 0.05 * exact_matches
+            
+        return min(specificity_boost, 0.3)  # Cap the boost to prevent over-boosting
+
     def retrieve_documents_by_topic_specialized(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
         """
         Main dispatcher for topic-specialized retrieval.
@@ -1294,7 +1573,16 @@ class FastHybridChatbotTogether:
         """
         print(f"🎯 Dispatching specialized retrieval for topic: {topic_id}")
         
-        # Topic to specialized function mapping
+        # Check if hybrid retrieval is enabled
+        if hasattr(self, 'use_hybrid_topic_retrieval') and self.use_hybrid_topic_retrieval:
+            print("✅ Using hybrid topic + semantic retrieval (60% topic + 40% semantic)")
+            try:
+                return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+            except Exception as e:
+                print(f"❌ Hybrid retrieval failed: {e}")
+                print("🔄 Falling back to specialized retrievers...")
+        
+        # Original specialized retriever logic
         TOPIC_RETRIEVERS = {
             'admissions_enrollment': self.retrieve_admissions_documents,
             'programs_courses': self.retrieve_programs_documents,
@@ -1691,7 +1979,7 @@ class FastHybridChatbotTogether:
         }
 
     def process_query_with_intent_analysis(self, query: str, correct_spelling: bool = True, 
-                                          max_tokens: int = 150, stream: bool = True, 
+                                          max_tokens: int = 1024, stream: bool = True, 
                                           use_history: bool = True, require_context: bool = True, 
                                           min_relevance: float = 0.35, manual_filters: Dict = None) -> Tuple[str, List[Dict]]:
         """Enhanced query processing with intent analysis and filtering"""
@@ -1922,7 +2210,7 @@ class FastHybridChatbotTogether:
         
         return history_context
 
-    def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 150,
+    def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 1024,
                       stream: bool = True, use_history: bool = True,
                       require_context: bool = True, min_relevance: float = 0.35) -> Tuple[str, List[Dict]]:
         # Start timing
@@ -2293,13 +2581,14 @@ RULES:
 - Always cite sources when providing program information
 
 === LINK HANDLING ===
-- **END WITH LINKS**: Always end your response with source links from the context documents
-- **HYPERLINKS**: Format URLs as clickable hyperlinks using Markdown syntax: [link text](URL)
+- **CONDITIONAL LINKS**: Only include links if they are explicitly present in the source document metadata
+- **NO FABRICATION**: NEVER create, invent, or fabricate URLs - only use URLs that actually exist in the provided context
+- **HYPERLINKS**: If URLs exist, format them as clickable hyperlinks using Markdown syntax: [link text](URL)
 - **CRITICAL**: Use the EXACT URL from the document metadata - DO NOT modify, autocorrect, or change ANY part of the URL
 - **NO CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", do NOT modify any part of the original URL
 - **PRESERVE ORIGINAL**: Copy the URL character-for-character exactly as it appears in the source document
-- **FORMAT**: Use "For more information about [topic], head to this link: [link text](EXACT_URL_FROM_DOCUMENT)"
-- **MANDATORY**: Links must use markdown format [text](url) to render as clickable blue hyperlinks
+- **FORMAT**: If URLs exist, use "For more information about [topic], head to this link: [link text](EXACT_URL_FROM_DOCUMENT)"
+- **NO LINKS RULE**: If no URLs are present in the source documents, do NOT mention links at all
 
 === OFFICIAL PROGRAM STRUCTURE ===
 **School of Arts & Sciences**:
@@ -2405,6 +2694,83 @@ RULES:
             normalized_query = re.sub(pattern, replacement, normalized_query, flags=re.IGNORECASE)
         
         return normalized_query
+
+    def _enhance_query_with_conversation_context(self, query: str, topic_id: str) -> str:
+        """Enhance query with conversation context for follow-up questions"""
+        if not self.dialogue_history:
+            return query
+        
+        query_lower = query.lower().strip()
+        
+        # Check if this is a follow-up question with pronouns or vague references
+        follow_up_indicators = [
+            'them', 'it', 'these', 'those', 'where', 'how', 'when', 'what about',
+            'submit them', 'apply for it', 'get them', 'where can i', 'how do i',
+            'where to', 'how to', 'when to', 'what are they', 'are they'
+        ]
+        
+        is_follow_up = any(indicator in query_lower for indicator in follow_up_indicators)
+        
+        if not is_follow_up:
+            return query
+        
+        # Get the last conversation exchange
+        last_exchange = self.dialogue_history[-1] if self.dialogue_history else None
+        if not last_exchange:
+            return query
+        
+        last_query = last_exchange.get('query', '').lower()
+        last_response = last_exchange.get('response', '').lower()
+        
+        # Extract key context from the last exchange based on topic
+        context_keywords = []
+        
+        if topic_id == 'admissions_enrollment':
+            # Look for visa, document, application context
+            if 'visa' in last_query or 'visa' in last_response:
+                context_keywords.extend(['visa', 'student visa', 'special study permit'])
+            if 'document' in last_query or 'document' in last_response:
+                context_keywords.extend(['documents', 'requirements'])
+            if 'application' in last_query or 'application' in last_response:
+                context_keywords.extend(['application', 'apply'])
+            if 'international' in last_query:
+                context_keywords.extend(['international student', 'foreign student'])
+            if 'transfer' in last_query:
+                context_keywords.extend(['transfer student', 'transferee'])
+            if 'scholar' in last_query:
+                context_keywords.extend(['scholarship', 'scholar'])
+        
+        elif topic_id == 'programs_courses':
+            # Look for program, curriculum, course context
+            if 'curriculum' in last_query or 'curriculum' in last_response:
+                context_keywords.extend(['curriculum', 'courses'])
+            if 'program' in last_query or 'program' in last_response:
+                context_keywords.extend(['program', 'degree'])
+            # Extract specific program names from last query
+            import re
+            program_patterns = [
+                r'\b(bs|ba|ab|bpm|bsa|bsma|bsbm|bsit|bscs|bsis|bsds)\b',
+                r'\b(computer science|information technology|business|nursing|engineering)\b'
+            ]
+            for pattern in program_patterns:
+                matches = re.findall(pattern, last_query, re.IGNORECASE)
+                context_keywords.extend(matches)
+        
+        elif topic_id == 'fees':
+            # Look for fee, payment, tuition context
+            if 'fee' in last_query or 'tuition' in last_query:
+                context_keywords.extend(['fees', 'tuition', 'payment'])
+            if 'cost' in last_query or 'price' in last_query:
+                context_keywords.extend(['cost', 'price'])
+        
+        # Enhance the query with relevant context
+        if context_keywords:
+            # Choose the most relevant context keywords (max 2)
+            relevant_context = ' '.join(context_keywords[:2])
+            enhanced_query = f"{relevant_context} {query}"
+            return enhanced_query
+        
+        return query
 
     def _is_nonsensical_query(self, query: str) -> bool:
         """Detect if the query is nonsensical, unclear, or doesn't contain meaningful content"""
@@ -2634,24 +3000,48 @@ RULES:
             # Normalize program acronyms (e.g., 'bsa' -> 'BS A')
             normalized_query = self._normalize_program_acronyms(preprocessed_query)
             
-            # If we found program context from history, enhance the query
-            enhanced_query = normalized_query
+            # First check for general conversation context enhancement (for follow-up questions)
+            conversation_enhanced_query = self._enhance_query_with_conversation_context(normalized_query, topic_id)
+            
+            # Then check for program context enhancement
+            enhanced_query = conversation_enhanced_query
             if program_info.get('program_name') and program_info.get('context_source'):
-                # Only enhance if the current query doesn't already contain the program name
-                current_program_info = self._extract_program_info(preprocessed_query)
-                if not current_program_info.get('program_name'):
-                    enhanced_query = f"{program_info['program_name']} {normalized_query}"
-                    print(f"🎯 Enhanced query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                # For programs topic, ALWAYS add program context when available (it's more specific than general conversation context)
+                if topic_id == 'programs_courses':
+                    # Only enhance if the current query doesn't already contain the program name
+                    current_program_info = self._extract_program_info(preprocessed_query)
+                    if not current_program_info.get('program_name'):
+                        # Combine both conversation and program context for programs topic
+                        if conversation_enhanced_query != normalized_query:
+                            enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
+                        else:
+                            enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                        print(f"🎯 Enhanced query with program + conversation context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                    else:
+                        print(f"📝 Current query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
                 else:
-                    print(f"📝 Current query already contains program info, using normalized query: '{enhanced_query}'")
+                    # For other topics, only enhance with program context if no conversation context was added
+                    if conversation_enhanced_query == normalized_query:
+                        # Only enhance if the current query doesn't already contain the program name
+                        current_program_info = self._extract_program_info(preprocessed_query)
+                        if not current_program_info.get('program_name'):
+                            enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                            print(f"🎯 Enhanced query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                        else:
+                            print(f"📝 Current query already contains program info, using normalized query: '{enhanced_query}'")
+                    else:
+                        print(f"📝 Conversation context already added, skipping program context enhancement")
             else:
-                print(f"📝 No program context found, using normalized query: '{enhanced_query}'")
+                if conversation_enhanced_query != normalized_query:
+                    print(f"🎯 Enhanced query with conversation context: '{query}' → '{enhanced_query}'")
+                else:
+                    print(f"📝 No program or conversation context found, using normalized query: '{enhanced_query}'")
             
             # Check if query is nonsensical or unclear (use original query for this check)
             if self._is_nonsensical_query(query):
                 topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
                 
-                # Provide topic-specific examples
+                # Provide topic-specific examples   
                 if topic_id == 'admissions_enrollment':
                     examples = "- What are the admission requirements?\n- How do I apply as a new student?\n- What documents do I need?"
                 elif topic_id == 'programs_courses':
@@ -2776,7 +3166,7 @@ This will ensure you get the most relevant and up-to-date information for your q
             prompt = f"""<|system|>
 You are an ADDU (Ateneo de Davao University) Admissions Assistant. You provide accurate, helpful information based strictly on the provided context documents.
 
-CRITICAL URL RULE: When displaying URLs, use the EXACT URL from the source document. Do NOT modify, autocorrect, or change ANY part of URLs. If a URL contains "Technolgy" (missing 'o'), keep it as "Technolgy" - do NOT change to "Technology".
+CRITICAL URL RULE: ONLY display URLs if they are explicitly present in the source document metadata. NEVER create, invent, or fabricate URLs. If URLs exist, use the EXACT URL from the source document without any modifications. If no URLs are present in the documents, do NOT mention links at all.
 
 {topic_specific_instructions}
 
@@ -2789,6 +3179,9 @@ GENERAL RESPONSE RULES:
 - Use numbered lists for steps
 - Use bullet points for items
 - Bold important terms only when necessary
+- NEVER use tables, charts, or markdown table format
+- Convert any tabular information to bullet points or numbered lists
+- For age/program/visa or any other combinations, use clear bullet point format instead of tables
 
 CONTEXT MATCHING:
 - Only use information that directly matches the user's specific query
@@ -3675,4 +4068,4 @@ def test_fast_hybrid_chatbot_together():
     print("\n⚡🔍 FAST HYBRID CHATBOT WITH TOGETHER AI ⚡🔍")
     print("Type 'exit' to quit\n")
 
-    max_tokens = 500  # Higher default for complete responses
+    max_tokens = 1024  # Higher default for complete responses with 70B model
