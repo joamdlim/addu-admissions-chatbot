@@ -826,36 +826,100 @@ class FastHybridChatbotTogether:
         
         return min(score, 1.0)
 
+    # ===== NLP-INTEGRATED HELPER METHODS =====
+    
+    def _calculate_nlp_stem_overlap(self, query_stems: set, text: str) -> float:
+        """
+        Calculate stem overlap between query and text using NLP preprocessing.
+        Both query and text go through the same preprocessing pipeline.
+        
+        Args:
+            query_stems: Set of preprocessed query tokens (stems)
+            text: Raw text to compare against
+            
+        Returns:
+            Float between 0.0 and 1.0 representing overlap ratio
+        """
+        if not query_stems or not text:
+            return 0.0
+        
+        # Preprocess text using same NLP pipeline as query
+        text_tokens = preprocess_text(text[:5000])  # Limit for performance
+        text_stems = set(text_tokens)
+        
+        # Calculate overlap
+        overlap = len(query_stems & text_stems) / len(query_stems)
+        return overlap
+    
+    def _calculate_nlp_keyword_boost(self, query_stems: set, content: str, 
+                                     filename: str, keywords: str) -> dict:
+        """
+        Calculate keyword boost scores using NLP preprocessing.
+        Returns detailed breakdown of different overlap scores.
+        
+        Args:
+            query_stems: Set of preprocessed query tokens
+            content: Document content
+            filename: Document filename
+            keywords: Document metadata keywords
+            
+        Returns:
+            Dict with overlap scores and total boost
+        """
+        # Calculate overlaps for different fields
+        content_overlap = self._calculate_nlp_stem_overlap(query_stems, content)
+        filename_overlap = self._calculate_nlp_stem_overlap(query_stems, filename)
+        keyword_overlap = self._calculate_nlp_stem_overlap(query_stems, keywords)
+        
+        # Calculate weighted boost
+        # Filename is most reliable, then keywords, then content
+        total_boost = (
+            content_overlap * 0.10 +    # Content: up to 10%
+            filename_overlap * 0.15 +    # Filename: up to 15%
+            keyword_overlap * 0.05       # Keywords: up to 5%
+        )
+        
+        return {
+            'content_overlap': content_overlap,
+            'filename_overlap': filename_overlap,
+            'keyword_overlap': keyword_overlap,
+            'total_boost': total_boost
+        }
+
     # ===== SPECIALIZED TOPIC RETRIEVAL FUNCTIONS =====
     
     def retrieve_admissions_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
-        Specialized retrieval for admissions, enrollment, requirements, and documents.
-        Optimized for detecting student types and requirement-specific queries.
+        NLP-INTEGRATED specialized retrieval for admissions, enrollment, requirements, and documents.
+        Uses TF-IDF + Word2Vec semantic search with specialization bonuses.
         """
         import re
         
-        print(f"🎓 Admissions-specialized retrieval for: '{query}'")
+        print(f"🎓 NLP-Integrated Admissions Retrieval for: '{query}'")
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # Get strategy configuration
+            # STEP 1: NLP Preprocessing
+            processed_tokens = preprocess_text(query)
+            query_stems = set(processed_tokens)
+            print(f"📝 Preprocessed query tokens: {processed_tokens[:10]}..." if len(processed_tokens) > 10 else f"📝 Preprocessed query tokens: {processed_tokens}")
+            
+            # STEP 2: Generate hybrid embedding (TF-IDF + Word2Vec)
+            q_emb = _embed_text(query)
+            print(f"🧮 Generated hybrid embedding, dimension: {len(q_emb)}")
+            
+            # STEP 3: Detect specialization context
+            student_type = self._detect_student_type(query)
+            requirement_type = self._detect_requirement_type(query)
+            print(f"📝 Detected: student_type={student_type}, requirement_type={requirement_type}")
+            
+            # STEP 4: Get document type filters
             strategy_config = get_retrieval_strategy_config('admissions_specialized')
             document_types = strategy_config.get('document_types', ['admission', 'enrollment', 'scholarship'])
-            priorities = strategy_config.get('metadata_priorities', {})
+            print(f"📋 Document type filters: {document_types}")
             
-            print(f"📋 Using document types for filtering: {document_types}")
-            
-            # Detect student type from query
-            student_type = self._detect_student_type(query)
-            print(f"📝 Detected student type: {student_type}")
-            
-            # Detect requirement type
-            requirement_type = self._detect_requirement_type(query)
-            print(f"📋 Detected requirement type: {requirement_type}")
-            
-            # Get documents with admissions-specific filtering
+            # STEP 5: Semantic search with document type filtering
             where_clause = {
                 "$and": [
                     {"source": "pdf_scrape"},
@@ -863,128 +927,115 @@ class FastHybridChatbotTogether:
                 ]
             }
             
-            all_docs = collection.get(
-                where=where_clause,
-                include=["documents", "metadatas"]
+            semantic_results = collection.query(
+                query_embeddings=[q_emb],
+                n_results=min(top_k * 15, 60),  # Get more candidates for re-ranking
+                include=["documents", "distances", "metadatas"],
+                where=where_clause
             )
             
-            all_ids = all_docs.get('ids', [])
-            all_contents = all_docs.get('documents', [])
-            all_metadatas = all_docs.get('metadatas', [])
+            ids = semantic_results.get("ids", [[]])[0]
+            docs = semantic_results.get("documents", [[]])[0]
+            metadatas = semantic_results.get("metadatas", [[]])[0]
+            distances = semantic_results.get("distances", [[]])[0]
             
-            print(f"📚 Found {len(all_ids)} documents with enhanced admissions document_type filtering (including policies)")
+            print(f"📊 Retrieved {len(ids)} semantic candidates with document_type filtering")
             
-            # Also get documents that might have admission keywords but not the right document_type
-            # This is to catch documents that might not have been stored with correct document_type
-            all_docs_by_keywords = collection.get(
-                where={"source": "pdf_scrape"},
-                include=["documents", "metadatas"]
-            )
-            
-            # Combine and deduplicate documents
-            all_combined_ids = list(set(all_ids + all_docs_by_keywords.get('ids', [])))
-            
-            # Get full data for combined documents
-            if len(all_combined_ids) > len(all_ids):
-                print(f"📚 Expanded search to {len(all_combined_ids)} total documents")
-                combined_docs = collection.get(
-                    ids=all_combined_ids,
-                    include=["documents", "metadatas"]
+            if not ids:
+                print("⚠️ No documents found, trying without strict document_type filter")
+                # Fallback: search without strict document_type filter
+                semantic_results = collection.query(
+                    query_embeddings=[q_emb],
+                    n_results=min(top_k * 15, 60),
+                    include=["documents", "distances", "metadatas"],
+                    where={"source": "pdf_scrape"}
                 )
-                all_ids = combined_docs.get('ids', [])
-                all_contents = combined_docs.get('documents', [])
-                all_metadatas = combined_docs.get('metadatas', [])
+                ids = semantic_results.get("ids", [[]])[0]
+                docs = semantic_results.get("documents", [[]])[0]
+                metadatas = semantic_results.get("metadatas", [[]])[0]
+                distances = semantic_results.get("distances", [[]])[0]
+                print(f"📊 Retrieved {len(ids)} candidates without document_type filter")
             
-            # Get topic keywords for additional filtering
-            from .topics import get_topic_keywords
-            topic_keywords = get_topic_keywords('admissions_enrollment')
-            print(f"📝 Using topic keywords for additional filtering: {len(topic_keywords)} keywords")
-            
-            # Filter documents: include admission keywords and relevant document types
-            filtered_docs = []
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
-                doc_keywords = metadata.get('keywords', '').lower()
-                filename = metadata.get('filename', '').lower()
-                
-                # Check if document has admission-related keywords or is already from document_type filtering
-                has_admission_keywords = False
-                if topic_keywords:
-                    for keyword in topic_keywords:
-                        keyword_lower = keyword.lower()
-                        # Use word boundaries to avoid substring matches
-                        pattern = r'\b' + re.escape(keyword_lower) + r'\b'
-                        
-                        if re.search(pattern, doc_keywords) or re.search(pattern, filename):
-                            has_admission_keywords = True
-                            break
-                
-                # Include if it has admission document_type OR admission keywords
-                doc_type = metadata.get('document_type', '')
-                if (doc_type in document_types or has_admission_keywords):
-                    filtered_docs.append((doc_id, content, metadata))
-                    if doc_type in document_types:
-                        print(f"✅ Including document by type '{doc_type}': {metadata.get('filename', 'N/A')}")
-                    if has_admission_keywords and doc_type not in document_types:
-                        print(f"✅ Including document with admission keywords: {metadata.get('filename', 'N/A')}")
-                else:
-                    print(f"❌ Excluding document type '{doc_type}': {metadata.get('filename', 'N/A')[:50]}...")
-            
-            print(f"✅ After filtering: {len(filtered_docs)} documents")
-            
-            if not filtered_docs:
-                print(f"❌ No admission documents found after filtering")
+            if not ids:
                 return []
             
-            # Score documents with admissions-specific logic
+            # STEP 6: Calculate NLP-integrated scores with specialization bonuses
             scored_results = []
-            query_lower = query.lower()
             
-            for doc_id, content, metadata in filtered_docs:
-                filename = metadata.get('filename', '').lower()
-                doc_keywords = metadata.get('keywords', '').lower()
-                content_lower = content.lower()
+            for i, (doc_id, content, metadata, distance) in enumerate(zip(ids, docs, metadatas, distances)):
+                # A. Semantic score (from TF-IDF + Word2Vec embeddings)
+                semantic_score = float(1.0 / (1.0 + distance))
                 
-                # Calculate specialized scores
-                filename_score = self._calculate_admissions_filename_score(filename, student_type, requirement_type)
-                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
-                content_score = self._calculate_admissions_content_score(content_lower, query_lower, student_type)
+                # B. NLP keyword boost
+                filename = metadata.get('filename', '')
+                doc_keywords = metadata.get('keywords', '')
+                boost_data = self._calculate_nlp_keyword_boost(query_stems, content, filename, doc_keywords)
                 
-                # Apply strategy priorities
+                # C. Specialization bonuses
+                student_type_bonus = 0.0
+                requirement_type_bonus = 0.0
+                
+                # Bonus for student type match
+                if student_type != 'general':
+                    content_lower = content.lower()
+                    filename_lower = filename.lower()
+                    if student_type in content_lower or student_type in filename_lower:
+                        student_type_bonus = 0.05
+                
+                # Bonus for requirement type match
+                if requirement_type != 'general':
+                    content_lower = content.lower()
+                    filename_lower = filename.lower()
+                    requirement_terms = {
+                        'documents': ['document', 'requirement', 'needed'],
+                        'process': ['process', 'procedure', 'step', 'how to'],
+                        'examination': ['exam', 'test', 'assessment']
+                    }
+                    if requirement_type in requirement_terms:
+                        if any(term in content_lower for term in requirement_terms[requirement_type]):
+                            requirement_type_bonus = 0.05
+                
+                # D. FINAL SCORE: Semantic (60%) + Keyword Boost (30%) + Specialization (10%)
                 final_score = (
-                    filename_score * priorities.get('filename', 0.4) +
-                    keyword_score * priorities.get('keywords', 0.3) +
-                    content_score * priorities.get('content', 0.3)
+                    semantic_score * 0.6 +
+                    boost_data['total_boost'] +
+                    student_type_bonus +
+                    requirement_type_bonus
                 )
                 
-                if final_score > 0:
-                    scored_results.append({
-                        'id': doc_id,
-                        'content': content,
-                        'relevance': final_score,
-                        'folder': metadata.get('folder_name', 'Unknown'),
-                        'document_type': metadata.get('document_type', 'other'),
-                        'target_program': metadata.get('target_program', 'all'),
-                        'filename': metadata.get('filename', ''),
-                        'retrieval_strategy': 'admissions_specialized',
-                        'current_topic': 'admissions_enrollment',
-                        '_debug': {
-                            'filename_score': filename_score,
-                            'keyword_score': keyword_score,
-                            'content_score': content_score,
-                            'student_type': student_type,
-                            'requirement_type': requirement_type
-                        }
-                    })
+                scored_results.append({
+                    'id': doc_id,
+                    'content': content,
+                    'relevance': final_score,
+                    'folder': metadata.get('folder_name', 'Unknown'),
+                    'document_type': metadata.get('document_type', 'other'),
+                    'target_program': metadata.get('target_program', 'all'),
+                    'filename': metadata.get('filename', ''),
+                    'retrieval_strategy': 'admissions_nlp_integrated',
+                    'current_topic': 'admissions_enrollment',
+                    '_debug': {
+                        'semantic_score': semantic_score,
+                        'semantic_distance': float(distance),
+                        'keyword_boost': boost_data['total_boost'],
+                        'content_overlap': boost_data['content_overlap'],
+                        'filename_overlap': boost_data['filename_overlap'],
+                        'keyword_overlap': boost_data['keyword_overlap'],
+                        'student_type_bonus': student_type_bonus,
+                        'requirement_type_bonus': requirement_type_bonus,
+                        'student_type': student_type,
+                        'requirement_type': requirement_type
+                    }
+                })
             
             # Sort and return top results
             scored_results.sort(key=lambda x: x['relevance'], reverse=True)
             
-            print(f"✅ Top {min(top_k, len(scored_results))} admissions results:")
+            print(f"✅ Top {min(top_k, len(scored_results))} NLP-integrated admissions results:")
             for i, doc in enumerate(scored_results[:top_k]):
                 debug = doc['_debug']
                 print(f"   {i+1}. {doc['filename'][:60]}")
-                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
-                print(f"       Student type: {debug['student_type']}, Requirement: {debug['requirement_type']}")
+                print(f"       Final: {doc['relevance']:.3f} = Semantic({debug['semantic_score']:.3f}*0.6) + Boost({debug['keyword_boost']:.3f}) + Special({debug['student_type_bonus'] + debug['requirement_type_bonus']:.3f})")
+                print(f"       Context: {debug['student_type']}/{debug['requirement_type']}, Distance: {debug['semantic_distance']:.4f}")
             
             return scored_results[:top_k]
             
@@ -996,26 +1047,35 @@ class FastHybridChatbotTogether:
 
     def retrieve_programs_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
-        Specialized retrieval for programs, courses, and curriculum.
-        Optimized for program name extraction and curriculum document matching.
+        NLP-INTEGRATED specialized retrieval for programs, courses, and curriculum.
+        Uses TF-IDF + Word2Vec semantic search with program-specific specialization.
         """
         import re
         
-        print(f"📚 Programs-specialized retrieval for: '{query}'")
+        print(f"📚 NLP-Integrated Programs Retrieval for: '{query}'")
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # Get strategy configuration
-            strategy_config = get_retrieval_strategy_config('programs_specialized')
-            document_types = strategy_config.get('document_types', ['academic', 'curriculum'])
-            priorities = strategy_config.get('metadata_priorities', {})
+            # STEP 1: NLP Preprocessing
+            processed_tokens = preprocess_text(query)
+            query_stems = set(processed_tokens)
+            print(f"📝 Preprocessed query tokens: {processed_tokens[:10]}..." if len(processed_tokens) > 10 else f"📝 Preprocessed query tokens: {processed_tokens}")
             
-            # Extract program information from query
+            # STEP 2: Generate hybrid embedding (TF-IDF + Word2Vec)
+            q_emb = _embed_text(query)
+            print(f"🧮 Generated hybrid embedding, dimension: {len(q_emb)}")
+            
+            # STEP 3: Extract specialization context
             program_info = self._extract_program_info(query)
             print(f"🎯 Extracted program info: {program_info}")
             
-            # Get documents with programs-specific filtering
+            # STEP 4: Get document type filters
+            strategy_config = get_retrieval_strategy_config('programs_specialized')
+            document_types = strategy_config.get('document_types', ['academic', 'curriculum', 'policy'])
+            print(f"📋 Document type filters: {document_types}")
+            
+            # STEP 5: Semantic search with document type filtering
             where_clause = {
                 "$and": [
                     {"source": "pdf_scrape"},
@@ -1023,66 +1083,118 @@ class FastHybridChatbotTogether:
                 ]
             }
             
-            all_docs = collection.get(
-                where=where_clause,
-                include=["documents", "metadatas"]
+            semantic_results = collection.query(
+                query_embeddings=[q_emb],
+                n_results=min(top_k * 15, 60),
+                include=["documents", "distances", "metadatas"],
+                where=where_clause
             )
             
-            all_ids = all_docs.get('ids', [])
-            all_contents = all_docs.get('documents', [])
-            all_metadatas = all_docs.get('metadatas', [])
+            ids = semantic_results.get("ids", [[]])[0]
+            docs = semantic_results.get("documents", [[]])[0]
+            metadatas = semantic_results.get("metadatas", [[]])[0]
+            distances = semantic_results.get("distances", [[]])[0]
             
-            print(f"📚 Found {len(all_ids)} program-related documents")
+            print(f"📊 Retrieved {len(ids)} semantic candidates with document_type filtering")
             
-            # Score documents with programs-specific logic
+            if not ids:
+                print("⚠️ No documents found, trying without strict document_type filter")
+                semantic_results = collection.query(
+                    query_embeddings=[q_emb],
+                    n_results=min(top_k * 15, 60),
+                    include=["documents", "distances", "metadatas"],
+                    where={"source": "pdf_scrape"}
+                )
+                ids = semantic_results.get("ids", [[]])[0]
+                docs = semantic_results.get("documents", [[]])[0]
+                metadatas = semantic_results.get("metadatas", [[]])[0]
+                distances = semantic_results.get("distances", [[]])[0]
+                print(f"📊 Retrieved {len(ids)} candidates without document_type filter")
+            
+            if not ids:
+                return []
+            
+            # STEP 6: Calculate NLP-integrated scores with specialization bonuses
             scored_results = []
-            query_lower = query.lower()
             
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
-                filename = metadata.get('filename', '').lower()
-                doc_keywords = metadata.get('keywords', '').lower()
-                content_lower = content.lower()
+            for i, (doc_id, content, metadata, distance) in enumerate(zip(ids, docs, metadatas, distances)):
+                # A. Semantic score (from TF-IDF + Word2Vec embeddings)
+                semantic_score = float(1.0 / (1.0 + distance))
                 
-                # Calculate specialized scores
-                filename_score = self._calculate_programs_filename_score(filename, program_info)
-                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
-                content_score = self._calculate_programs_content_score(content_lower, query_lower, program_info)
+                # B. NLP keyword boost
+                filename = metadata.get('filename', '')
+                doc_keywords = metadata.get('keywords', '')
+                boost_data = self._calculate_nlp_keyword_boost(query_stems, content, filename, doc_keywords)
                 
-                # Apply strategy priorities
+                # C. Specialization bonuses for program matching
+                program_bonus = 0.0
+                year_level_bonus = 0.0
+                
+                # Bonus for program name match
+                if program_info.get('program_name'):
+                    program_name = program_info['program_name'].lower()
+                    content_lower = content.lower()
+                    filename_lower = filename.lower()
+                    
+                    if program_name in content_lower or program_name in filename_lower:
+                        program_bonus = 0.08
+                
+                # Bonus for year level match
+                if program_info.get('year_level'):
+                    year_patterns = {
+                        'first': ['1st', 'first', '1'],
+                        'second': ['2nd', 'second', '2'],
+                        'third': ['3rd', 'third', '3'],
+                        'fourth': ['4th', 'fourth', '4']
+                    }
+                    year_level = program_info['year_level']
+                    if year_level in year_patterns:
+                        patterns = year_patterns[year_level]
+                        content_lower = content.lower()
+                        filename_lower = filename.lower()
+                        if any(pattern in content_lower or pattern in filename_lower for pattern in patterns):
+                            year_level_bonus = 0.05
+                
+                # D. FINAL SCORE: Semantic (60%) + Keyword Boost (27%) + Specialization (13%)
                 final_score = (
-                    filename_score * priorities.get('filename', 0.5) +
-                    keyword_score * priorities.get('keywords', 0.3) +
-                    content_score * priorities.get('content', 0.2)
+                    semantic_score * 0.6 +
+                    boost_data['total_boost'] +
+                    program_bonus +
+                    year_level_bonus
                 )
                 
-                if final_score > 0:
-                    scored_results.append({
-                        'id': doc_id,
-                        'content': content,
-                        'relevance': final_score,
-                        'folder': metadata.get('folder_name', 'Unknown'),
-                        'document_type': metadata.get('document_type', 'other'),
-                        'target_program': metadata.get('target_program', 'all'),
-                        'filename': metadata.get('filename', ''),
-                        'retrieval_strategy': 'programs_specialized',
-                        'current_topic': 'programs_courses',
-                        '_debug': {
-                            'filename_score': filename_score,
-                            'keyword_score': keyword_score,
-                            'content_score': content_score,
-                            'program_info': program_info
-                        }
-                    })
+                scored_results.append({
+                    'id': doc_id,
+                    'content': content,
+                    'relevance': final_score,
+                    'folder': metadata.get('folder_name', 'Unknown'),
+                    'document_type': metadata.get('document_type', 'other'),
+                    'target_program': metadata.get('target_program', 'all'),
+                    'filename': metadata.get('filename', ''),
+                    'retrieval_strategy': 'programs_nlp_integrated',
+                    'current_topic': 'programs_courses',
+                    '_debug': {
+                        'semantic_score': semantic_score,
+                        'semantic_distance': float(distance),
+                        'keyword_boost': boost_data['total_boost'],
+                        'content_overlap': boost_data['content_overlap'],
+                        'filename_overlap': boost_data['filename_overlap'],
+                        'keyword_overlap': boost_data['keyword_overlap'],
+                        'program_bonus': program_bonus,
+                        'year_level_bonus': year_level_bonus,
+                        'program_info': program_info
+                    }
+                })
             
             # Sort and return top results
             scored_results.sort(key=lambda x: x['relevance'], reverse=True)
             
-            print(f"✅ Top {min(top_k, len(scored_results))} programs results:")
+            print(f"✅ Top {min(top_k, len(scored_results))} NLP-integrated programs results:")
             for i, doc in enumerate(scored_results[:top_k]):
                 debug = doc['_debug']
                 print(f"   {i+1}. {doc['filename'][:60]}")
-                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
-                print(f"       Program info: {debug['program_info']}")
+                print(f"       Final: {doc['relevance']:.3f} = Semantic({debug['semantic_score']:.3f}*0.6) + Boost({debug['keyword_boost']:.3f}) + Special({debug['program_bonus'] + debug['year_level_bonus']:.3f})")
+                print(f"       Program: {debug['program_info'].get('program_name', 'N/A')}, Distance: {debug['semantic_distance']:.4f}")
             
             return scored_results[:top_k]
             
@@ -1094,26 +1206,35 @@ class FastHybridChatbotTogether:
 
     def retrieve_fees_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
-        Specialized retrieval for fees, payments, and financial information.
-        Excludes documents with 'regulation' in keywords to avoid policy documents.
+        NLP-INTEGRATED specialized retrieval for fees, payments, and financial information.
+        Uses TF-IDF + Word2Vec semantic search with fee-specific specialization.
         """
         import re
         
-        print(f"💰 Fees-specialized retrieval for: '{query}'")
+        print(f"💰 NLP-Integrated Fees Retrieval for: '{query}'")
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # Get strategy configuration
-            strategy_config = get_retrieval_strategy_config('fees_specialized')
-            document_types = strategy_config.get('document_types', ['fees', 'financial'])
-            priorities = strategy_config.get('metadata_priorities', {})
+            # STEP 1: NLP Preprocessing
+            processed_tokens = preprocess_text(query)
+            query_stems = set(processed_tokens)
+            print(f"📝 Preprocessed query tokens: {processed_tokens[:10]}..." if len(processed_tokens) > 10 else f"📝 Preprocessed query tokens: {processed_tokens}")
             
-            # Extract fee-related information from query
+            # STEP 2: Generate hybrid embedding (TF-IDF + Word2Vec)
+            q_emb = _embed_text(query)
+            print(f"🧮 Generated hybrid embedding, dimension: {len(q_emb)}")
+            
+            # STEP 3: Extract specialization context
             fee_info = self._extract_fee_info(query)
             print(f"💳 Extracted fee info: {fee_info}")
             
-            # Get documents with fees-specific filtering (same pattern as admissions/programs)
+            # STEP 4: Get document type filters
+            strategy_config = get_retrieval_strategy_config('fees_specialized')
+            document_types = strategy_config.get('document_types', ['fees', 'financial', 'policy'])
+            print(f"📋 Document type filters: {document_types}")
+            
+            # STEP 5: Semantic search with document type filtering
             where_clause = {
                 "$and": [
                     {"source": "pdf_scrape"},
@@ -1121,132 +1242,126 @@ class FastHybridChatbotTogether:
                 ]
             }
             
-            all_docs = collection.get(
-                where=where_clause,
-                include=["documents", "metadatas"]
+            semantic_results = collection.query(
+                query_embeddings=[q_emb],
+                n_results=min(top_k * 15, 60),
+                include=["documents", "distances", "metadatas"],
+                where=where_clause
             )
             
-            all_ids = all_docs.get('ids', [])
-            all_contents = all_docs.get('documents', [])
-            all_metadatas = all_docs.get('metadatas', [])
+            ids = semantic_results.get("ids", [[]])[0]
+            docs = semantic_results.get("documents", [[]])[0]
+            metadatas = semantic_results.get("metadatas", [[]])[0]
+            distances = semantic_results.get("distances", [[]])[0]
             
-            print(f"📚 Found {len(all_ids)} documents with enhanced fees document_type filtering (including policies)")
+            print(f"📊 Retrieved {len(ids)} semantic candidates with document_type filtering")
             
-            # Also get documents that might have fee keywords but not the right document_type
-            # This is to catch CSV files that might not have been stored with correct document_type
-            all_docs_by_keywords = collection.get(
-                where={"source": "pdf_scrape"},
-                include=["documents", "metadatas"]
-            )
-            
-            # Combine and deduplicate documents
-            all_combined_ids = list(set(all_ids + all_docs_by_keywords.get('ids', [])))
-            
-            # Get full data for combined documents
-            if len(all_combined_ids) > len(all_ids):
-                print(f"📚 Expanded search to {len(all_combined_ids)} total documents")
-                combined_docs = collection.get(
-                    ids=all_combined_ids,
-                    include=["documents", "metadatas"]
+            if not ids:
+                print("⚠️ No documents found, trying without strict document_type filter")
+                semantic_results = collection.query(
+                    query_embeddings=[q_emb],
+                    n_results=min(top_k * 15, 60),
+                    include=["documents", "distances", "metadatas"],
+                    where={"source": "pdf_scrape"}
                 )
-                all_ids = combined_docs.get('ids', [])
-                all_contents = combined_docs.get('documents', [])
-                all_metadatas = combined_docs.get('metadatas', [])
+                ids = semantic_results.get("ids", [[]])[0]
+                docs = semantic_results.get("documents", [[]])[0]
+                metadatas = semantic_results.get("metadatas", [[]])[0]
+                distances = semantic_results.get("distances", [[]])[0]
+                print(f"📊 Retrieved {len(ids)} candidates without document_type filter")
             
-            # Get topic keywords for additional filtering
-            from .topics import get_topic_keywords
-            topic_keywords = get_topic_keywords('fees')
-            print(f"📝 Using topic keywords for additional filtering: {topic_keywords}")
-            
-            # Filter documents: include fee keywords, but be smart about regulations
-            filtered_docs = []
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
-                doc_keywords = metadata.get('keywords', '').lower()
-                filename = metadata.get('filename', '').lower()
-                
-                # Smart regulation filtering: Only skip NON-FINANCIAL regulations
-                # Allow financial/payment/fee regulations, but skip academic regulations
-                is_financial_regulation = any(term in doc_keywords or term in filename 
-                                               for term in ['payment', 'fee', 'financial', 'tuition', 'billing'])
-                is_regulation = 'regulation' in doc_keywords
-                
-                # Skip if it's a regulation BUT not financial-related
-                if is_regulation and not is_financial_regulation:
-                    print(f"🚫 Excluding non-financial regulation: {metadata.get('filename', 'N/A')}")
-                    continue
-                elif is_regulation and is_financial_regulation:
-                    print(f"✅ Including financial regulation: {metadata.get('filename', 'N/A')}")
-                
-                # Check if document has fee-related keywords or is already from document_type filtering
-                has_fee_keywords = False
-                if topic_keywords:
-                    for keyword in topic_keywords:
-                        if keyword.lower() in doc_keywords or keyword.lower() in filename:
-                            has_fee_keywords = True
-                            break
-                
-                # Include if it has fees document_type OR fee keywords
-                doc_type = metadata.get('document_type', '')
-                if doc_type in ['fees', 'financial'] or has_fee_keywords:
-                    filtered_docs.append((doc_id, content, metadata))
-                    if has_fee_keywords and doc_type not in ['fees', 'financial']:
-                        print(f"✅ Including document with fee keywords: {metadata.get('filename', 'N/A')}")
-            
-            print(f"✅ After filtering: {len(filtered_docs)} documents")
-            
-            if not filtered_docs:
-                print(f"❌ No fee documents found after filtering")
+            if not ids:
                 return []
             
-            # Score documents with fees-specific logic
+            # STEP 6: Calculate NLP-integrated scores with specialization bonuses
             scored_results = []
-            query_lower = query.lower()
             
-            for doc_id, content, metadata in filtered_docs:
-                filename = metadata.get('filename', '').lower()
+            for i, (doc_id, content, metadata, distance) in enumerate(zip(ids, docs, metadatas, distances)):
+                # Smart regulation filtering (skip non-financial regulations)
                 doc_keywords = metadata.get('keywords', '').lower()
-                content_lower = content.lower()
+                filename = metadata.get('filename', '').lower()
                 
-                # Calculate specialized scores
-                filename_score = self._calculate_fees_filename_score(filename, fee_info)
-                keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
-                content_score = self._calculate_fees_content_score(content_lower, query_lower, fee_info)
+                is_financial_regulation = any(term in doc_keywords or term in filename 
+                                             for term in ['payment', 'fee', 'financial', 'tuition', 'billing'])
+                is_regulation = 'regulation' in doc_keywords
                 
-                # Apply strategy priorities
+                if is_regulation and not is_financial_regulation:
+                    continue  # Skip non-financial regulations
+                
+                # A. Semantic score (from TF-IDF + Word2Vec embeddings)
+                semantic_score = float(1.0 / (1.0 + distance))
+                
+                # B. NLP keyword boost
+                boost_data = self._calculate_nlp_keyword_boost(query_stems, content, filename, doc_keywords)
+                
+                # C. Specialization bonuses for fee matching
+                fee_type_bonus = 0.0
+                program_bonus = 0.0
+                payment_method_bonus = 0.0
+                
+                # Bonus for fee type match
+                if fee_info.get('fee_type'):
+                    fee_type = fee_info['fee_type'].lower()
+                    content_lower = content.lower()
+                    if fee_type in content_lower or fee_type in filename:
+                        fee_type_bonus = 0.05
+                
+                # Bonus for program name match (fee for specific program)
+                if fee_info.get('program_name'):
+                    program_name = fee_info['program_name'].lower()
+                    content_lower = content.lower()
+                    if program_name in content_lower or program_name in filename:
+                        program_bonus = 0.05
+                
+                # Bonus for payment method match
+                if fee_info.get('payment_method'):
+                    payment_method = fee_info['payment_method'].lower()
+                    content_lower = content.lower()
+                    if payment_method in content_lower:
+                        payment_method_bonus = 0.03
+                
+                # D. FINAL SCORE: Semantic (60%) + Keyword Boost (27%) + Specialization (13%)
                 final_score = (
-                    filename_score * priorities.get('filename', 0.3) +
-                    keyword_score * priorities.get('keywords', 0.4) +
-                    content_score * priorities.get('content', 0.3)
+                    semantic_score * 0.6 +
+                    boost_data['total_boost'] +
+                    fee_type_bonus +
+                    program_bonus +
+                    payment_method_bonus
                 )
                 
-                if final_score > 0:
-                    scored_results.append({
-                        'id': doc_id,
-                        'content': content,
-                        'relevance': final_score,
-                        'folder': metadata.get('folder_name', 'Unknown'),
-                        'document_type': metadata.get('document_type', 'other'),
-                        'target_program': metadata.get('target_program', 'all'),
-                        'filename': metadata.get('filename', ''),
-                        'retrieval_strategy': 'fees_specialized',
-                        'current_topic': 'fees',
-                        '_debug': {
-                            'filename_score': filename_score,
-                            'keyword_score': keyword_score,
-                            'content_score': content_score,
-                            'fee_info': fee_info
-                        }
-                    })
+                scored_results.append({
+                    'id': doc_id,
+                    'content': content,
+                    'relevance': final_score,
+                    'folder': metadata.get('folder_name', 'Unknown'),
+                    'document_type': metadata.get('document_type', 'other'),
+                    'target_program': metadata.get('target_program', 'all'),
+                    'filename': metadata.get('filename', ''),
+                    'retrieval_strategy': 'fees_nlp_integrated',
+                    'current_topic': 'fees',
+                    '_debug': {
+                        'semantic_score': semantic_score,
+                        'semantic_distance': float(distance),
+                        'keyword_boost': boost_data['total_boost'],
+                        'content_overlap': boost_data['content_overlap'],
+                        'filename_overlap': boost_data['filename_overlap'],
+                        'keyword_overlap': boost_data['keyword_overlap'],
+                        'fee_type_bonus': fee_type_bonus,
+                        'program_bonus': program_bonus,
+                        'payment_method_bonus': payment_method_bonus,
+                        'fee_info': fee_info
+                    }
+                })
             
             # Sort and return top results
             scored_results.sort(key=lambda x: x['relevance'], reverse=True)
             
-            print(f"✅ Top {min(top_k, len(scored_results))} fees results:")
+            print(f"✅ Top {min(top_k, len(scored_results))} NLP-integrated fees results:")
             for i, doc in enumerate(scored_results[:top_k]):
                 debug = doc['_debug']
                 print(f"   {i+1}. {doc['filename'][:60]}")
-                print(f"       Score: {doc['relevance']:.3f} (f={debug['filename_score']:.2f}, k={debug['keyword_score']:.2f}, c={debug['content_score']:.2f})")
-                print(f"       Fee info: {debug['fee_info']}")
+                print(f"       Final: {doc['relevance']:.3f} = Semantic({debug['semantic_score']:.3f}*0.6) + Boost({debug['keyword_boost']:.3f}) + Special({debug['fee_type_bonus'] + debug['program_bonus'] + debug['payment_method_bonus']:.3f})")
+                print(f"       Fee type: {debug['fee_info'].get('fee_type', 'N/A')}, Distance: {debug['semantic_distance']:.4f}")
             
             return scored_results[:top_k]
             
@@ -1425,170 +1540,141 @@ class FastHybridChatbotTogether:
 
     def retrieve_documents_hybrid(self, query: str, top_k: int = 2) -> List[Dict]:
         """
-        TWO-STAGE RETRIEVAL:
-        1. Keyword search (fast, exact matches)
-        2. Semantic search (fallback for fuzzy matches)
-        Combines both for final ranking
+        IMPROVED NLP-INTEGRATED HYBRID RETRIEVAL:
+        1. Semantic search (TF-IDF + Word2Vec embeddings) as PRIMARY ranking (70%)
+        2. Keyword matching with NLP preprocessing as SECONDARY boost (30%)
+        3. Consistent preprocessing applied to both query and documents
+        
+        This properly utilizes the TF-IDF and Word2Vec models throughout retrieval.
         """
         import re
         
-        print(f"�� Retrieving for: '{query}'")
+        print(f"🔍 NLP-Integrated Hybrid Retrieval for: '{query}'")
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # Extract query terms
-            query_lower = query.lower()
-            stop_words = {'what', 'is', 'the', 'a', 'an', 'for', 'in', 'on', 'at', 'to', 
-                          'of', 'and', 'or', 'are', 'can', 'you', 'tell', 'me', 'about',
-                          'how', 'when', 'where', 'who', 'which', 'do', 'does', 'i', 'my'}
+            # STEP 1: Preprocess query using NLP pipeline (stemming, stopwords, tokenization)
+            processed_tokens = preprocess_text(query)
+            processed_query_text = " ".join(processed_tokens)
+            query_stems = set(processed_tokens)
             
-            query_terms = set(re.findall(r'\b[a-z0-9]{2,}\b', query_lower)) - stop_words
-            print(f"📝 Query terms: {query_terms}")
+            print(f"📝 Original query: '{query}'")
+            if len(processed_tokens) > 10:
+                print(f"📝 Preprocessed tokens: {processed_tokens[:10]}... ({len(processed_tokens)} total)")
+            else:
+                print(f"📝 Preprocessed tokens: {processed_tokens}")
             
-            # STAGE 1: Get ALL documents (no limit) to search keywords
-            all_docs = collection.get(
-                where={"source": "pdf_scrape"},
-                include=["documents", "metadatas"]
-            )
-            
-            all_ids = all_docs.get('ids', [])
-            all_contents = all_docs.get('documents', [])
-            all_metadatas = all_docs.get('metadatas', [])
-            
-            print(f"📚 Searching through {len(all_ids)} documents...")
-            
-            # KEYWORD SCORING for ALL documents
-            keyword_candidates = []
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
-                filename = metadata.get('filename', '')
-                keywords = metadata.get('keywords', '')
-                
-                filename_lower = filename.lower()
-                keywords_lower = keywords.lower()
-                content_lower = content.lower()
-                
-                # Count keyword matches - USE WORD BOUNDARIES to avoid substring matches
-                filename_matches = 0
-                keyword_matches = 0
-                content_matches = 0
-                
-                for term in query_terms:
-                    # Use regex word boundaries \b to match whole words only
-                    # This prevents "arch" from matching "Anthropology"
-                    term_pattern = r'\b' + re.escape(term) + r'\b'
-                    
-                    # Filename matching (whole words)
-                    if re.search(term_pattern, filename_lower):
-                        filename_matches += 1
-                    
-                    # Keywords matching (whole words)
-                    if re.search(term_pattern, keywords_lower):
-                        keyword_matches += 1
-                    
-                    # Content matching (whole words)
-                    if re.search(term_pattern, content_lower):
-                        content_matches += 1
-                
-                total_terms = len(query_terms) if query_terms else 1
-                
-                # Calculate keyword score
-                keyword_score = (
-                    (filename_matches * 3.0) +
-                    (keyword_matches * 2.0) +
-                    (content_matches * 0.5)  # Content is less important (too broad)
-                ) / total_terms
-                
-                # Only keep if it has SOME keyword match
-                if keyword_score > 0:
-                    keyword_candidates.append({
-                        'id': doc_id,
-                        'content': content,
-                        'metadata': metadata,
-                        'keyword_score': keyword_score,
-                        'filename_matches': filename_matches,
-                        'keyword_matches': keyword_matches,
-                        'content_matches': content_matches
-                    })
-            
-            print(f"�� Found {len(keyword_candidates)} documents with keyword matches")
-            
-            # STAGE 2: Get semantic embeddings for top keyword candidates
+            # STEP 2: Generate hybrid embedding (TF-IDF + Word2Vec)
             q_emb = _embed_text(query)
+            print(f"🧮 Generated hybrid embedding (TF-IDF + Word2Vec), dimension: {len(q_emb)}")
             
-            # Get embeddings for top 20 keyword candidates
-            top_keyword_ids = [c['id'] for c in sorted(keyword_candidates, key=lambda x: x['keyword_score'], reverse=True)[:20]]
-            
-            # Also get top 20 semantic results
+            # STEP 3: Semantic search as PRIMARY retrieval (using hybrid embeddings)
             semantic_results = collection.query(
                 query_embeddings=[q_emb],
-                n_results=20,
+                n_results=min(top_k * 10, 50),  # Get more candidates for re-ranking
                 include=["documents", "distances", "metadatas"],
                 where={"source": "pdf_scrape"}
             )
             
-            semantic_ids = semantic_results.get("ids", [[]])[0]
-            semantic_distances = semantic_results.get("distances", [[]])[0]
+            ids = semantic_results.get("ids", [[]])[0]
+            docs = semantic_results.get("documents", [[]])[0]
+            metadatas = semantic_results.get("metadatas", [[]])[0]
+            distances = semantic_results.get("distances", [[]])[0]
             
-            # Create semantic score lookup
-            semantic_scores = {}
-            for doc_id, distance in zip(semantic_ids, semantic_distances):
-                semantic_scores[doc_id] = float(1.0 / (1.0 + distance))
+            print(f"📊 Retrieved {len(ids)} semantic candidates using TF-IDF + Word2Vec embeddings")
             
-            # COMBINE both approaches
+            if not ids:
+                print("⚠️ No documents found in semantic search")
+                return []
+            
+            # STEP 4: Calculate combined scores with NLP-based keyword boosting
             final_results = []
-            seen_ids = set()
             
-            # First, add keyword candidates with semantic scores
-            for candidate in keyword_candidates:
-                doc_id = candidate['id']
-                if doc_id in seen_ids:
-                    continue
-                seen_ids.add(doc_id)
+            for i, (doc_id, content, metadata, distance) in enumerate(zip(ids, docs, metadatas, distances)):
+                # A. Semantic similarity score (from TF-IDF + Word2Vec hybrid embeddings)
+                semantic_score = float(1.0 / (1.0 + distance))
                 
-                keyword_score = candidate['keyword_score']
-                semantic_score = semantic_scores.get(doc_id, 0.3)  # Default low score if not in top semantic
+                # B. Keyword boost using NLP preprocessing for fair comparison
+                # Preprocess document content using the SAME NLP pipeline as query
+                doc_tokens = preprocess_text(content[:5000])  # Limit content length for performance
+                doc_stems = set(doc_tokens)
                 
-                # If strong keyword match, heavily favor keywords
-                if candidate['filename_matches'] >= 2 or candidate['keyword_matches'] >= 2:
-                    final_score = keyword_score * 0.8 + semantic_score * 0.2
+                # Calculate stem overlap (after preprocessing both query and doc)
+                if query_stems:
+                    stem_overlap = len(query_stems & doc_stems) / len(query_stems)
                 else:
-                    final_score = keyword_score * 0.5 + semantic_score * 0.5
+                    stem_overlap = 0.0
+                
+                # Preprocess and check filename matches
+                filename = metadata.get('filename', '').lower()
+                filename_tokens = preprocess_text(filename)
+                filename_stems = set(filename_tokens)
+                
+                if query_stems:
+                    filename_overlap = len(query_stems & filename_stems) / len(query_stems)
+                else:
+                    filename_overlap = 0.0
+                
+                # Preprocess and check metadata keywords
+                doc_keywords = metadata.get('keywords', '').lower()
+                keyword_tokens = preprocess_text(doc_keywords)
+                keyword_stems = set(keyword_tokens)
+                
+                if query_stems:
+                    keyword_overlap = len(query_stems & keyword_stems) / len(query_stems)
+                else:
+                    keyword_overlap = 0.0
+                
+                # C. Calculate keyword boost (max 0.3 boost to add to semantic score)
+                keyword_boost = (
+                    stem_overlap * 0.10 +        # Content stem overlap: up to 0.10
+                    filename_overlap * 0.15 +     # Filename stem overlap: up to 0.15
+                    keyword_overlap * 0.05        # Metadata keyword overlap: up to 0.05
+                )
+                
+                # D. FINAL SCORE: Semantic (base 70%) + Keyword Boost (up to 30%)
+                # Semantic score is the FOUNDATION, keywords provide a BOOST
+                final_score = (semantic_score * 0.7) + keyword_boost
                 
                 final_results.append({
                     'id': doc_id,
-                    'content': candidate['content'],
+                    'content': content,
                     'relevance': final_score,
-                    'folder': candidate['metadata'].get('folder_name', 'Unknown'),
-                    'document_type': candidate['metadata'].get('document_type', 'other'),
-                    'target_program': candidate['metadata'].get('target_program', 'all'),
-                    'filename': candidate['metadata'].get('filename', ''),
-                    'retrieval_strategy': 'keyword-first',
-                    'hybrid_score': final_score,
+                    'folder': metadata.get('folder_name', 'Unknown'),
+                    'document_type': metadata.get('document_type', 'other'),
+                    'target_program': metadata.get('target_program', 'all'),
+                    'filename': metadata.get('filename', ''),
+                    'retrieval_strategy': 'nlp-integrated-hybrid',
                     '_debug': {
-                        'semantic': semantic_score,
-                        'keyword': keyword_score,
-                        'filename_matches': candidate['filename_matches'],
-                        'keyword_matches': candidate['keyword_matches'],
-                        'content_matches': candidate['content_matches']
+                        'semantic_score': semantic_score,
+                        'semantic_distance': float(distance),
+                        'keyword_boost': keyword_boost,
+                        'stem_overlap': stem_overlap,
+                        'filename_overlap': filename_overlap,
+                        'keyword_overlap': keyword_overlap,
+                        'final_score': final_score,
+                        'query_stems_count': len(query_stems),
+                        'doc_stems_count': len(doc_stems)
                     }
                 })
             
-            # Sort by final score
+            # STEP 5: Sort by final score and return top K
             final_results.sort(key=lambda x: x['relevance'], reverse=True)
             
             # Debug output
-            print(f"✅ Top {min(top_k, len(final_results))} results:")
+            print(f"✅ Top {min(top_k, len(final_results))} NLP-integrated hybrid results:")
             for i, doc in enumerate(final_results[:top_k]):
                 debug = doc['_debug']
-                print(f"   {i+1}. {doc['filename'][:70]}")
-                print(f"       Score: {doc['relevance']:.3f} (sem={debug['semantic']:.3f}, kw={debug['keyword']:.3f})")
-                print(f"       Matches: file={debug['filename_matches']}, kw={debug['keyword_matches']}, content={debug['content_matches']}")
+                print(f"   {i+1}. {doc['filename'][:60]}")
+                print(f"       Final: {debug['final_score']:.3f} = Semantic({debug['semantic_score']:.3f}*0.7) + Boost({debug['keyword_boost']:.3f})")
+                print(f"       Overlaps: content={debug['stem_overlap']:.2f}, file={debug['filename_overlap']:.2f}, kw={debug['keyword_overlap']:.2f}")
+                print(f"       Distance: {debug['semantic_distance']:.4f}")
             
             return final_results[:top_k]
             
         except Exception as e:
-            print(f"❌ Retrieval error: {e}")
+            print(f"❌ NLP-integrated retrieval error: {e}")
             import traceback
             traceback.print_exc()
             return []
