@@ -413,6 +413,7 @@ class FastHybridChatbotTogether:
             'accountancy': ['accountancy', 'bsa', 'bs a', 'accounting'],
             'management accounting': ['management accounting', 'bsma', 'bs ma'],
             'business management': ['business management', 'bsbm', 'bs bm'],
+            'business administration': ['business administration', 'bsba', 'bs ba', 'business admin'],
             'entrepreneurship': ['entrepreneurship', 'bs entrep', 'bsentrep', 'entrepreneur'],
             'finance': ['finance', 'bsfin', 'bs fin'],
             'human resource development': ['human resource', 'hrdm', 'bshrdm', 'bs hrdm', 'hr'],
@@ -421,7 +422,7 @@ class FastHybridChatbotTogether:
             
             # Technology Programs
             'computer science': ['computer science', 'cs', 'bscs', 'bs cs', 'compsci', 'comsci'],
-            'information technology': ['information technology', 'it', 'bsit', 'bs it', 'infotech'],
+            'information technology': ['information technology', 'bsit', 'bs it', 'infotech'],
             'information systems': ['information systems', 'bsis', 'bs is'],
             'data science': ['data science', 'bsds', 'bs ds'],
             
@@ -464,7 +465,7 @@ class FastHybridChatbotTogether:
             'robotics engineering': ['robotics', 'bsre', 'bs re', 'robot'],
             
             # Nursing
-            'nursing': ['nursing', 'bsn', 'nurse']
+            'nursing': ['nursing', 'bsn', 'bs n', 'nurse']
         }
 
     def _extract_program_info(self, query: str) -> dict:
@@ -479,25 +480,49 @@ class FastHybridChatbotTogether:
             'context_source': None
         }
         
-        # Detect program names using helper method with word boundary matching
+        # Detect program names using scoring system to prioritize longer, more specific matches
         program_patterns = self._get_program_patterns()
         
         import re
+        best_match = None
+        best_score = 0
+        
         for program, patterns in program_patterns.items():
             for pattern in patterns:
+                match_found = False
+                pattern_score = 0
+                
                 # Use word boundaries for short patterns that could be substrings
                 if len(pattern) <= 3:
                     # Use word boundary regex for short patterns like 'it', 'cs', etc.
                     if re.search(r'\b' + re.escape(pattern) + r'\b', query_lower):
-                        program_info['program_name'] = program
-                        break
+                        match_found = True
+                        # Lower score for short patterns to avoid false positives
+                        pattern_score = len(pattern) * 1.0
                 else:
                     # Use simple substring matching for longer patterns
                     if pattern in query_lower:
-                        program_info['program_name'] = program
-                        break
-            if program_info['program_name']:
-                break
+                        match_found = True
+                        # Higher score for longer patterns (more specific)
+                        pattern_score = len(pattern) * 2.0
+                
+                # Bonus points for exact matches or patterns that match more of the query
+                if match_found:
+                    # Bonus for patterns that cover more of the query
+                    coverage_bonus = (len(pattern) / len(query_lower)) * 10
+                    pattern_score += coverage_bonus
+                    
+                    # Bonus for exact word matches (e.g., "archi" vs "bs a")
+                    if pattern == query_lower.strip():
+                        pattern_score += 20
+                    
+                    # Update best match if this score is higher
+                    if pattern_score > best_score:
+                        best_score = pattern_score
+                        best_match = program
+        
+        if best_match:
+            program_info['program_name'] = best_match
         
         # Detect degree level
         if any(term in query_lower for term in ['undergraduate', 'bachelor', 'bs', 'ba']):
@@ -1341,6 +1366,11 @@ class FastHybridChatbotTogether:
         
         print(f"🔬 Hybrid topic + semantic retrieval for: '{query}' (topic: {topic_id})")
         
+        # Normalize program acronyms in query for better matching
+        normalized_query = self._normalize_program_acronyms(query)
+        if normalized_query != query:
+            print(f"📝 Normalized query: '{query}' → '{normalized_query}'")
+        
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
@@ -1354,6 +1384,7 @@ class FastHybridChatbotTogether:
             
             # Get topic-specific document types for filtering
             # Map topic_id to strategy name
+            from .topics import get_retrieval_strategy_config
             strategy_mapping = {
                 'programs_courses': 'programs_specialized',
                 'admissions_enrollment': 'admissions_specialized', 
@@ -1435,17 +1466,73 @@ class FastHybridChatbotTogether:
                 print("⚠️ No documents found after topic filtering")
                 return []
             
-            # STAGE 2: Semantic similarity scoring on filtered documents
-            print(f"🧠 Applying TF-IDF + Word2Vec semantic scoring to {len(topic_filtered_docs)} filtered documents...")
+            # STAGE 2: Apply specialized logic based on topic
+            print(f"🎯 Applying specialized logic for topic: {topic_id}")
             
-            # Generate query vector
-            query_vector = self._vectorize_query(query)
+            specialized_scored_docs = []
+            
+            if topic_id == 'programs_courses':
+                # Apply programs-specific logic
+                program_info = self._extract_program_info(normalized_query)
+                print(f"📚 Extracted program info: {program_info}")
+                
+                # Get strategy configuration for programs
+                strategy_config = get_retrieval_strategy_config('programs_specialized')
+                priorities = strategy_config.get('metadata_priorities', {})
+                
+                query_lower = normalized_query.lower()
+                
+                for doc_data in topic_filtered_docs:
+                    metadata = doc_data['metadata']
+                    content = doc_data['content']
+                    
+                    filename = metadata.get('filename', '').lower()
+                    doc_keywords = metadata.get('keywords', '').lower()
+                    content_lower = content.lower()
+                    
+                    # Calculate specialized scores using existing methods
+                    filename_score = self._calculate_programs_filename_score(filename, program_info)
+                    keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
+                    content_score = self._calculate_programs_content_score(content_lower, query_lower, program_info)
+                    
+                    # Apply strategy priorities
+                    specialized_score = (
+                        filename_score * priorities.get('filename', 0.5) +
+                        keyword_score * priorities.get('keywords', 0.3) +
+                        content_score * priorities.get('content', 0.2)
+                    )
+                    
+                    specialized_scored_docs.append({
+                        'doc_data': doc_data,
+                        'specialized_score': specialized_score,
+                        'program_info': program_info
+                    })
+                    
+            else:
+                # For non-programs topics, use topic score as specialized score
+                for doc_data in topic_filtered_docs:
+                    specialized_scored_docs.append({
+                        'doc_data': doc_data,
+                        'specialized_score': doc_data['topic_score'],
+                        'program_info': None
+                    })
+            
+            print(f"🎯 Applied specialized logic to {len(specialized_scored_docs)} documents")
+            
+            # STAGE 3: Apply TF-IDF + Word2Vec semantic scoring on specialized results
+            print(f"🧠 Applying TF-IDF + Word2Vec semantic scoring to specialized results...")
+            
+            # Generate query vector using normalized query
+            query_vector = self._vectorize_query(normalized_query)
             print(f"📊 Generated query vector: TF-IDF + Word2Vec (dim: {query_vector.shape[0]})")
             
-            # Score each filtered document
+            # Score each specialized document with semantic similarity
             hybrid_scored_results = []
             
-            for doc_data in topic_filtered_docs:
+            for spec_doc in specialized_scored_docs:
+                doc_data = spec_doc['doc_data']
+                specialized_score = spec_doc['specialized_score']
+                
                 # Generate document vector
                 doc_vector = self._vectorize_query(doc_data['content'])
                 
@@ -1461,12 +1548,13 @@ class FastHybridChatbotTogether:
                     semantic_similarity = 0.0
                 
                 # QUERY-DOCUMENT SPECIFICITY BOOST
-                specificity_boost = self._calculate_query_document_specificity(query, doc_data['metadata'])
+                specificity_boost = self._calculate_query_document_specificity(normalized_query, doc_data['metadata'])
                 
-                # HYBRID SCORE: 60% topic relevance + 40% semantic similarity + specificity boost
-                topic_component = doc_data['topic_score'] * 0.6
-                semantic_component = semantic_similarity * 0.4
-                final_score = topic_component + semantic_component + specificity_boost
+                # TRUE HYBRID SCORE: 50% specialized logic + 30% semantic similarity + 20% topic + specificity boost
+                specialized_component = specialized_score * 0.5
+                semantic_component = semantic_similarity * 0.3
+                topic_component = doc_data['topic_score'] * 0.2
+                final_score = specialized_component + semantic_component + topic_component + specificity_boost
                 
                 hybrid_scored_results.append({
                     'id': doc_data['id'],
@@ -1479,17 +1567,21 @@ class FastHybridChatbotTogether:
                     'retrieval_strategy': 'hybrid-topic-semantic',
                     'current_topic': topic_id,
                     '_debug': {
-                        'topic_score': doc_data['topic_score'],
+                        'specialized_score': specialized_score,
                         'semantic_similarity': semantic_similarity,
-                        'topic_component': topic_component,
+                        'topic_score': doc_data['topic_score'],
+                        'specialized_component': specialized_component,
                         'semantic_component': semantic_component,
+                        'topic_component': topic_component,
                         'specificity_boost': specificity_boost,
                         'final_score': final_score,
                         'matched_keywords': doc_data['matched_keywords'],
-                        'topic_weight': 0.6,
-                        'semantic_weight': 0.4,
+                        'specialized_weight': 0.5,
+                        'semantic_weight': 0.3,
+                        'topic_weight': 0.2,
                         'tfidf_word2vec_used': True,
-                        'topic_filtering': True
+                        'specialized_logic_used': True,
+                        'program_info': spec_doc['program_info']
                     }
                 })
             
@@ -1497,15 +1589,18 @@ class FastHybridChatbotTogether:
             hybrid_scored_results.sort(key=lambda x: x['relevance'], reverse=True)
             
             # Debug output
-            print(f"✅ Top {min(top_k, len(hybrid_scored_results))} hybrid results:")
+            print(f"✅ Top {min(top_k, len(hybrid_scored_results))} TRUE HYBRID results:")
             for i, doc in enumerate(hybrid_scored_results[:top_k]):
                 debug = doc['_debug']
                 print(f"   {i+1}. {doc['filename'][:50]}")
                 print(f"       Final Score: {debug['final_score']:.3f}")
-                print(f"       Topic (60%): {debug['topic_component']:.3f} (raw: {debug['topic_score']:.3f})")
-                print(f"       Semantic (40%): {debug['semantic_component']:.3f} (raw: {debug['semantic_similarity']:.3f})")
+                print(f"       Specialized (50%): {debug['specialized_component']:.3f} (raw: {debug['specialized_score']:.3f})")
+                print(f"       Semantic (30%): {debug['semantic_component']:.3f} (raw: {debug['semantic_similarity']:.3f})")
+                print(f"       Topic (20%): {debug['topic_component']:.3f} (raw: {debug['topic_score']:.3f})")
                 if debug['specificity_boost'] > 0:
                     print(f"       🎯 Specificity Boost: +{debug['specificity_boost']:.3f}")
+                if debug.get('program_info'):
+                    print(f"       📚 Program: {debug['program_info'].get('program_name', 'N/A')}")
                 print(f"       Keywords: {debug['matched_keywords']}")
             
             return hybrid_scored_results[:top_k]
@@ -1877,7 +1972,11 @@ class FastHybridChatbotTogether:
                           'of', 'and', 'or', 'are', 'can', 'you', 'tell', 'me', 'about',
                           'how', 'when', 'where', 'who', 'which', 'do', 'does', 'i', 'my', 'will'}
             
-            query_terms = set(re.findall(r'\b[a-z0-9]{2,}\b', query_lower))
+            # Apply program acronym normalization before extracting terms
+            normalized_query = self._normalize_program_acronyms(query)
+            normalized_lower = normalized_query.lower()
+            
+            query_terms = set(re.findall(r'\b[a-z0-9]{2,}\b', normalized_lower))
             query_terms = query_terms - stop_words
             
             print(f"🔍 Query terms: {query_terms}")
@@ -1898,8 +1997,11 @@ class FastHybridChatbotTogether:
                 
                 keyword_score = self._improved_keyword_matching(query_terms, filename, keywords, content)
                 
-                # Combine: 60% semantic + 40% keyword
-                final_score = (semantic_score * 0.6) + (keyword_score * 0.4)
+                # Program context boost - prioritize documents that match the program mentioned in query
+                program_boost = self._calculate_program_context_boost(query, filename, keywords)
+                
+                # Combine: 50% semantic + 30% keyword + 20% program context
+                final_score = (semantic_score * 0.5) + (keyword_score * 0.3) + (program_boost * 0.2)
                 
                 out.append({
                     "id": doc_id, 
@@ -1910,7 +2012,8 @@ class FastHybridChatbotTogether:
                     "target_program": metadata.get("target_program", "all"),
                     "filename": metadata.get("filename", ""),
                     "_semantic": semantic_score,
-                    "_keyword": keyword_score
+                    "_keyword": keyword_score,
+                    "_program_boost": program_boost
                 })
             
             # Sort by combined score
@@ -1918,7 +2021,7 @@ class FastHybridChatbotTogether:
             
             print(f"📊 Top {min(top_k, len(out))} results:")
             for i, doc in enumerate(out[:top_k]):
-                print(f"   {i+1}. {doc['filename'][:60]} | score={doc['relevance']:.3f} (sem={doc['_semantic']:.3f} + kw={doc['_keyword']:.3f})")
+                print(f"   {i+1}. {doc['filename'][:60]} | score={doc['relevance']:.3f} (sem={doc['_semantic']:.3f} + kw={doc['_keyword']:.3f} + prog={doc['_program_boost']:.3f})")
             
             return out[:top_k]
             
@@ -1929,47 +2032,220 @@ class FastHybridChatbotTogether:
             return []
 
     def analyze_query_intent(self, query: str) -> Dict[str, str]:
-        """Analyze query to determine appropriate filters"""
+        """Analyze query to determine appropriate filters using dynamic keyword matching"""
         query_lower = query.lower()
         
-        # Document type detection with enhanced admission office handling
+        # Get dynamic keyword mappings from database
+        keyword_mappings = self._get_dynamic_keyword_mappings()
+        
+        # Document type detection using dynamic keywords
         document_type = None
-        if any(word in query_lower for word in ['admission', 'apply', 'requirement', 'entrance']):
-            # Check if this is asking about admission office location/contact
-            if any(word in query_lower for word in ['office', 'location', 'where', 'contact', 'phone', 'email', 'address']):
-                document_type = 'contact'  # Admission office location queries should use contact documents
-            else:
-                document_type = 'admission'
-        elif any(word in query_lower for word in ['enroll', 'registration', 'process']):
-            document_type = 'enrollment'
-        elif any(word in query_lower for word in ['scholarship', 'financial aid', 'grant']):
-            # Check if this is asking about scholarship requirements (could be admission-related)
-            if any(word in query_lower for word in ['requirement', 'requirements', 'apply', 'application']):
-                # Scholarship requirements could be in admission documents
-                document_type = 'scholarship'  # Try scholarship first, but allow fallback
-            else:
-                document_type = 'scholarship'
-        elif any(word in query_lower for word in ['program', 'course', 'degree', 'major']):
-            document_type = 'academic'
-        elif any(word in query_lower for word in ['fee', 'cost', 'payment', 'tuition']):
-            document_type = 'fees'
-        elif any(word in query_lower for word in ['contact', 'phone', 'email', 'office']):
+        best_match_score = 0
+        
+        for doc_type, keywords in keyword_mappings.items():
+            # Calculate match score for this document type
+            matches = sum(1 for keyword in keywords if keyword in query_lower)
+            match_score = matches / len(keywords) if keywords else 0
+            
+            # Boost score for exact phrase matches
+            exact_matches = sum(1 for keyword in keywords if len(keyword.split()) > 1 and keyword in query_lower)
+            match_score += exact_matches * 0.5  # Boost for phrase matches
+            
+            if match_score > best_match_score:
+                best_match_score = match_score
+                document_type = doc_type
+        
+        # Special handling for admission office location queries
+        if document_type == 'admission' and any(word in query_lower for word in ['office', 'location', 'where', 'contact', 'phone', 'email', 'address']):
             document_type = 'contact'
         
-        # Program level detection
+        # Program level detection (bachelor-focused, dynamic)
         program_filter = None
-        if any(word in query_lower for word in ['undergraduate', 'bachelor', 'college']):
+        
+        # Focus on bachelor's/undergraduate programs only
+        bachelor_indicators = [
+            'undergraduate', 'bachelor', 'college', 'bs', 'ba',
+            'bachelor of science', 'bachelor of arts', 'baccalaureate'
+        ]
+        
+        # Dynamic program code detection from database
+        bachelor_program_codes = self._get_bachelor_program_codes()
+        
+        # Check for bachelor indicators or program codes
+        if (any(word in query_lower for word in bachelor_indicators) or 
+            any(code in query_lower for code in bachelor_program_codes)):
             program_filter = 'undergraduate'
-        elif any(word in query_lower for word in ['graduate', 'master', 'phd', 'doctoral']):
-            program_filter = 'graduate'
-        elif any(word in query_lower for word in ['senior high', 'shs', 'grade 11', 'grade 12']):
-            program_filter = 'senior_high'
+        
+        # Since most documents are marked as 'all', default to 'all' for broader coverage
+        # unless specifically requesting undergraduate-only content
+        if program_filter is None:
+            program_filter = 'all'
         
         return {
             'document_type': document_type,
             'program_filter': program_filter,
-            'folder_filter': None  # Can be extended for folder-specific queries
+            'folder_filter': None,
+            'match_confidence': best_match_score  # Add confidence score
         }
+    
+    def _get_dynamic_keyword_mappings(self) -> Dict[str, List[str]]:
+        """Get keyword mappings dynamically from database documents"""
+        # Cache the mappings to avoid repeated database queries
+        if not hasattr(self, '_cached_keyword_mappings'):
+            self._cached_keyword_mappings = self._build_keyword_mappings_from_db()
+        
+        return self._cached_keyword_mappings
+    
+    def _get_bachelor_program_codes(self) -> List[str]:
+        """Get bachelor program codes dynamically from database and topic instructions"""
+        # Cache the program codes to avoid repeated processing
+        if not hasattr(self, '_cached_bachelor_codes'):
+            self._cached_bachelor_codes = self._extract_bachelor_program_codes()
+        
+        return self._cached_bachelor_codes
+    
+    def _extract_bachelor_program_codes(self) -> List[str]:
+        """Extract bachelor program codes from database keywords and topic instructions"""
+        try:
+            from .models import DocumentMetadata
+            
+            bachelor_codes = set()
+            
+            # Extract from document keywords that mention bachelor programs
+            docs = DocumentMetadata.objects.exclude(keywords='').exclude(keywords__isnull=True)
+            
+            for doc in docs:
+                keywords = [k.strip().lower() for k in doc.keywords.split(',') if k.strip()]
+                
+                # Look for bachelor program patterns (BS/BA + abbreviation)
+                for keyword in keywords:
+                    # Match patterns like "bs cs", "bscs", "ba eng", etc.
+                    if keyword.startswith(('bs ', 'ba ', 'bscs', 'bsit', 'bsba', 'bs cs', 'bs it', 'bs ba')):
+                        bachelor_codes.add(keyword)
+                    # Also check for full program names that might indicate bachelor programs
+                    elif any(indicator in keyword for indicator in ['computer science', 'information technology', 'business administration']):
+                        # Extract potential abbreviations
+                        if 'computer science' in keyword:
+                            bachelor_codes.update(['bscs', 'bs cs', 'computer science'])
+                        elif 'information technology' in keyword:
+                            bachelor_codes.update(['bsit', 'bs it', 'information technology'])
+                        elif 'business administration' in keyword:
+                            bachelor_codes.update(['bsba', 'bs ba', 'business administration'])
+            
+            # Add common full program names for better detection
+            full_program_names = [
+                'computer science', 'information technology', 'business administration',
+                'business management', 'accountancy', 'nursing', 'education',
+                'engineering', 'architecture', 'mathematics', 'biology', 'chemistry',
+                'psychology', 'economics', 'political science', 'sociology'
+            ]
+            bachelor_codes.update(full_program_names)
+            
+            # Add common bachelor program codes from the topic instructions
+            # Based on the official program structure found in the codebase
+            official_bachelor_codes = [
+                # School of Arts & Sciences
+                'ab eng', 'ab mc', 'ab ids', 'ab philo',  # Humanities & Letters
+                'bs bio', 'bs chem', 'bs math', 'bs envi sci',  # Natural Sciences
+                'bs is', 'bs it', 'bs cs', 'bs ds',  # Computer Studies
+                'ab econ', 'ab polsci', 'ab psych', 'ab socio', 'ab anthro',  # Social Sciences
+                
+                # School of Business & Governance
+                'bs a', 'bs ma',  # Accountancy
+                'bs bm', 'bs entrep', 'bs fin', 'bs hrdm', 'bs mktg', 'bpm',  # Business Management
+                
+                # School of Education
+                'bece', 'beed', 'bsed',
+                
+                # School of Engineering & Architecture
+                'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 
+                'bs electronics eng', 'bs ie', 'bs me', 'bs re',
+                
+                # School of Nursing
+                'bs n'
+            ]
+            
+            bachelor_codes.update(official_bachelor_codes)
+            
+            # Add common variations
+            variations = set()
+            for code in bachelor_codes:
+                # Add space variations (e.g., "bscs" -> "bs cs")
+                if code.startswith('bs') and len(code) > 2 and ' ' not in code:
+                    variations.add(f"bs {code[2:]}")
+                elif code.startswith('ab') and len(code) > 2 and ' ' not in code:
+                    variations.add(f"ab {code[2:]}")
+            
+            bachelor_codes.update(variations)
+            
+            print(f"🎓 Extracted {len(bachelor_codes)} bachelor program codes")
+            return list(bachelor_codes)
+            
+        except Exception as e:
+            print(f"⚠️ Error extracting bachelor program codes: {e}")
+            # Fallback to basic codes
+            return ['bs', 'ba', 'bachelor', 'undergraduate']
+    
+    def _build_keyword_mappings_from_db(self) -> Dict[str, List[str]]:
+        """Build keyword mappings from actual document keywords in database"""
+        try:
+            from .models import DocumentMetadata
+            
+            keyword_mappings = {}
+            
+            # Get all document types and their keywords
+            docs = DocumentMetadata.objects.exclude(keywords='').exclude(keywords__isnull=True)
+            
+            for doc in docs:
+                doc_type = doc.document_type
+                if doc_type not in keyword_mappings:
+                    keyword_mappings[doc_type] = set()
+                
+                # Extract keywords from document
+                keywords = [k.strip().lower() for k in doc.keywords.split(',') if k.strip()]
+                keyword_mappings[doc_type].update(keywords)
+            
+            # Convert sets to lists and add common query variations
+            for doc_type in keyword_mappings:
+                keywords = list(keyword_mappings[doc_type])
+                
+                # Add common variations and synonyms
+                expanded_keywords = set(keywords)
+                
+                for keyword in keywords:
+                    # Add plural/singular variations
+                    if keyword.endswith('s') and len(keyword) > 3:
+                        expanded_keywords.add(keyword[:-1])
+                    elif not keyword.endswith('s'):
+                        expanded_keywords.add(keyword + 's')
+                    
+                    # Add common query words for each type
+                    if doc_type == 'policy':
+                        expanded_keywords.update(['rule', 'rules', 'regulation', 'regulations'])
+                    elif doc_type == 'academic':
+                        expanded_keywords.update(['program', 'course', 'degree', 'major'])
+                    elif doc_type == 'fees':
+                        expanded_keywords.update(['cost', 'price', 'amount', 'charge'])
+                    elif doc_type == 'contact':
+                        expanded_keywords.update(['phone', 'email', 'address', 'location'])
+                
+                keyword_mappings[doc_type] = list(expanded_keywords)
+            
+            print(f"🔍 Built dynamic keyword mappings for {len(keyword_mappings)} document types")
+            return keyword_mappings
+            
+        except Exception as e:
+            print(f"⚠️ Error building keyword mappings: {e}")
+            # Fallback to basic mappings
+            return {
+                'policy': ['policy', 'grading', 'grade', 'retention', 'dismissal'],
+                'academic': ['program', 'course', 'degree', 'curriculum'],
+                'fees': ['fee', 'tuition', 'cost', 'payment'],
+                'contact': ['contact', 'office', 'phone', 'email'],
+                'admission': ['admission', 'apply', 'requirement'],
+                'enrollment': ['enrollment', 'registration', 'process'],
+                'scholarship': ['scholarship', 'financial aid', 'grant']
+            }
 
     def _expand_query_terms_with_synonyms(self, query_terms: set) -> set:
         """Minimal term expansion - just handle plural/singular"""
@@ -2025,6 +2301,66 @@ class FastHybridChatbotTogether:
         
         keyword_score = min(matches / total_possible_matches, 1.0)
         return keyword_score
+    
+    def _calculate_program_context_boost(self, query: str, filename: str, keywords: str) -> float:
+        """Calculate boost score for documents that match the program context in the query"""
+        query_lower = query.lower()
+        filename_lower = filename.lower()
+        keywords_lower = keywords.lower()
+        
+        # Get program patterns for matching
+        program_patterns = self._get_program_patterns()
+        
+        boost_score = 0.0
+        
+        # Check if any program is mentioned in the query
+        for program_name, patterns in program_patterns.items():
+            program_mentioned = False
+            
+            # Check if this program is mentioned in the query
+            import re
+            for pattern in patterns:
+                # Use word boundaries for short patterns to avoid false matches
+                if len(pattern) <= 3:
+                    # Short patterns like 'cs', 'it' need word boundaries
+                    if re.search(r'\b' + re.escape(pattern) + r'\b', query_lower):
+                        program_mentioned = True
+                        break
+                elif len(pattern.split()) > 1:
+                    # Multi-word patterns like 'computer science' need exact phrase match
+                    if pattern in query_lower:
+                        # Additional check: ensure it's not part of a larger phrase
+                        pattern_words = set(pattern.split())
+                        query_words = set(query_lower.split())
+                        if pattern_words.issubset(query_words):
+                            program_mentioned = True
+                            break
+                else:
+                    # Single word patterns need word boundaries to avoid substring matches
+                    if re.search(r'\b' + re.escape(pattern) + r'\b', query_lower):
+                        program_mentioned = True
+                        break
+            
+            if program_mentioned:
+                # Check if this document is about the same program
+                document_matches_program = False
+                
+                # Check filename and keywords for program match
+                for pattern in patterns:
+                    if pattern in filename_lower or pattern in keywords_lower:
+                        document_matches_program = True
+                        break
+                
+                if document_matches_program:
+                    # Strong boost for exact program match
+                    boost_score = 1.0
+                    break
+                else:
+                    # Check for related programs (e.g., all engineering programs)
+                    if 'engineering' in program_name and 'engineering' in filename_lower:
+                        boost_score = max(boost_score, 0.3)  # Moderate boost for related programs
+        
+        return boost_score
 
     def process_query_with_intent_analysis(self, query: str, correct_spelling: bool = True, 
                                           max_tokens: int = 1024, stream: bool = True, 
@@ -2507,17 +2843,17 @@ Here are the programs offered by Ateneo de Davao University:
                         'topic_info': topic_info
                     }
                 else:
-                    welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
-                    
-                    button_configs = get_button_configs()
-                    return {
-                        'response': welcome_message,
-                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                        'buttons': button_configs['topic_conversation']['buttons'],
-                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
-                        'current_topic': topic_id,
-                        'topic_info': topic_info
-                    }
+w                    welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
+                
+                button_configs = get_button_configs()
+                return {
+                    'response': welcome_message,
+                    'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                    'buttons': button_configs['topic_conversation']['buttons'],
+                    'input_enabled': button_configs['topic_conversation']['input_enabled'],
+                    'current_topic': topic_id,
+                    'topic_info': topic_info
+                }
             
             elif action_type == 'action':
                 # Handle follow-up actions
@@ -3292,19 +3628,11 @@ This will ensure you get the most relevant and up-to-date information for your q
             
             # Use intent analysis combined with topic filtering for better accuracy
             intent = self.analyze_query_intent(enhanced_query)
+            print(f"🎯 Intent analysis suggests document type: {intent.get('document_type', 'none')}")
             
-            # If intent analysis suggests a specific document type, use it with topic filtering
-            if intent.get('document_type'):
-                print(f"🎯 Intent analysis suggests document type: {intent['document_type']}")
-                relevant_docs = self._retrieve_from_chroma(
-                    enhanced_query,
-                    top_k=3,
-                    document_type_filter=intent.get('document_type'),
-                    program_filter=intent.get('program_filter')
-                )
-            else:
-                # Fallback to topic-based retrieval
-                relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
+            # ALWAYS use the true hybrid retrieval for guided chatbot
+            # This ensures we get the benefits of specialized logic + TF-IDF/Word2Vec scoring
+            relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
             
             if not relevant_docs:
                 topic_info = get_topic_info(topic_id)
@@ -3313,11 +3641,33 @@ This will ensure you get the most relevant and up-to-date information for your q
                 
                 return response_text, []
             
+            # Detect if this is a simple factual question that needs a short answer (moved here for scope)
+            simple_question_patterns = [
+                r'how many\s+\w+\s+are\s+there',  # "how many summers are there"
+                r'how many\s+\w+\s+does\s+\w+\s+have',  # "how many years does bscs have"
+                r'what\s+is\s+the\s+\w+\s+of',  # "what is the duration of"
+                r'how\s+long\s+is',  # "how long is the program"
+                r'when\s+is\s+the\s+\w+',  # "when is the deadline"
+                r'where\s+is\s+the\s+\w+',  # "where is the office"
+                r'what\s+time\s+\w+',  # "what time does it open"
+                r'how\s+much\s+\w+',  # "how much does it cost"
+            ]
+            
+            import re
+            is_simple_question = any(re.search(pattern, enhanced_query.lower()) for pattern in simple_question_patterns)
+            
+            # For simple questions, use only the top document to avoid overwhelming context
+            # For complex questions, use up to 3 documents for comprehensive answers
+            docs_to_use = 1 if is_simple_question else 3
+            
             # Build context from retrieved docs (use full content to preserve URLs)
             doc_context = "\n\n".join([
                 f"Source: {doc.get('id','')}\n{doc['content']}"  # Use full content - no truncation
-                for doc in relevant_docs[:3]
+                for doc in relevant_docs[:docs_to_use]
             ])
+            
+            if is_simple_question:
+                print(f"🎯 Simple question detected - using only top document: {relevant_docs[0].get('filename', 'Unknown') if relevant_docs else 'None'}")
             
             # Build prompt with topic context and specialized instructions
             topic_info = get_topic_info(topic_id)
@@ -3325,6 +3675,13 @@ This will ensure you get the most relevant and up-to-date information for your q
             
             # Build topic-specific instructions
             topic_specific_instructions = self._get_topic_specific_instructions(topic_id)
+            
+            
+            # Add response length instruction based on question complexity
+            response_length_instruction = ""
+            if is_simple_question:
+                response_length_instruction = """
+RESPONSE LENGTH: This is a simple factual question. Give a SHORT, DIRECT answer (1-2 sentences maximum). Do NOT provide extensive background information, full curriculum details, or comprehensive explanations unless specifically asked."""
             
             prompt = f"""<|system|>
 You are an ADDU (Ateneo de Davao University) Admissions Assistant. You provide accurate, helpful information based strictly on the provided context documents.
@@ -3350,6 +3707,8 @@ CONTEXT MATCHING:
 - Only use information that directly matches the user's specific query
 - If context contains multiple student types/programs but user asked about one specific type, filter accordingly
 - Prioritize exact matches over general information
+
+{response_length_instruction}
 </|system|>
 
 <|context|>
