@@ -2843,7 +2843,7 @@ Here are the programs offered by Ateneo de Davao University:
                         'topic_info': topic_info
                     }
                 else:
-w                    welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
+                    welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
                 
                 button_configs = get_button_configs()
                 return {
