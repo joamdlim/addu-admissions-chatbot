@@ -2844,16 +2844,16 @@ Here are the programs offered by Ateneo de Davao University:
                     }
                 else:
                     welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
-                
-                button_configs = get_button_configs()
-                return {
-                    'response': welcome_message,
-                    'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                    'buttons': button_configs['topic_conversation']['buttons'],
-                    'input_enabled': button_configs['topic_conversation']['input_enabled'],
-                    'current_topic': topic_id,
-                    'topic_info': topic_info
-                }
+                    
+                    button_configs = get_button_configs()
+                    return {
+                        'response': welcome_message,
+                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                        'buttons': button_configs['topic_conversation']['buttons'],
+                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
+                        'current_topic': topic_id,
+                        'topic_info': topic_info
+                    }
             
             elif action_type == 'action':
                 # Handle follow-up actions
@@ -3310,6 +3310,20 @@ Here are the programs offered by Ateneo de Davao University:
         if topic_id != 'admissions_enrollment':
             return False
         
+        # First check if this is a legitimate administrative process query (NOT private)
+        administrative_process_keywords = [
+            'grade appeal', 'appeal grade', 'appeal my grade', 'grade grievance',
+            'appeal process', 'how to appeal', 'grade complaint', 'grade petition',
+            'grade reconsideration', 'grade review', 'grade correction',
+            'appeal procedure', 'appeal form', 'appeal deadline',
+            'grade inquiry', 'grade dispute', 'contest grade'
+        ]
+        
+        # If asking about administrative processes, it's NOT a privacy query
+        for process_keyword in administrative_process_keywords:
+            if process_keyword in query_lower:
+                return False
+        
         # Privacy-sensitive keywords and phrases
         privacy_keywords = [
             # Grades and scores
@@ -3502,17 +3516,9 @@ Here are the programs offered by Ateneo de Davao University:
                     else:
                         print(f"📝 Current query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
                 else:
-                    # For other topics, only enhance with program context if no conversation context was added
-                    if conversation_enhanced_query == normalized_query:
-                        # Only enhance if the current query doesn't already contain the program name
-                        current_program_info = self._extract_program_info(preprocessed_query)
-                        if not current_program_info.get('program_name'):
-                            enhanced_query = f"{program_info['program_name']} {normalized_query}"
-                            print(f"🎯 Enhanced query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
-                        else:
-                            print(f"📝 Current query already contains program info, using normalized query: '{enhanced_query}'")
-                    else:
-                        print(f"📝 Conversation context already added, skipping program context enhancement")
+                    # For non-programs topics, do NOT add program context
+                    # These topics deal with general university information that applies to all programs
+                    print(f"📝 Non-programs topic ({topic_id}), skipping program context enhancement")
             else:
                 if conversation_enhanced_query != normalized_query:
                     print(f"🎯 Enhanced query with conversation context: '{query}' → '{enhanced_query}'")

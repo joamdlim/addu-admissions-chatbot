@@ -429,35 +429,45 @@ def admin_upload_file(request):
             else:
                 message = f"File '{file_name}' uploaded successfully (non-PDF/Excel/CSV files are stored in Supabase only)"
             
-            # Create DocumentMetadata record for admin page display
-            try:
-                from .models import DocumentMetadata, DocumentFolder
-                import time
-                
-                # Get the folder object
-                folder_obj = None
-                if folder_id:
-                    try:
-                        folder_obj = DocumentFolder.objects.get(id=int(folder_id))
-                    except DocumentFolder.DoesNotExist:
-                        print(f"⚠️ Folder with ID {folder_id} not found")
-                
-                # Create document metadata record with correct field names
-                document_metadata = DocumentMetadata.objects.create(
-                    document_id=f"doc_{file_name}_{int(time.time())}",
-                    filename=file_name,
-                    folder=folder_obj,
-                    document_type=document_type,
-                    target_program=target_program,
-                    keywords=keywords,
-                    synced_to_chroma=True  # Since we processed it for ChromaDB
-                )
-                
-                print(f"✅ Created DocumentMetadata record for {file_name}")
-                
-            except Exception as metadata_error:
-                print(f"⚠️ Failed to create DocumentMetadata record: {metadata_error}")
-                # Don't fail the upload if metadata creation fails
+            # Create DocumentMetadata record only for non-processed files
+            # PDF/Excel/CSV files have their metadata created by processing functions to avoid duplicates
+            if not (file_name.lower().endswith('.pdf') or file_name.lower().endswith(('.csv', '.xlsx', '.xls'))):
+                try:
+                    from .models import DocumentMetadata, DocumentFolder
+                    import os
+                    
+                    # Get the folder object
+                    folder_obj = None
+                    if folder_id:
+                        try:
+                            folder_obj = DocumentFolder.objects.get(id=int(folder_id))
+                        except DocumentFolder.DoesNotExist:
+                            print(f"⚠️ Folder with ID {folder_id} not found")
+                    
+                    # Use the same ID format as ChromaDB processing (filename without extension)
+                    doc_id = os.path.splitext(file_name)[0]
+                    
+                    # Create or update document metadata record to avoid duplicates
+                    document_metadata, created = DocumentMetadata.objects.update_or_create(
+                        document_id=doc_id,
+                        defaults={
+                            'filename': file_name,
+                            'folder': folder_obj,
+                            'document_type': document_type,
+                            'target_program': target_program,
+                            'keywords': keywords,
+                            'synced_to_chroma': False  # Non-processed files are not in ChromaDB
+                        }
+                    )
+                    
+                    action = "Created" if created else "Updated"
+                    print(f"✅ {action} DocumentMetadata record for {file_name}")
+                    
+                except Exception as metadata_error:
+                    print(f"⚠️ Failed to create DocumentMetadata record: {metadata_error}")
+                    # Don't fail the upload if metadata creation fails
+            else:
+                print(f"✅ DocumentMetadata will be handled by processing function to avoid duplicates")
             
             return JsonResponse({
                 "status": "success",

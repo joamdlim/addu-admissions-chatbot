@@ -145,8 +145,8 @@ def get_topic_retrieval_strategy(topic_id):
 # Topic-specific retrieval strategy mapping
 TOPIC_RETRIEVAL_STRATEGIES = {
     'admissions_specialized': {
-        'description': 'Specialized retrieval for admissions, enrollment, requirements, and documents',
-        'document_types': ['admission', 'enrollment', 'scholarship'],
+        'description': 'Specialized retrieval for admissions, enrollment, requirements, academic policies, and contact information',
+        'document_types': ['admission', 'enrollment', 'scholarship', 'policy', 'contact'],
         'metadata_priorities': {
             'filename': 0.4,  # High priority for well-named admission documents
             'keywords': 0.3,  # Medium-high for keyword matching
