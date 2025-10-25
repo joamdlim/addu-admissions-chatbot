@@ -16,13 +16,13 @@ const GuidedPromptArea = ({
   disabled = false,
 }) => {
   // Get current topic info for display
-  const currentTopicInfo = topics?.find(t => t.id === currentTopic);
+  const currentTopicInfo = topics?.find((t) => t.id === currentTopic);
   const currentTopicLabel = currentTopicInfo?.label;
 
   return (
     <div className="w-full flex flex-col items-center space-y-4">
       {/* Topic Selection State */}
-      {conversationState === 'topic_selection' && (
+      {conversationState === "topic_selection" && (
         <TopicSelector
           topics={topics || []}
           onTopicSelect={onTopicSelect}
@@ -30,15 +30,17 @@ const GuidedPromptArea = ({
         />
       )}
 
-      {/* Action Buttons (for follow-up state) */}
-      {buttons && buttons.length > 0 && (
-        <ActionButtons
-          buttons={buttons}
-          onAction={onAction}
-          disabled={disabled}
-          currentTopic={currentTopicLabel}
-        />
-      )}
+      {/* Action Buttons (for follow-up state) - only show action type buttons, not topic buttons */}
+      {buttons &&
+        buttons.length > 0 &&
+        conversationState !== "topic_selection" && (
+          <ActionButtons
+            buttons={buttons.filter((btn) => btn.type !== "topic")}
+            onAction={onAction}
+            disabled={disabled}
+            currentTopic={currentTopicLabel}
+          />
+        )}
 
       {/* Text Input (when enabled) */}
       {inputEnabled && (
@@ -52,7 +54,7 @@ const GuidedPromptArea = ({
               </div>
             </div>
           )}
-          
+
           <form
             className="w-full flex"
             onSubmit={(e) => {
@@ -65,7 +67,7 @@ const GuidedPromptArea = ({
                 disabled ? "bg-gray-100" : ""
               }`}
               placeholder={
-                currentTopicLabel 
+                currentTopicLabel
                   ? `Ask about ${currentTopicLabel}...`
                   : "Ask anything about Ateneo de Davao's admissions"
               }
@@ -77,7 +79,7 @@ const GuidedPromptArea = ({
               type="submit"
               className={`px-6 rounded-r text-white text-base ${
                 disabled || !query.trim()
-                  ? "bg-gray-400 cursor-not-allowed" 
+                  ? "bg-gray-400 cursor-not-allowed"
                   : "bg-[#063970] hover:bg-[#052a5a]"
               }`}
               disabled={disabled || !query.trim()}
@@ -87,16 +89,6 @@ const GuidedPromptArea = ({
           </form>
         </div>
       )}
-
-      {/* Help text */}
-      <div className="text-center text-xs text-gray-500 max-w-md">
-        {conversationState === 'topic_selection' 
-          ? "Select a topic above to start your conversation with focused, relevant answers."
-          : inputEnabled
-            ? "Type your question and press Enter or click Send."
-            : "Use the buttons above to continue or change topics."
-        }
-      </div>
     </div>
   );
 };

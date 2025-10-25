@@ -12,14 +12,14 @@ const TopicSelector = ({ topics, onTopicSelect, disabled = false }) => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+      <div className="flex justify-center gap-3 w-auto">
         {topics.map((topic) => (
           <button
             key={topic.id}
             onClick={() => !disabled && onTopicSelect(topic.id)}
             disabled={disabled}
             className={`
-              p-4 rounded-lg border-2 text-left transition-all duration-200
+              w-70 px-5 py-3 rounded-lg border-2 transition-all duration-200 text-left
               ${
                 disabled
                   ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200"
@@ -31,9 +31,11 @@ const TopicSelector = ({ topics, onTopicSelect, disabled = false }) => {
               <h4 className="font-semibold text-gray-800 mb-1">
                 {topic.label}
               </h4>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {topic.description}
-              </p>
+              {topic.description && (
+                <p className="text-xs text-gray-600 leading-relaxed text-justify">
+                  {topic.description}
+                </p>
+              )}
             </div>
           </button>
         ))}

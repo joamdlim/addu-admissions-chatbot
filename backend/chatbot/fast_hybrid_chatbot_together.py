@@ -2411,17 +2411,113 @@ RULES:
                         'current_topic': None
                     }
                 
-                welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
-                
-                button_configs = get_button_configs()
-                return {
-                    'response': welcome_message,
-                    'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                    'buttons': button_configs['topic_conversation']['buttons'],
-                    'input_enabled': button_configs['topic_conversation']['input_enabled'],
-                    'current_topic': topic_id,
-                    'topic_info': topic_info
-                }
+                # Special welcome message for programs_courses topic
+                if topic_id == 'programs_courses':
+                    program_list = f"""Great! You've selected **{topic_info['label']}**. {topic_info['description']}
+
+Here are the programs offered by Ateneo de Davao University:
+
+**School of Arts & Sciences**
+
+● Humanities & Letters (Cluster)
+1. AB ENG – Bachelor of Arts in English Language
+2. AB C – Bachelor of Arts in Communication
+3. AB IDS-Language and Literature – Bachelor of Arts in Interdisciplinary Studies, minor in Language & Literature
+4. AB IDS-Media and Business – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Business
+5. AB IDS-Media and Philosophy – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Philosophy
+6. AB IDS-Media and Technology – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Technology
+7. AB IDS-Philosophy and Theology – Bachelor of Arts in Interdisciplinary Studies, minor in Philosophy & Theology
+8. AB PHILO – Bachelor of Arts Major in Philosophy
+
+● Natural Sciences & Mathematics (Cluster)
+1. BS BIO – Bachelor of Science in Biology (General Biology)
+2. BS BIO – MEDBIO – Bachelor of Science in Biology Major in Medical Biology
+3. BS CHEM – Bachelor of Science in Chemistry
+4. BS MATH – Bachelor of Science in Mathematics
+5. BS ENVI SCI – Bachelor of Science in Environmental Science
+
+● Computer Studies (Cluster)
+1. BS IS – Bachelor of Science in Information Systems
+2. BS IT – Bachelor of Science in Information Technology
+3. BS CS – Bachelor of Science in Computer Science
+4. BS DS – Bachelor of Science in Data Science
+
+● Social Sciences (Cluster)
+1. AB ECON – Bachelor of Arts Major in Economics
+2. AB POLSCI – Bachelor of Arts Major in Political Studies
+3. AB PSYCH – Bachelor of Arts Major in Psychology
+4. AB SOCIO – Bachelor of Arts Major in Sociology
+5. AB IS – Bachelor of Arts in International Studies (Major: American Studies / Asian Studies)
+6. AB ANTHRO – Bachelor of Arts in Anthropology (various tracks)
+
+**School of Business & Governance**
+    
+● Accountancy (Cluster)
+1. BS A – Bachelor of Science in Accountancy
+2. BS MA – Bachelor of Science in Management Accounting
+
+● Business Management (Cluster)
+1. BS BM – Bachelor of Science in Business Management
+2. BS ENTREP – Bachelor of Science in Entrepreneurship
+3. BS ENTREP-A – Bachelor of Science in Entrepreneurship Major in Agri-Business
+4. BS FIN – Bachelor of Science in Finance
+5. BS HRDM – Bachelor of Science in Human Resource Development and Management
+6. BS MKTG – Bachelor of Science in Marketing
+7. BPM – Bachelor of Public Management
+
+**School of Education**
+
+● Education (Cluster)
+1. BECE – Bachelor of Early Childhood Education
+2. BEED – Bachelor of Elementary Education
+3. BSED – English – Bachelor of Secondary Education Major in English
+4. BSED – Math – Bachelor of Secondary Education Major in Mathematics
+5. BSED – Science – Bachelor of Secondary Education Major in Science
+6. BSED – SS – Bachelor of Secondary Education Major in Social Studies
+
+**School of Engineering & Architecture**
+
+● Engineering & Architecture (Cluster)
+1. BS AE – Bachelor of Science in Aerospace Engineering
+2. BS ARCH – Bachelor of Science in Architecture
+3. BS CHE – Bachelor of Science in Chemical Engineering
+4. BS CE – Bachelor of Science in Civil Engineering
+5. BS COMP ENG – Bachelor of Science in Computer Engineering
+6. BS EE – Bachelor of Science in Electrical Engineering
+7. BS ELECTRONICS ENG – Bachelor of Science in Electronics Engineering
+8. BS IE – Bachelor of Science in Industrial Engineering
+9. BS ME – Bachelor of Science in Mechanical Engineering
+10. BS RE – Bachelor of Science in Robotics Engineering
+
+**School of Nursing**
+
+● Nursing (Cluster)
+1. BS N – Bachelor of Science in Nursing"""
+                    
+                    follow_up_question = "**What curriculum would you like to ask about?**"
+                    
+                    button_configs = get_button_configs()
+                    return {
+                        'response': program_list,
+                        'follow_up_message': follow_up_question,  # NEW: separate follow-up message
+                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                        'buttons': button_configs['topic_conversation']['buttons'],
+                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
+                        'current_topic': topic_id,
+                        'topic_info': topic_info
+                    }
+                else:
+                    welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
+                    
+                    button_configs = get_button_configs()
+                    return {
+                        'response': welcome_message,
+                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                        'buttons': button_configs['topic_conversation']['buttons'],
+                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
+                        'current_topic': topic_id,
+                        'topic_info': topic_info
+                    }
             
             elif action_type == 'action':
                 # Handle follow-up actions

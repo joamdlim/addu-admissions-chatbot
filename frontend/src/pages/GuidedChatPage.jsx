@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { GuidedPromptArea } from "../components/GuidedPromptArea";
 
@@ -15,6 +15,19 @@ const GuidedChatPage = () => {
   const [currentTopic, setCurrentTopic] = useState(null);
   const [buttons, setButtons] = useState([]);
   const [inputEnabled, setInputEnabled] = useState(false);
+
+  // Ref for auto-scrolling
+  const messagesEndRef = useRef(null);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Auto-scroll when messages update
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Load topics on component mount
   useEffect(() => {
@@ -63,7 +76,12 @@ const GuidedChatPage = () => {
   }, [topics, messages.length]);
 
   // Function to animate text streaming word by word
-  const animateTextStreaming = (fullText, sources, autoDetectedTopic) => {
+  const animateTextStreaming = (
+    fullText,
+    sources,
+    autoDetectedTopic,
+    followUpMessage
+  ) => {
     const words = fullText.split(" ");
     let currentText = "";
     let wordIndex = 0;
@@ -89,6 +107,9 @@ const GuidedChatPage = () => {
           }
           return updated;
         });
+
+        // Scroll to bottom during streaming
+        scrollToBottom();
       } else {
         // Streaming complete - finalize the message
         clearInterval(streamInterval);
@@ -110,9 +131,25 @@ const GuidedChatPage = () => {
           }
           return updated;
         });
+
+        // Add follow-up message if present
+        if (followUpMessage) {
+          setTimeout(() => {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "bot",
+                content: followUpMessage,
+                timestamp: new Date().toISOString(),
+                isStreaming: false,
+              },
+            ]);
+          }, 300); // Small delay before showing follow-up
+        }
+
         setIsLoading(false);
       }
-    }, 50); // Adjust speed: lower = faster, higher = slower
+    }, 15); // Changed from 50ms to 15ms for faster streaming
   };
 
   const handleGuidedRequest = async (
@@ -164,17 +201,6 @@ const GuidedChatPage = () => {
 
       // Add messages if there's a response
       if (data.response) {
-        const newMessages = [];
-
-        // Add user message if there was user input
-        if (userInput && userInput.trim()) {
-          newMessages.push({
-            role: "user",
-            content: userInput,
-            timestamp: new Date().toISOString(),
-          });
-        }
-
         // Add bot response placeholder for streaming animation
         const botMessage = {
           role: "bot",
@@ -185,15 +211,15 @@ const GuidedChatPage = () => {
           isStreaming: true,
         };
 
-        newMessages.push(botMessage);
-        setMessages((prev) => [...prev, ...newMessages]);
+        setMessages((prev) => [...prev, botMessage]);
 
         // Simulate streaming by displaying words one by one
         isStreaming = true;
         animateTextStreaming(
           data.response,
           data.sources || [],
-          data.auto_detected_topic
+          data.auto_detected_topic,
+          data.follow_up_message // Pass follow-up message
         );
       }
 
@@ -237,13 +263,27 @@ const GuidedChatPage = () => {
 
   const handleSend = (message) => {
     console.log("💬 Message sent:", message);
+
+    // Add user message immediately to chat
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: message,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
     handleGuidedRequest(message, "message");
   };
 
   return (
     <div className="w-full h-full bg-gray-50 flex flex-col items-center">
       {/* Messages */}
-      <div className="flex-1 w-[900px] max-w-[900px] py-8 overflow-y-auto space-y-4 min-h-0">
+      <div
+        className="flex-1 w-[950px] max-w-[950px] py-8 overflow-y-auto space-y-4 min-h-0"
+        id="messages-container"
+      >
         {messages.map((m, idx) => {
           const isUser = m.role === "user";
           return (
@@ -474,6 +514,9 @@ const GuidedChatPage = () => {
             </div>
           </div>
         )}
+
+        {/* Scroll anchor */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Guided Prompt Area - fixed at bottom */}
