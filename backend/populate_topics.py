@@ -11,14 +11,19 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from chatbot.models import Topic, TopicKeyword
-from chatbot.topics import TOPICS
+# TOPICS removed - this script is no longer needed as topics are managed via database
 
 def populate_topics_and_keywords():
     """Populate the database with topics and keywords from topics.py"""
     
     print("🚀 Starting topic and keyword population...")
     
-    for topic_id, topic_data in TOPICS.items():
+    # TOPICS dictionary removed - topics are now managed via Django admin
+    print("⚠️ This script is deprecated. Use Django admin to manage topics and keywords.")
+    return
+    
+    # Legacy code (no longer functional):
+    for topic_id, topic_data in {}:
         print(f"\n📋 Processing topic: {topic_id}")
         
         # Create or get the topic

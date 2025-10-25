@@ -14,7 +14,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from chatbot.fast_hybrid_chatbot_together import FastHybridChatbotTogether
-from chatbot.topics import TOPICS, CONVERSATION_STATES
+from chatbot.topics import CONVERSATION_STATES
 import json
 
 def test_guided_conversation():
@@ -117,10 +117,15 @@ def show_topics_info():
     print("\n📚 Available Topics")
     print("=" * 50)
     
-    for topic_id, topic_data in TOPICS.items():
-        print(f"\n🏷️  {topic_data['label']} ({topic_id})")
-        print(f"   Description: {topic_data['description']}")
-        print(f"   Keywords ({len(topic_data['keywords'])}): {', '.join(topic_data['keywords'][:5])}{'...' if len(topic_data['keywords']) > 5 else ''}")
+    # TOPICS removed - now using database
+    from chatbot.models import Topic
+    topics = Topic.objects.filter(is_active=True)
+    
+    for topic in topics:
+        print(f"\n🏷️  {topic.label} ({topic.topic_id})")
+        print(f"   Description: {topic.description}")
+        keywords = topic.get_keywords_list()
+        print(f"   Keywords ({len(keywords)}): {', '.join(keywords[:5])}{'...' if len(keywords) > 5 else ''}")
 
 if __name__ == "__main__":
     try:

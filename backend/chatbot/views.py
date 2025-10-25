@@ -14,7 +14,7 @@ from .models import Conversation, ConversationTurn, SystemPrompt, Topic, TopicKe
 
 # Add the Together AI chatbot import
 from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
-from .topics import TOPICS, CONVERSATION_STATES
+from .topics import CONVERSATION_STATES
 import os, json
 import uuid
 import io  # Add this import at the top
@@ -35,13 +35,16 @@ def evaluate(request):
 def get_topics(request):
     """Get all available topics for guided conversation"""
     try:
+        from .models import Topic
+        topics = Topic.objects.filter(is_active=True).order_by('topic_id')
+        
         topics_list = []
-        for topic_id, topic_data in TOPICS.items():
+        for topic in topics:
             topics_list.append({
-                'id': topic_id,
-                'label': topic_data['label'],
-                'description': topic_data['description'],
-                'keywords': topic_data['keywords']
+                'id': topic.topic_id,
+                'label': topic.label,
+                'description': topic.description,
+                'keywords': topic.get_keywords_list()
             })
         
         return Response({
@@ -1455,7 +1458,7 @@ def enhanced_chat_query(request):
         
         # Initialize chatbot
         from .fast_hybrid_chatbot_together import FastHybridChatbotTogether
-        chatbot = FastHybridChatbotTogether(use_chroma=True, chroma_collection_name="documents")
+        chatbot = FastHybridChatbotTogether(use_chroma=True, chroma_collection_name="documents", use_hybrid_topic_retrieval=True)
         
         # Process query with intent analysis
         if manual_filters:

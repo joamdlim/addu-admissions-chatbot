@@ -3,100 +3,8 @@ Topic definitions for guided conversation flow with keyword-based document filte
 Each topic has associated keywords that are matched against document metadata keywords field.
 """
 
-# Predefined topics with keyword mappings for document filtering
-# Redesigned with 3 focused topics and specialized retrieval strategies
-TOPICS = {
-    'admissions_enrollment': {
-        'label': 'General Admissions and Enrollment',
-        'keywords': [
-            # General admissions
-            'admission', 'requirements', 'application', 'entrance', 'apply', 'qualifying',
-            # Enrollment process
-            'enrollment', 'registration', 'enroll', 'register', 'sign up',
-            # Student types
-            'new student', 'freshman', 'first year', 'incoming',
-            'scholar', 'scholarship', 'financial aid', 'grant', 'funding',
-            'transferee', 'transfer', 'shifter', 'lateral entry',
-            'international', 'foreign student', 'foreign', 'overseas',
-            # Required documents and requirements (merged from requirements topic)
-            'documents', 'documents needed', 'requirements list',
-            'transcript', 'diploma', 'certificate', 'form 137', 'form 138',
-            'birth certificate', 'medical certificate', 'clearance',
-            'recommendation letter', 'essay', 'portfolio',
-            'entrance exam', 'interview', 'assessment',
-            # Process terms
-            'process', 'procedure', 'steps', 'how to apply'
-        ],
-        'description': 'Learn about admissions, enrollment processes, requirements, and required documents for all student types (new students, scholars, transferees, international students)',
-        'retrieval_strategy': 'admissions_specialized'
-    },
-    'programs_courses': {
-        'label': 'Programs and Courses',
-        'keywords': [
-            # Programs and degrees
-            'program', 'degree', 'course', 'major', 'bachelor',
-            'undergraduate',
-            'college', 'school', 'department', 'faculty',
-            'BS', 'BA', 'BPM', 'BSA', 'BSMA', 'BSBM', 'BSFIN', 'BSHRDM', 'BECE', 'BEED', 'BSED', 'BSN',
-            
-            # Curriculum and courses
-            'curriculum', 'courses', 'subjects', 'syllabus', 'course outline', 'academic plan',
-            'first year', 'second year', 'third year', 'fourth year',
-            'semester', 'units', 'credits',
-            
-            # Arts and Sciences Programs
-            'anthropology', 'communication', 'development studies', 'economics', 'english language',
-            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy',
-            'political science', 'psychology', 'sociology', 'biology', 'chemistry', 'computer science',
-            'data science', 'environmental science', 'information systems', 'information technology',
-            'mathematics', 'social work',
-            
-            # Business and Governance Programs
-            'public management', 'accountancy', 'accounting', 'management accounting', 'business management',
-            'entrepreneurship', 'finance', 'human resource development', 'marketing',
-            
-            # Education Programs
-            'early childhood education', 'elementary education', 'secondary education',
-            
-            # Engineering and Architecture Programs
-            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering',
-            'computer engineering', 'electrical engineering', 'electronics engineering',
-            'industrial engineering', 'mechanical engineering', 'robotics engineering',
-            
-            # Nursing
-            'nursing',
-            
-            # Common abbreviations and alternative names
-            'anthro', 'comm', 'dev studies', 'econ', 'english', 'philo', 'polsci', 'psych', 'socio',
-            'bio', 'chem', 'cs', 'envisci', 'is', 'it', 'math', 'bpm', 'bsa', 'bsma', 'bsbm',
-            'entrep', 'fin', 'hrdm', 'mktg', 'ece', 'elem ed', 'sec ed', 'ae', 'arch', 'che',
-            'ce', 'comp eng', 'ee', 'electronics eng', 'ie', 'me', 're', 'bsn',
-            
-            # Missing IT abbreviations (fix for BS IT issue)
-            'bs it', 'bsit', 'bs cs', 'bscs', 'bs is', 'bsis', 'bs ds', 'bsds'
-        ],
-        'description': 'Learn about available academic programs, degrees, curriculum, and course offerings',
-        'retrieval_strategy': 'programs_specialized'
-    },
-    'fees': {
-        'label': 'Fees',
-        'keywords': [
-            # Basic fee terms
-            'fees', 'tuition', 'payment', 'cost', 'price', 'amount', 'billing',
-            # Payment terms
-            'payment plan', 'installment', 'due date', 'payment schedule',
-            'down payment', 'balance', 'discount',
-            # Specific fee types
-            'miscellaneous fees', 'laboratory fees', 'library fees',
-            'graduation fee', 'examination fee', 'registration fee',
-            'development fee', 'student activities fee',
-            # Financial terms
-            'scholarship', 'financial aid', 'grant', 'subsidy'
-        ],
-        'description': 'Learn about tuition fees, payment options, and financial information',
-        'retrieval_strategy': 'fees_specialized'
-    }
-}
+# All topic data is now stored in the database
+# This file only contains helper functions and constants
 
 # Conversation states
 CONVERSATION_STATES = {
@@ -117,11 +25,8 @@ def get_button_configs():
         ]
     except Exception as e:
         print(f"⚠️ Error fetching topics for buttons from database: {e}")
-        # Fallback to hardcoded topics
-        topic_buttons = [
-            {'id': topic_id, 'label': topic_data['label'], 'type': 'topic'}
-            for topic_id, topic_data in TOPICS.items()
-        ]
+        # No fallback - return empty list to force database usage
+        topic_buttons = []
     
     return {
         'topic_selection': {
@@ -145,31 +50,7 @@ def get_button_configs():
         }
     }
 
-# Legacy static configuration for backward compatibility
-BUTTON_CONFIGS = {
-    'topic_selection': {
-        'buttons': [
-            {'id': topic_id, 'label': topic_data['label'], 'type': 'topic'}
-            for topic_id, topic_data in TOPICS.items()
-        ],
-        'input_enabled': False,
-        'message': 'Please select a topic you\'d like to learn about:'
-    },
-    'follow_up': {
-        'buttons': [
-            {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
-        ],
-        'input_enabled': False,
-        'message': None  # No additional message needed
-    },
-    'topic_conversation': {
-        'buttons': [
-            {'id': 'change_topic', 'label': 'Change Topic', 'type': 'action'}
-        ],
-        'input_enabled': True,
-        'message': None
-    }
-}
+# Legacy BUTTON_CONFIGS removed - now using database-driven get_button_configs()
 
 def get_topic_keywords(topic_id):
     """Get keywords for a specific topic from database"""
@@ -178,12 +59,11 @@ def get_topic_keywords(topic_id):
         topic = Topic.objects.get(topic_id=topic_id, is_active=True)
         return topic.get_keywords_list()  # Returns only active keywords
     except Topic.DoesNotExist:
-        # Fallback to hardcoded topics if database topic not found
-        return TOPICS.get(topic_id, {}).get('keywords', [])
+        print(f"⚠️ Topic '{topic_id}' not found in database")
+        return []
     except Exception as e:
         print(f"⚠️ Error fetching keywords from database: {e}")
-        # Fallback to hardcoded topics on error
-        return TOPICS.get(topic_id, {}).get('keywords', [])
+        return []
 
 def get_all_topic_keywords():
     """Get all keywords from all topics as a flat list from database"""
@@ -195,9 +75,7 @@ def get_all_topic_keywords():
             all_keywords.extend(topic.get_keywords_list())
     except Exception as e:
         print(f"⚠️ Error fetching all keywords from database: {e}")
-        # Fallback to hardcoded topics
-        for topic_data in TOPICS.values():
-            all_keywords.extend(topic_data.get('keywords', []))
+        # No fallback - return empty list to force database usage
     return all_keywords
 
 def find_matching_topics(query_text):
@@ -226,17 +104,8 @@ def find_matching_topics(query_text):
                 })
     except Exception as e:
         print(f"⚠️ Error fetching topics from database: {e}")
-        # Fallback to hardcoded topics
-        for topic_id, topic_data in TOPICS.items():
-            keywords = topic_data.get('keywords', [])
-            matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
-            if matches > 0:
-                matching_topics.append({
-                    'topic_id': topic_id,
-                    'topic_data': topic_data,
-                    'match_count': matches,
-                    'match_ratio': matches / len(keywords)
-                })
+        # No fallback - return empty list to force database usage
+        return []
     
     # Sort by match count (descending)
     matching_topics.sort(key=lambda x: x['match_count'], reverse=True)
@@ -254,12 +123,11 @@ def get_topic_info(topic_id):
             'retrieval_strategy': topic.retrieval_strategy
         }
     except Topic.DoesNotExist:
-        # Fallback to hardcoded topics if database topic not found
-        return TOPICS.get(topic_id)
+        print(f"⚠️ Topic '{topic_id}' not found in database")
+        return None
     except Exception as e:
         print(f"⚠️ Error fetching topic info from database: {e}")
-        # Fallback to hardcoded topics on error
-        return TOPICS.get(topic_id)
+        return None
 
 def get_topic_retrieval_strategy(topic_id):
     """Get the specialized retrieval strategy for a topic from database"""
@@ -268,14 +136,11 @@ def get_topic_retrieval_strategy(topic_id):
         topic = Topic.objects.get(topic_id=topic_id, is_active=True)
         return topic.retrieval_strategy
     except Topic.DoesNotExist:
-        # Fallback to hardcoded topics if database topic not found
-        topic_info = TOPICS.get(topic_id, {})
-        return topic_info.get('retrieval_strategy', 'generic')
+        print(f"⚠️ Topic '{topic_id}' not found in database")
+        return 'generic'
     except Exception as e:
         print(f"⚠️ Error fetching retrieval strategy from database: {e}")
-        # Fallback to hardcoded topics on error
-        topic_info = TOPICS.get(topic_id, {})
-        return topic_info.get('retrieval_strategy', 'generic')
+        return 'generic'
 
 # Topic-specific retrieval strategy mapping
 TOPIC_RETRIEVAL_STRATEGIES = {

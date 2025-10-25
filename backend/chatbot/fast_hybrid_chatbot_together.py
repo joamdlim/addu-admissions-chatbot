@@ -55,7 +55,7 @@ except ImportError:
 from chatbot.chroma_connection import ChromaService
 from chatbot.test_pdf_to_chroma import initialize_embedding_models as _init_embed_models, embed_text as _embed_text
 from chatbot.topics import (
-    TOPICS, CONVERSATION_STATES, BUTTON_CONFIGS, get_button_configs,
+    CONVERSATION_STATES, get_button_configs,
     get_topic_keywords, find_matching_topics, get_topic_info,
     get_topic_retrieval_strategy, get_retrieval_strategy_config
 )
@@ -1344,7 +1344,7 @@ class FastHybridChatbotTogether:
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
-            # STAGE 1: Topic-based filtering (same as original)
+            # STAGE 1: Topic-based filtering with document type filtering
             topic_keywords = get_topic_keywords(topic_id)
             if not topic_keywords:
                 print(f"⚠️ No keywords found for topic: {topic_id}, falling back to simple retrieval")
@@ -1352,9 +1352,34 @@ class FastHybridChatbotTogether:
             
             print(f"📝 Topic keywords for filtering: {topic_keywords}")
             
-            # Get all documents
+            # Get topic-specific document types for filtering
+            # Map topic_id to strategy name
+            strategy_mapping = {
+                'programs_courses': 'programs_specialized',
+                'admissions_enrollment': 'admissions_specialized', 
+                'fees': 'fees_specialized'
+            }
+            strategy_name = strategy_mapping.get(topic_id, f'{topic_id}_specialized')
+            strategy_config = get_retrieval_strategy_config(strategy_name)
+            document_types = strategy_config.get('document_types', [])
+            print(f"📋 Document types for {topic_id}: {document_types}")
+            
+            # Build where clause with document type filtering
+            if document_types:
+                where_clause = {
+                    "$and": [
+                        {"source": "pdf_scrape"},
+                        {"$or": [{"document_type": doc_type} for doc_type in document_types]}
+                    ]
+                }
+                print(f"🔍 Filtering by document types: {document_types}")
+            else:
+                where_clause = {"source": "pdf_scrape"}
+                print(f"⚠️ No document type filtering for {topic_id}")
+            
+            # Get documents with proper filtering
             all_docs = collection.get(
-                where={"source": "pdf_scrape"},
+                where=where_clause,
                 include=["documents", "metadatas"]
             )
             
@@ -1362,7 +1387,7 @@ class FastHybridChatbotTogether:
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
             
-            print(f"📚 Filtering {len(all_ids)} documents by topic keywords...")
+            print(f"📚 Applying topic keyword filtering to {len(all_ids)} document type-filtered documents...")
             
             # Filter documents by topic keywords
             topic_filtered_docs = []
@@ -2335,7 +2360,9 @@ RULES:
             if action_type == 'topic_selection':
                 # User selected a topic
                 topic_id = action_data
-                if topic_id not in TOPICS:
+                # Check if topic exists in database
+                topic_info = get_topic_info(topic_id)
+                if not topic_info:
                     button_configs = get_button_configs()
                     return {
                         'error': f'Invalid topic: {topic_id}',
@@ -3039,7 +3066,8 @@ RULES:
             
             # Check if query is nonsensical or unclear (use original query for this check)
             if self._is_nonsensical_query(query):
-                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                topic_info = get_topic_info(topic_id)
+                topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
                 
                 # Provide topic-specific examples   
                 if topic_id == 'admissions_enrollment':
@@ -3087,8 +3115,10 @@ Feel free to ask about these general admission topics!"""
             
             if detected_topic and detected_topic != topic_id:
                 # User is asking about a different topic - provide helpful guidance
-                current_topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
-                detected_topic_label = TOPICS.get(detected_topic, {}).get('label', detected_topic)
+                current_topic_info = get_topic_info(topic_id)
+                detected_topic_info = get_topic_info(detected_topic)
+                current_topic_label = current_topic_info.get('label', topic_id) if current_topic_info else topic_id
+                detected_topic_label = detected_topic_info.get('label', detected_topic) if detected_topic_info else detected_topic
                 
                 response_text = f"""I notice you're asking about **{detected_topic_label}**, but we're currently in the **{current_topic_label}** section.
 
@@ -3145,7 +3175,8 @@ This will ensure you get the most relevant and up-to-date information for your q
             relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
             
             if not relevant_docs:
-                topic_label = TOPICS.get(topic_id, {}).get('label', topic_id)
+                topic_info = get_topic_info(topic_id)
+                topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
                 response_text = f"I don't have specific information about that in the {topic_label} topic. Could you try rephrasing your question?"
                 
                 return response_text, []
@@ -3157,8 +3188,8 @@ This will ensure you get the most relevant and up-to-date information for your q
             ])
             
             # Build prompt with topic context and specialized instructions
-            topic_info = TOPICS.get(topic_id, {})
-            topic_label = topic_info.get('label', topic_id)
+            topic_info = get_topic_info(topic_id)
+            topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
             
             # Build topic-specific instructions
             topic_specific_instructions = self._get_topic_specific_instructions(topic_id)
