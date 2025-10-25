@@ -3657,6 +3657,12 @@ This will ensure you get the most relevant and up-to-date information for your q
                 r'where\s+is\s+the\s+\w+',  # "where is the office"
                 r'what\s+time\s+\w+',  # "what time does it open"
                 r'how\s+much\s+\w+',  # "how much does it cost"
+                r'is\s+there\s+\w+',     # "is there summer"
+                r'does\s+\w+\s+have\s+', # "does bs cs have summer"
+                r'are\s+there\s+\w+',    # "are there summer classes"
+                r'is\s+\w+\s+required',  # "is summer required"
+                r'is\s+\w+\s+mandatory', # "is summer mandatory"
+                r'do\s+i\s+need\s+to\s+', # "do I need to take"
             ]
             
             import re
