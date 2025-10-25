@@ -22,10 +22,10 @@ from urllib.parse import quote
 from .models import DocumentFolder, DocumentMetadata
 from django.db.models import Count
 
-# Initialize Together AI chatbot at startup
-print("🚀 Initializing Together AI chatbot...")
+# Initialize Together AI chatbot at startup with improved intent analysis
+print("🚀 Initializing Together AI chatbot with intent analysis improvements...")
 together_chatbot = FastHybridChatbotTogether(use_chroma=True, use_hybrid_topic_retrieval=True)
-print("✅ Together AI chatbot ready with hybrid topic + semantic retrieval!")
+print("✅ Together AI chatbot ready with improved intent analysis and document retrieval!")
 
 @api_view(['GET'])
 def evaluate(request):
@@ -108,81 +108,9 @@ def upload_pdf_view(request):
 
     return JsonResponse({"error": "POST request required"}, status=400)
 
-@csrf_exempt
-def chat_view(request):
-    """Chat view using Together AI"""
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            prompt = data.get("prompt", "")
-            session_id = data.get("session_id", None)
-            max_tokens = data.get("max_tokens", 3000)
-            min_relevance = data.get("min_relevance", 0.1)
-            
-            def generate_streaming_response():
-                try:
-                    # Use the Together AI chatbot
-                    for event in together_chatbot.process_query_stream(
-                        query=prompt,
-                        max_tokens=max_tokens,
-                        min_relevance=min_relevance,
-                        use_history=True
-                    ):
-                        yield "data: " + json.dumps(event) + "\n\n"
-                        
-                except Exception as e:
-                    yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
-                    yield "data: " + json.dumps({"done": True}) + "\n\n"
-            
-            response = StreamingHttpResponse(
-                generate_streaming_response(),
-                content_type='text/event-stream'
-            )
-            
-            response['Cache-Control'] = 'no-cache'
-            response['Access-Control-Allow-Origin'] = '*'
-            response['Access-Control-Allow-Headers'] = 'Content-Type'
-            
-            return response
-            
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    
-    return JsonResponse({"error": "POST request required"}, status=400)
+# REMOVED: Free chat endpoint - using guided chatbot only
 
-@csrf_exempt 
-def chat_legacy_view(request):
-    """Legacy chat view for backward compatibility (using Together AI)"""
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            prompt = data.get("prompt", "")
-            
-            def generate_streaming_response():
-                try:
-                    # Use Together AI chatbot for legacy support
-                    for event in together_chatbot.process_query_stream(prompt, max_tokens=3000, min_relevance=0.1, use_history=True):
-                        yield "data: " + json.dumps(event) + "\n\n"
-                        
-                except Exception as e:
-                    yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
-                    yield "data: " + json.dumps({"done": True}) + "\n\n"
-            
-            response = StreamingHttpResponse(
-                generate_streaming_response(),
-                content_type='text/event-stream'
-            )
-            
-            response['Cache-Control'] = 'no-cache'
-            response['Access-Control-Allow-Origin'] = '*'
-            response['Access-Control-Allow-Headers'] = 'Content-Type'
-            
-            return response
-            
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    
-    return JsonResponse({"error": "POST request required"}, status=400)
+# REMOVED: Legacy chat endpoint - using guided chatbot only
 
 # ===== SIMPLIFIED CONVERSATION MANAGEMENT ENDPOINTS =====
 # Note: These endpoints are simplified since we're not using complex conversation memory

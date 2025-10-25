@@ -2,9 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Main chat endpoints
-    path('chat/', views.chat_view, name='chat'),  # Enhanced chat with conversation memory
-    path('chat/legacy/', views.chat_legacy_view, name='chat_legacy'),  # Backward compatibility
+    # Main chat endpoint - guided chatbot only
     path('chat/guided/', views.guided_chat_view, name='guided_chat'),  # Guided conversation with topics
     
     # Topics endpoint

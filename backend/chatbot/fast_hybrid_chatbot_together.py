@@ -1671,40 +1671,8 @@ class FastHybridChatbotTogether:
                 filename = metadata.get('filename', '')
                 keywords = metadata.get('keywords', '')
                 
-                filename_lower = filename.lower()
-                keywords_lower = keywords.lower()
-                content_lower = content.lower()
-                
-                # Count keyword matches - USE WORD BOUNDARIES to avoid substring matches
-                filename_matches = 0
-                keyword_matches = 0
-                content_matches = 0
-                
-                for term in query_terms:
-                    # Use regex word boundaries \b to match whole words only
-                    # This prevents "arch" from matching "Anthropology"
-                    term_pattern = r'\b' + re.escape(term) + r'\b'
-                    
-                    # Filename matching (whole words)
-                    if re.search(term_pattern, filename_lower):
-                        filename_matches += 1
-                    
-                    # Keywords matching (whole words)
-                    if re.search(term_pattern, keywords_lower):
-                        keyword_matches += 1
-                    
-                    # Content matching (whole words)
-                    if re.search(term_pattern, content_lower):
-                        content_matches += 1
-                
-                total_terms = len(query_terms) if query_terms else 1
-                
-                # Calculate keyword score
-                keyword_score = (
-                    (filename_matches * 3.0) +
-                    (keyword_matches * 2.0) +
-                    (content_matches * 0.5)  # Content is less important (too broad)
-                ) / total_terms
+                # Use improved keyword matching with synonyms
+                keyword_score = self._improved_keyword_matching(query_terms, filename, keywords, content)
                 
                 # Only keep if it has SOME keyword match
                 if keyword_score > 0:
@@ -1712,10 +1680,7 @@ class FastHybridChatbotTogether:
                         'id': doc_id,
                         'content': content,
                         'metadata': metadata,
-                        'keyword_score': keyword_score,
-                        'filename_matches': filename_matches,
-                        'keyword_matches': keyword_matches,
-                        'content_matches': content_matches
+                        'keyword_score': keyword_score
                     })
             
             print(f"�� Found {len(keyword_candidates)} documents with keyword matches")
@@ -1756,8 +1721,8 @@ class FastHybridChatbotTogether:
                 keyword_score = candidate['keyword_score']
                 semantic_score = semantic_scores.get(doc_id, 0.3)  # Default low score if not in top semantic
                 
-                # If strong keyword match, heavily favor keywords
-                if candidate['filename_matches'] >= 2 or candidate['keyword_matches'] >= 2:
+                # Simple scoring without requiring specific match counts (since we changed the structure)
+                if keyword_score > 0.5:
                     final_score = keyword_score * 0.8 + semantic_score * 0.2
                 else:
                     final_score = keyword_score * 0.5 + semantic_score * 0.5
@@ -1774,10 +1739,7 @@ class FastHybridChatbotTogether:
                     'hybrid_score': final_score,
                     '_debug': {
                         'semantic': semantic_score,
-                        'keyword': keyword_score,
-                        'filename_matches': candidate['filename_matches'],
-                        'keyword_matches': candidate['keyword_matches'],
-                        'content_matches': candidate['content_matches']
+                        'keyword': keyword_score
                     }
                 })
             
@@ -1801,9 +1763,16 @@ class FastHybridChatbotTogether:
             return []
 
     def retrieve_documents(self, query: str, top_k: int = 2) -> List[Dict]:
-        """Main retrieval - always use simplified hybrid"""
+        """Main retrieval with intent analysis"""
         if self.use_chroma:
-            return self.retrieve_documents_hybrid(query, top_k)
+            # Use intent analysis to improve retrieval
+            intent = self.analyze_query_intent(query)
+            return self._retrieve_from_chroma(
+                query, 
+                top_k=top_k,
+                document_type_filter=intent.get('document_type'),
+                program_filter=intent.get('program_filter')
+            )
         elif self.vectors is not None and self.tfidf_vectorizer is not None:
             query_vector = self._vectorize_query(query)
             return self._vector_search(query_vector, top_k)
@@ -1923,21 +1892,11 @@ class FastHybridChatbotTogether:
                     
                 metadata = metadatas[i] if i < len(metadatas) else {}
                 
-                # KEYWORD MATCHING
-                content_lower = content.lower()
-                filename_lower = metadata.get('filename', '').lower()
-                keywords_lower = metadata.get('keywords', '').lower()
+                # IMPROVED KEYWORD MATCHING with synonyms
+                filename = metadata.get('filename', '')
+                keywords = metadata.get('keywords', '')
                 
-                matches = 0
-                for term in query_terms:
-                    if term in filename_lower:
-                        matches += 1.5  # Filename = highest priority
-                    elif term in keywords_lower:
-                        matches += 1.3  # Keywords = medium priority
-                    elif term in content_lower:
-                        matches += 1.0  # Content = normal priority
-                
-                keyword_score = min(matches / len(query_terms), 1.0) if query_terms else 0.0
+                keyword_score = self._improved_keyword_matching(query_terms, filename, keywords, content)
                 
                 # Combine: 60% semantic + 40% keyword
                 final_score = (semantic_score * 0.6) + (keyword_score * 0.4)
@@ -1973,14 +1932,23 @@ class FastHybridChatbotTogether:
         """Analyze query to determine appropriate filters"""
         query_lower = query.lower()
         
-        # Document type detection
+        # Document type detection with enhanced admission office handling
         document_type = None
         if any(word in query_lower for word in ['admission', 'apply', 'requirement', 'entrance']):
-            document_type = 'admission'
+            # Check if this is asking about admission office location/contact
+            if any(word in query_lower for word in ['office', 'location', 'where', 'contact', 'phone', 'email', 'address']):
+                document_type = 'contact'  # Admission office location queries should use contact documents
+            else:
+                document_type = 'admission'
         elif any(word in query_lower for word in ['enroll', 'registration', 'process']):
             document_type = 'enrollment'
         elif any(word in query_lower for word in ['scholarship', 'financial aid', 'grant']):
-            document_type = 'scholarship'
+            # Check if this is asking about scholarship requirements (could be admission-related)
+            if any(word in query_lower for word in ['requirement', 'requirements', 'apply', 'application']):
+                # Scholarship requirements could be in admission documents
+                document_type = 'scholarship'  # Try scholarship first, but allow fallback
+            else:
+                document_type = 'scholarship'
         elif any(word in query_lower for word in ['program', 'course', 'degree', 'major']):
             document_type = 'academic'
         elif any(word in query_lower for word in ['fee', 'cost', 'payment', 'tuition']):
@@ -2002,6 +1970,61 @@ class FastHybridChatbotTogether:
             'program_filter': program_filter,
             'folder_filter': None  # Can be extended for folder-specific queries
         }
+
+    def _expand_query_terms_with_synonyms(self, query_terms: set) -> set:
+        """Minimal term expansion - just handle plural/singular"""
+        expanded_terms = set(query_terms)
+        
+        for term in query_terms:
+            # Simple plural/singular handling
+            if term.endswith('s') and len(term) > 3:
+                expanded_terms.add(term[:-1])
+            elif not term.endswith('s'):
+                expanded_terms.add(term + 's')
+        
+        return expanded_terms
+
+    def _improved_keyword_matching(self, query_terms: set, filename: str, keywords: str, content: str) -> float:
+        """Improved keyword matching with flexible term matching"""
+        filename_lower = filename.lower()
+        keywords_lower = keywords.lower()
+        content_lower = content.lower()
+        
+        matches = 0
+        total_possible_matches = len(query_terms) if query_terms else 1
+        
+        for term in query_terms:
+            term_score = 0
+            
+            # Exact word boundary matching (highest score)
+            import re
+            term_pattern = r'\b' + re.escape(term) + r'\b'
+            
+            if re.search(term_pattern, filename_lower):
+                term_score = max(term_score, 1.5)
+            elif re.search(term_pattern, keywords_lower):
+                term_score = max(term_score, 1.3)
+            elif re.search(term_pattern, content_lower):
+                term_score = max(term_score, 1.0)
+            
+            # Flexible matching for common variations
+            elif term in filename_lower:
+                term_score = max(term_score, 1.2)
+            elif term in keywords_lower:
+                term_score = max(term_score, 1.0)
+            elif term in content_lower:
+                term_score = max(term_score, 0.8)
+            
+            # Handle plural/singular automatically
+            elif term.endswith('s') and term[:-1] in keywords_lower:
+                term_score = max(term_score, 0.9)  # Plural -> singular match
+            elif not term.endswith('s') and (term + 's') in keywords_lower:
+                term_score = max(term_score, 0.9)  # Singular -> plural match
+            
+            matches += term_score
+        
+        keyword_score = min(matches / total_possible_matches, 1.0)
+        return keyword_score
 
     def process_query_with_intent_analysis(self, query: str, correct_spelling: bool = True, 
                                           max_tokens: int = 1024, stream: bool = True, 
@@ -3171,8 +3194,21 @@ This will ensure you get the most relevant and up-to-date information for your q
                         else:
                             print("⚠️ Could not retrieve program list document")
             
-            # Use specialized topic retrieval for better accuracy and efficiency (with enhanced query)
-            relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
+            # Use intent analysis combined with topic filtering for better accuracy
+            intent = self.analyze_query_intent(enhanced_query)
+            
+            # If intent analysis suggests a specific document type, use it with topic filtering
+            if intent.get('document_type'):
+                print(f"🎯 Intent analysis suggests document type: {intent['document_type']}")
+                relevant_docs = self._retrieve_from_chroma(
+                    enhanced_query,
+                    top_k=3,
+                    document_type_filter=intent.get('document_type'),
+                    program_filter=intent.get('program_filter')
+                )
+            else:
+                # Fallback to topic-based retrieval
+                relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
             
             if not relevant_docs:
                 topic_info = get_topic_info(topic_id)
@@ -3260,7 +3296,8 @@ CONTEXT MATCHING:
             response_text = f"I encountered an error processing your question. Please try again."
             return response_text, []
 
-    def process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 5000,
+    # REMOVED: process_query_stream - using guided chatbot only
+    def _removed_process_query_stream(self, query: str, correct_spelling: bool = True, max_tokens: int = 5000,
                         use_history: bool = True, require_context: bool = True, 
                         min_relevance: float = 0.1) -> Generator[Dict, None, None]:
         """
