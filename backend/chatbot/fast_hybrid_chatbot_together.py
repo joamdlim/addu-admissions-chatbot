@@ -681,43 +681,13 @@ class FastHybridChatbotTogether:
         elif any(term in query_lower for term in ['graduate', 'master', 'ms ', 'ma ', 'phd', 'doctorate']):
             fee_info['program_level'] = 'graduate'
         
-        # Extract program name from query
-        program_keywords = [
-            # Business and Governance
-            'bpm', 'bsa', 'bsma', 'bsbm', 'bsentrep', 'bsfin', 'bshrdm', 'bsmktg',
-            'public management', 'accountancy', 'management accounting', 'business management', 
-            'entrepreneurship', 'finance', 'human resource development management', 'marketing',
-            
-            # Arts and Sciences - Technology
-            'bsit', 'bscs', 'bsis', 'bsds', 'bs it', 'bs cs', 'bs is', 'bs ds',
-            'information technology', 'computer science', 'information systems', 'data science',
-            
-            # Arts and Sciences - Science
-            'bsbio', 'bschem', 'bsmath', 'bsenvisci', 'bssocialwork', 'bs bio', 'bs chem', 'bs math', 'bs envisci', 'bs social work',
-            'biology', 'chemistry', 'mathematics', 'environmental science', 'social work',
-            
-            # Arts and Sciences - Arts
-            'abanthro', 'abanth', 'abc', 'abcomm', 'abds', 'abecon', 'abel', 'abis', 'abphilo', 'abpolsci', 'abpsych', 'absocio',
-            'ab anthro', 'ab c', 'ab ds', 'ab econ', 'ab el', 'ab is', 'ab philo', 'ab polsci', 'ab psych', 'ab socio',
-            'anthropology', 'communication', 'development studies', 'economics', 'english language', 
-            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy', 
-            'political science', 'psychology', 'sociology',
-            
-            # Education
-            'bece', 'beed', 'bsed', 'early childhood education', 'elementary education', 'secondary education',
-            
-            # Engineering and Architecture
-            'bsae', 'bsarch', 'bsche', 'bsce', 'bscompeng', 'bscpe', 'bsee', 'bbselectronicseng', 'bsie', 'bsme', 'bsre',
-            'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 'bs electronics eng', 'bs ie', 'bs me', 'bs re',
-            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering', 
-            'computer engineering', 'electrical engineering', 'electronics engineering', 
-            'industrial engineering', 'mechanical engineering', 'robotics engineering',
-            
-            # Nursing
-            'bsn', 'nursing'
-        ]
+        # Extract program name from query using comprehensive program mapping
+        program_keywords = self._get_comprehensive_program_keywords()
         
-        for program in program_keywords:
+        # Sort keywords by length (longest first) to match more specific terms first
+        sorted_keywords = sorted(program_keywords, key=len, reverse=True)
+        
+        for program in sorted_keywords:
             if program in query_lower:
                 fee_info['program_name'] = program
                 break
@@ -3134,6 +3104,14 @@ If you want to see the list of programs, click on the buttons below per school, 
             r'\bbscs\b': 'BS CS',  # Computer Science
             r'\bbsis\b': 'BS IS',  # Information Systems
             r'\bbsds\b': 'BS DS',  # Data Science
+            # Abbreviations for Technology programs
+            r'\bit\b': 'BS IT',  # Information Technology abbreviation
+            r'\bcs\b': 'BS CS',  # Computer Science abbreviation
+            r'\bis\b': 'BS IS',  # Information Systems abbreviation
+            r'\bds\b': 'BS DS',  # Data Science abbreviation
+            r'\bcompsci\b': 'BS CS',  # Computer Science alternate
+            r'\binfotech\b': 'BS IT',  # Information Technology alternate
+            r'\bdatasci\b': 'BS DS',  # Data Science alternate
             
             # Arts and Sciences - Science
             r'\bbsbio\b': 'BS BIO',  # Biology
@@ -3141,6 +3119,12 @@ If you want to see the list of programs, click on the buttons below per school, 
             r'\bbsmath\b': 'BS MATH',  # Mathematics
             r'\bbsenvisci\b': 'BS ENVISCI',  # Environmental Science
             r'\bbssocialwork\b': 'BS SOCIAL WORK',  # Social Work
+            # Abbreviations for Science programs
+            r'\bbio\b': 'BS BIO',  # Biology abbreviation
+            r'\bchem\b': 'BS CHEM',  # Chemistry abbreviation
+            r'\bmath\b': 'BS MATH',  # Mathematics abbreviation
+            r'\benvisci\b': 'BS ENVISCI',  # Environmental Science abbreviation
+            r'\bsocialwork\b': 'BS SOCIAL WORK',  # Social Work abbreviation
             
             # Arts and Sciences - Arts
             r'\babanthro\b': 'AB ANTHRO',  # Anthropology (all tracks)
@@ -3155,11 +3139,25 @@ If you want to see the list of programs, click on the buttons below per school, 
             r'\babpolsci\b': 'AB POLSCI',  # Political Science
             r'\babpsych\b': 'AB PSYCH',  # Psychology
             r'\babsocio\b': 'AB SOCIO',  # Sociology
+            # Abbreviations for Arts programs
+            r'\banthro\b': 'AB ANTHRO',  # Anthropology abbreviation
+            r'\banth\b': 'AB ANTHRO',  # Anthropology short abbreviation
+            r'\bcomm\b': 'AB C',  # Communication abbreviation
+            r'\becon\b': 'AB ECON',  # Economics abbreviation
+            r'\bel\b': 'AB EL',  # English Language abbreviation
+            r'\bphilo\b': 'AB PHILO',  # Philosophy abbreviation
+            r'\bpolsci\b': 'AB POLSCI',  # Political Science abbreviation
+            r'\bpsych\b': 'AB PSYCH',  # Psychology abbreviation
+            r'\bsocio\b': 'AB SOCIO',  # Sociology abbreviation
             
             # Education
             r'\bbece\b': 'BECE',  # Early Childhood Education
             r'\bbeed\b': 'BEED',  # Elementary Education
             r'\bbsed\b': 'BSED',  # Secondary Education
+            # Abbreviations for Education programs
+            r'\bece\b': 'BECE',  # Early Childhood Education abbreviation
+            r'\beed\b': 'BEED',  # Elementary Education abbreviation
+            r'\bsed\b': 'BSED',  # Secondary Education abbreviation
             
             # Engineering and Architecture
             r'\bbsae\b': 'BS AE',  # Aerospace Engineering
@@ -3173,17 +3171,92 @@ If you want to see the list of programs, click on the buttons below per school, 
             r'\bbsie\b': 'BS IE',  # Industrial Engineering
             r'\bbsme\b': 'BS ME',  # Mechanical Engineering
             r'\bbsre\b': 'BS RE',  # Robotics Engineering
+            # Abbreviations for Engineering programs
+            r'\bae\b': 'BS AE',  # Aerospace Engineering abbreviation
+            r'\barch\b': 'BS ARCH',  # Architecture abbreviation
+            r'\bche\b': 'BS CHE',  # Chemical Engineering abbreviation
+            r'\bce\b': 'BS CE',  # Civil Engineering abbreviation
+            r'\bcompeng\b': 'BS COMP ENG',  # Computer Engineering abbreviation
+            r'\bcpe\b': 'BS COMP ENG',  # Computer Engineering alternate abbreviation
+            r'\bee\b': 'BS EE',  # Electrical Engineering abbreviation
+            r'\belectronicseng\b': 'BS ELECTRONICS ENG',  # Electronics Engineering abbreviation
+            r'\bie\b': 'BS IE',  # Industrial Engineering abbreviation
+            r'\bme\b': 'BS ME',  # Mechanical Engineering abbreviation
+            r'\bre\b': 'BS RE',  # Robotics Engineering abbreviation
+            # Engineering field names
+            r'\baerospace\b': 'BS AE',  # Aerospace Engineering field name
+            r'\bchemical\b': 'BS CHE',  # Chemical Engineering field name
+            r'\bcivil\b': 'BS CE',  # Civil Engineering field name
+            r'\bcomputer\b': 'BS COMP ENG',  # Computer Engineering field name
+            r'\belectrical\b': 'BS EE',  # Electrical Engineering field name
+            r'\belectronics\b': 'BS ELECTRONICS ENG',  # Electronics Engineering field name
+            r'\bindustrial\b': 'BS IE',  # Industrial Engineering field name
+            r'\bmechanical\b': 'BS ME',  # Mechanical Engineering field name
+            r'\brobotics\b': 'BS RE',  # Robotics Engineering field name
             
             # Nursing
             r'\bbsn\b': 'BSN',  # Nursing
+            r'\bnursing\b': 'BSN',  # Nursing field name
+            r'\bnurse\b': 'BSN',  # Nursing alternate
         }
         
         # Apply normalizations (case insensitive)
+        # Sort patterns by length (longest first) to avoid double replacements
+        sorted_patterns = sorted(program_mappings.items(), key=lambda x: len(x[0]), reverse=True)
+        
         normalized_query = query
-        for pattern, replacement in program_mappings.items():
+        for pattern, replacement in sorted_patterns:
             normalized_query = re.sub(pattern, replacement, normalized_query, flags=re.IGNORECASE)
         
         return normalized_query
+
+    def _get_comprehensive_program_keywords(self) -> List[str]:
+        """Get comprehensive list of program keywords including abbreviations"""
+        return [
+            # Business and Governance
+            'bpm', 'bsa', 'bsma', 'bsbm', 'bsentrep', 'bsfin', 'bshrdm', 'bsmktg',
+            'public management', 'accountancy', 'management accounting', 'business management', 
+            'entrepreneurship', 'finance', 'human resource development management', 'marketing',
+            
+            # Arts and Sciences - Technology (with abbreviations)
+            'bsit', 'bscs', 'bsis', 'bsds', 'bs it', 'bs cs', 'bs is', 'bs ds',
+            'information technology', 'computer science', 'information systems', 'data science',
+            # Abbreviations for Technology programs
+            'it', 'cs', 'is', 'ds', 'compsci', 'infotech', 'datasci',
+            
+            # Arts and Sciences - Science (with abbreviations)
+            'bsbio', 'bschem', 'bsmath', 'bsenvisci', 'bssocialwork', 'bs bio', 'bs chem', 'bs math', 'bs envisci', 'bs social work',
+            'biology', 'chemistry', 'mathematics', 'environmental science', 'social work',
+            # Abbreviations for Science programs
+            'bio', 'chem', 'math', 'envisci', 'socialwork',
+            
+            # Arts and Sciences - Arts (with abbreviations)
+            'abanthro', 'abanth', 'abc', 'abcomm', 'abds', 'abecon', 'abel', 'abis', 'abphilo', 'abpolsci', 'abpsych', 'absocio',
+            'ab anthro', 'ab c', 'ab ds', 'ab econ', 'ab el', 'ab is', 'ab philo', 'ab polsci', 'ab psych', 'ab socio',
+            'anthropology', 'communication', 'development studies', 'economics', 'english language', 
+            'interdisciplinary studies', 'international studies', 'islamic studies', 'philosophy', 
+            'political science', 'psychology', 'sociology',
+            # Abbreviations for Arts programs
+            'anthro', 'anth', 'comm', 'econ', 'el', 'philo', 'polsci', 'psych', 'socio',
+            
+            # Education (with abbreviations)
+            'bece', 'beed', 'bsed', 'early childhood education', 'elementary education', 'secondary education',
+            # Abbreviations for Education programs
+            'ece', 'eed', 'sed',
+            
+            # Engineering and Architecture (with abbreviations)
+            'bsae', 'bsarch', 'bsche', 'bsce', 'bscompeng', 'bscpe', 'bsee', 'bbselectronicseng', 'bsie', 'bsme', 'bsre',
+            'bs ae', 'bs arch', 'bs che', 'bs ce', 'bs comp eng', 'bs ee', 'bs electronics eng', 'bs ie', 'bs me', 'bs re',
+            'aerospace engineering', 'architecture', 'chemical engineering', 'civil engineering', 
+            'computer engineering', 'electrical engineering', 'electronics engineering', 
+            'industrial engineering', 'mechanical engineering', 'robotics engineering',
+            # Abbreviations for Engineering programs
+            'ae', 'arch', 'che', 'ce', 'compeng', 'cpe', 'ee', 'electronicseng', 'ie', 'me', 're',
+            'aerospace', 'chemical', 'civil', 'computer', 'electrical', 'electronics', 'industrial', 'mechanical', 'robotics',
+            
+            # Nursing (with abbreviations)
+            'bsn', 'nursing', 'nurse'
+        ]
 
     def _enhance_query_with_conversation_context(self, query: str, topic_id: str) -> str:
         """Enhance query with conversation context for follow-up questions"""
