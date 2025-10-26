@@ -2,7 +2,7 @@ import React from "react";
 
 const TopicSelector = ({ topics, onTopicSelect, disabled = false }) => {
   return (
-    <div className="w-full flex flex-col items-center space-y-4">
+    <div className="w-full flex flex-col items-center space-y-3">
       <div className="text-center">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">
           What would you like to learn about?
@@ -12,14 +12,14 @@ const TopicSelector = ({ topics, onTopicSelect, disabled = false }) => {
         </p>
       </div>
 
-      <div className="flex justify-center gap-3 w-auto">
+      <div className="flex justify-center gap-2 w-auto">
         {topics.map((topic) => (
           <button
             key={topic.id}
             onClick={() => !disabled && onTopicSelect(topic.id)}
             disabled={disabled}
             className={`
-              w-70 px-5 py-3 rounded-lg border-2 transition-all duration-200 text-left
+              w-70 px-3 py-2 rounded border-2 transition-all duration-200 text-left
               ${
                 disabled
                   ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200"
@@ -28,11 +28,11 @@ const TopicSelector = ({ topics, onTopicSelect, disabled = false }) => {
             `}
           >
             <div className="flex flex-col">
-              <h4 className="font-semibold text-gray-800 mb-1">
+              <h4 className="font-medium text-gray-800 mb-1 text-sm leading-tight">
                 {topic.label}
               </h4>
               {topic.description && (
-                <p className="text-xs text-gray-600 leading-relaxed text-justify">
+                <p className="text-xs text-gray-600 leading-tight text-justify">
                   {topic.description}
                 </p>
               )}

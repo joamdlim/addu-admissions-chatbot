@@ -8,34 +8,61 @@ const ActionButtons = ({
 }) => {
   if (!buttons || buttons.length === 0) return null;
 
-  return (
-    <div className="w-full flex flex-col items-center space-y-3">
-      {/* Buttons in a horizontal row */}
-      <div className="flex justify-center gap-3">
-        {buttons.map((button) => (
-          <button
-            key={button.id}
-            onClick={() => !disabled && onAction(button.id)}
-            disabled={disabled}
-            className={`
-              px-6 py-3 rounded-lg font-medium transition-all duration-200 whitespace-nowrap
-              ${
-                button.type === "topic"
-                  ? disabled
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                    : "bg-white text-[#063970] border-2 border-[#063970] hover:bg-[#063970] hover:text-white"
-                  : disabled
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-[#063970] text-white hover:bg-[#052a5a] shadow-md hover:shadow-lg"
-              }
-            `}
-          >
-            {button.label}
-          </button>
-        ))}
-      </div>
+  // Separate school buttons and action buttons
+  const schoolButtons = buttons.filter((btn) => btn.type === "school");
+  const actionButtons = buttons.filter(
+    (btn) => btn.type !== "school" && btn.type !== "topic"
+  );
 
-      {/* Show current topic below buttons */}
+  return (
+    <div className="w-full flex flex-col items-center space-y-2">
+      {/* School buttons (for Program Curriculum only) */}
+      {schoolButtons.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-1 w-full">
+          {schoolButtons.map((button) => (
+            <button
+              key={button.id}
+              onClick={() => !disabled && onAction(button.id)}
+              disabled={disabled}
+              className={`
+                px-2 py-1 rounded text-xs font-medium transition-all duration-200
+                ${
+                  disabled
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-50 text-[#063970] border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
+                }
+              `}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Action buttons (Change Topic, etc.) */}
+      {actionButtons.length > 0 && (
+        <div className="flex justify-center gap-2">
+          {actionButtons.map((button) => (
+            <button
+              key={button.id}
+              onClick={() => !disabled && onAction(button.id)}
+              disabled={disabled}
+              className={`
+                px-4 py-2 rounded text-sm font-medium transition-all duration-200 whitespace-nowrap
+                ${
+                  disabled
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-[#063970] text-white hover:bg-[#052a5a] shadow-md hover:shadow-lg"
+                }
+              `}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Show current topic below action buttons */}
       {currentTopic && (
         <div className="text-center">
           <p className="text-sm text-gray-600">

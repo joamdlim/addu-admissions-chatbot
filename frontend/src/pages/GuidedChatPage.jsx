@@ -16,18 +16,69 @@ const GuidedChatPage = () => {
   const [buttons, setButtons] = useState([]);
   const [inputEnabled, setInputEnabled] = useState(false);
 
+  // Streaming control state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamIntervalRef, setStreamIntervalRef] = useState(null);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+
   // Ref for auto-scrolling
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const lastScrollTop = useRef(0);
+
+  // Function to check if user is at bottom of scroll
+  const isUserAtBottom = () => {
+    if (!messagesContainerRef.current) return true;
+    const container = messagesContainerRef.current;
+    const threshold = 100; // 100px threshold
+    return (
+      container.scrollTop + container.clientHeight >=
+      container.scrollHeight - threshold
+    );
+  };
 
   // Function to scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Auto-scroll when messages update
+  // Smart auto-scroll: only scroll if user is at bottom and hasn't manually scrolled
+  const smartScrollToBottom = () => {
+    if (!userHasScrolled && isUserAtBottom()) {
+      scrollToBottom();
+    }
+  };
+
+  // Handle scroll events to detect manual scrolling
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const currentScrollTop = container.scrollTop;
+      const scrollDirection = currentScrollTop - lastScrollTop.current;
+
+      // If user scrolled up manually, stop auto-scrolling
+      if (scrollDirection < 0) {
+        setUserHasScrolled(true);
+      }
+
+      // If user scrolled to bottom, resume auto-scrolling
+      if (isUserAtBottom()) {
+        setUserHasScrolled(false);
+      }
+
+      lastScrollTop.current = currentScrollTop;
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Auto-scroll when messages update (only if user hasn't manually scrolled and is at bottom)
+  useEffect(() => {
+    smartScrollToBottom();
+  }, [messages, userHasScrolled]);
 
   // Load topics on component mount
   useEffect(() => {
@@ -75,6 +126,33 @@ const GuidedChatPage = () => {
     }
   }, [topics, messages.length]);
 
+  // Function to stop streaming
+  const stopStreaming = () => {
+    if (streamIntervalRef) {
+      clearInterval(streamIntervalRef);
+      setStreamIntervalRef(null);
+      setIsStreaming(false);
+      setIsLoading(false);
+
+      // Finalize the current streaming message
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (
+          lastIndex >= 0 &&
+          updated[lastIndex].role === "bot" &&
+          updated[lastIndex].isStreaming
+        ) {
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            isStreaming: false,
+          };
+        }
+        return updated;
+      });
+    }
+  };
+
   // Function to animate text streaming word by word
   const animateTextStreaming = (
     fullText,
@@ -85,6 +163,8 @@ const GuidedChatPage = () => {
     const words = fullText.split(" ");
     let currentText = "";
     let wordIndex = 0;
+
+    setIsStreaming(true);
 
     const streamInterval = setInterval(() => {
       if (wordIndex < words.length) {
@@ -108,11 +188,14 @@ const GuidedChatPage = () => {
           return updated;
         });
 
-        // Scroll to bottom during streaming
-        scrollToBottom();
+        // Smart scroll during streaming
+        smartScrollToBottom();
       } else {
         // Streaming complete - finalize the message
         clearInterval(streamInterval);
+        setStreamIntervalRef(null);
+        setIsStreaming(false);
+
         setMessages((prev) => {
           const updated = [...prev];
           const lastIndex = updated.length - 1;
@@ -150,6 +233,8 @@ const GuidedChatPage = () => {
         setIsLoading(false);
       }
     }, 15); // Changed from 50ms to 15ms for faster streaming
+
+    setStreamIntervalRef(streamInterval);
   };
 
   const handleGuidedRequest = async (
@@ -274,6 +359,9 @@ const GuidedChatPage = () => {
       },
     ]);
 
+    // Clear the query from input box
+    setQuery("");
+
     handleGuidedRequest(message, "message");
   };
 
@@ -281,6 +369,7 @@ const GuidedChatPage = () => {
     <div className="w-full h-full bg-gray-50 flex flex-col items-center">
       {/* Messages */}
       <div
+        ref={messagesContainerRef}
         className="flex-1 w-[950px] max-w-[950px] py-8 overflow-y-auto space-y-4 min-h-0"
         id="messages-container"
       >
@@ -532,7 +621,9 @@ const GuidedChatPage = () => {
           onTopicSelect={handleTopicSelect}
           onAction={handleAction}
           onSend={handleSend}
+          onStop={stopStreaming}
           disabled={isLoading}
+          isStreaming={isStreaming}
         />
       </div>
     </div>

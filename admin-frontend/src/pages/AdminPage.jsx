@@ -1,5 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
 
+// Loading Spinner Component
+const LoadingSpinner = ({ size = "w-4 h-4", className = "" }) => (
+  <div
+    className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${size} ${className}`}
+  ></div>
+);
+
+// Inline Loading Text Component
+const LoadingText = ({ text = "Loading...", className = "" }) => (
+  <div className={`flex items-center space-x-2 text-gray-600 ${className}`}>
+    <LoadingSpinner size="w-4 h-4" />
+    <span className="text-sm">{text}</span>
+  </div>
+);
+
 const AdminPage = ({ onFileForReview }) => {
   const fileInputRef = useRef(null);
   const [files, setFiles] = useState([]);
@@ -7,6 +22,15 @@ const AdminPage = ({ onFileForReview }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncingFile, setSyncingFile] = useState(null);
+
+  // Specific loading states
+  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState(null);
+  const [deletingDoc, setDeletingDoc] = useState(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [updatingFolder, setUpdatingFolder] = useState(false);
+  const [deletingFolder, setDeletingFolder] = useState(null);
 
   // Folder management state
   const [showFolderForm, setShowFolderForm] = useState(false);
@@ -43,6 +67,7 @@ const AdminPage = ({ onFileForReview }) => {
 
   // Fetch folders for current location
   const fetchFolders = async (parentId = null) => {
+    setLoadingFolders(true);
     try {
       const url = parentId
         ? `http://localhost:8000/chatbot/admin/folders/?parent_id=${parentId}`
@@ -53,6 +78,8 @@ const AdminPage = ({ onFileForReview }) => {
       setFolders(data.folders || []);
     } catch (error) {
       console.error("Error fetching folders:", error);
+    } finally {
+      setLoadingFolders(false);
     }
   };
 
@@ -75,6 +102,7 @@ const AdminPage = ({ onFileForReview }) => {
   // Fetch all data
   const fetchAllData = async () => {
     setLoading(true);
+    setLoadingDocuments(true);
     try {
       const [filesRes, docsRes] = await Promise.all([
         fetch("http://localhost:8000/chatbot/admin/files/"),
@@ -96,6 +124,7 @@ const AdminPage = ({ onFileForReview }) => {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+      setLoadingDocuments(false);
     }
   };
 
@@ -140,6 +169,7 @@ const AdminPage = ({ onFileForReview }) => {
   // Folder management functions
   const handleCreateFolder = async (e) => {
     e.preventDefault();
+    setCreatingFolder(true);
 
     try {
       const folderData = {
@@ -174,10 +204,13 @@ const AdminPage = ({ onFileForReview }) => {
     } catch (error) {
       console.error("Error creating folder:", error);
       alert("Failed to create folder");
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
   const handleUpdateFolder = async (folderId, updates) => {
+    setUpdatingFolder(true);
     try {
       const response = await fetch(
         `http://localhost:8000/chatbot/admin/folders/${folderId}/`,
@@ -200,6 +233,8 @@ const AdminPage = ({ onFileForReview }) => {
     } catch (error) {
       console.error("Error updating folder:", error);
       alert("Failed to update folder");
+    } finally {
+      setUpdatingFolder(false);
     }
   };
 
@@ -211,6 +246,7 @@ const AdminPage = ({ onFileForReview }) => {
     )
       return;
 
+    setDeletingFolder(folderId);
     try {
       const response = await fetch(
         `http://localhost:8000/chatbot/admin/folders/${folderId}/`,
@@ -233,6 +269,8 @@ const AdminPage = ({ onFileForReview }) => {
     } catch (error) {
       console.error("Delete error:", error);
       alert("Delete failed. Please try again.");
+    } finally {
+      setDeletingFolder(null);
     }
   };
 
@@ -394,6 +432,7 @@ const AdminPage = ({ onFileForReview }) => {
     )
       return;
 
+    setDeletingDoc(documentId);
     try {
       const response = await fetch(
         `http://localhost:8000/chatbot/admin/documents/${documentId}/`,
@@ -416,6 +455,53 @@ const AdminPage = ({ onFileForReview }) => {
     } catch (error) {
       console.error("Delete error:", error);
       alert("Delete failed. Please try again.");
+    } finally {
+      setDeletingDoc(null);
+    }
+  };
+
+  const handleDownloadDocument = async (filename) => {
+    setDownloadingDoc(filename);
+    try {
+      const response = await fetch(
+        `http://localhost:8000/chatbot/admin/download/${encodeURIComponent(
+          filename
+        )}/`,
+        {
+          method: "GET",
+        }
+      );
+
+      if (response.ok) {
+        // Get the file as a blob
+        const blob = await response.blob();
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+
+        // Create a temporary anchor element and trigger download
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        console.log(`✅ Document "${filename}" downloaded successfully`);
+      } else {
+        const errorData = await response.json();
+        alert(
+          `Failed to download document: ${errorData.error || "Unknown error"}`
+        );
+      }
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      alert("Failed to download document. Please try again.");
+    } finally {
+      setDownloadingDoc(null);
     }
   };
 
@@ -595,7 +681,14 @@ const AdminPage = ({ onFileForReview }) => {
                   : "bg-[#063970] hover:bg-blue-800"
               } text-white`}
             >
-              {uploading ? "Uploading..." : "Submit Upload"}
+              {uploading ? (
+                <div className="flex items-center space-x-2">
+                  <LoadingSpinner size="w-4 h-4" />
+                  <span>Uploading...</span>
+                </div>
+              ) : (
+                "Submit Upload"
+              )}
             </button>
           </div>
         )}
@@ -620,6 +713,36 @@ const AdminPage = ({ onFileForReview }) => {
           {/* Breadcrumb Navigation */}
           {(currentFolderId || folderBreadcrumbs.length > 0) && (
             <div className="flex items-center gap-2 mb-3 text-sm bg-gray-50 px-3 py-2 rounded border">
+              {/* Back Button */}
+              <button
+                onClick={() => {
+                  if (folderBreadcrumbs.length > 0) {
+                    // Go to parent folder (previous breadcrumb)
+                    const parentFolder =
+                      folderBreadcrumbs[folderBreadcrumbs.length - 2];
+                    if (parentFolder) {
+                      navigateToFolder(parentFolder.id, parentFolder.name);
+                    } else {
+                      // Go to root if no parent
+                      navigateToFolder(null);
+                    }
+                  }
+                }}
+                className={`p-1.5 rounded transition ${
+                  !currentFolderId
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                }`}
+                title={!currentFolderId ? "Already at root" : "Go back"}
+                disabled={!currentFolderId}
+              >
+                <span className="text-base">←</span>
+              </button>
+
+              {/* Separator */}
+              <div className="w-px h-4 bg-gray-300"></div>
+
+              {/* Root Button */}
               <button
                 onClick={() => navigateToFolder(null)}
                 className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
@@ -711,9 +834,17 @@ const AdminPage = ({ onFileForReview }) => {
               </p>
               <button
                 type="submit"
-                className="mt-2 bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 transition"
+                className="mt-2 bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 transition disabled:opacity-50"
+                disabled={creatingFolder}
               >
-                Create Folder
+                {creatingFolder ? (
+                  <div className="flex items-center space-x-2">
+                    <LoadingSpinner size="w-3 h-3" />
+                    <span>Creating...</span>
+                  </div>
+                ) : (
+                  "Create Folder"
+                )}
               </button>
             </form>
           )}
@@ -742,108 +873,93 @@ const AdminPage = ({ onFileForReview }) => {
             {/* Vertical Separator */}
             <div className="w-px h-24 bg-gray-300 flex-shrink-0"></div>
 
-            {/* Back Button (when not in root) */}
-            {currentFolderId && (
-              <>
-                <div
-                  onClick={() => {
-                    const parentBreadcrumbs = folderBreadcrumbs.slice(0, -1);
-                    const parentId =
-                      parentBreadcrumbs.length > 0
-                        ? parentBreadcrumbs[parentBreadcrumbs.length - 1].id
-                        : null;
-                    navigateToFolder(parentId);
-                  }}
-                  className="flex-shrink-0 w-44 h-24 border-2 rounded-lg p-3 cursor-pointer transition border-gray-400 hover:bg-gray-100 bg-gray-50"
-                >
-                  <div className="flex items-center justify-center h-full">
-                    <span className="text-2xl">⬅️</span>
-                    <span className="ml-2 font-semibold text-sm text-gray-700">
-                      Back
-                    </span>
-                  </div>
-                </div>
-                <div className="w-px h-24 bg-gray-300 flex-shrink-0"></div>
-              </>
-            )}
-
             {/* Scrollable Folders */}
             <div className="flex-1 overflow-x-auto">
               <div className="flex gap-3 pb-2">
-                {folders.map((folder) => (
-                  <div
-                    key={folder.id}
-                    className={`relative flex-shrink-0 w-44 h-24 border-2 rounded-lg p-3 transition ${
-                      selectedFolder?.id === folder.id
-                        ? "bg-blue-50 border-blue-500"
-                        : "hover:bg-gray-50 border-gray-300"
-                    }`}
-                  >
-                    {/* Edit and Delete buttons at top right */}
-                    <div className="absolute top-1.5 right-1.5 flex gap-0.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingFolder(folder);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-xs p-0.5"
-                        title="Edit folder"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteFolder(folder.id, folder.name);
-                        }}
-                        className="text-red-600 hover:text-red-800 text-xs p-0.5"
-                        title="Delete folder"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-
-                    <div
-                      onDoubleClick={() =>
-                        navigateToFolder(folder.id, folder.name)
-                      }
-                      onClick={() => setSelectedFolder(folder)}
-                      className="cursor-pointer h-full"
-                    >
-                      <div className="flex items-center mb-1">
-                        <div
-                          className="w-3 h-3 rounded mr-1.5"
-                          style={{ backgroundColor: folder.color }}
-                        ></div>
-                        <h3 className="font-semibold text-sm text-gray-800 truncate pr-10">
-                          {folder.name}
-                        </h3>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-1 line-clamp-1 h-4">
-                        {folder.description}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-auto flex items-center justify-between">
-                        <span>
-                          {folder.document_count} docs
-                          {folder.total_document_count >
-                            folder.document_count &&
-                            ` (${folder.total_document_count})`}
-                        </span>
-                        {folder.subfolder_count > 0 && (
-                          <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">
-                            📁 {folder.subfolder_count}
-                          </span>
-                        )}
-                      </p>
-                    </div>
+                {loadingFolders ? (
+                  <div className="flex items-center justify-center w-full h-24">
+                    <LoadingText text="Loading folders..." />
                   </div>
-                ))}
+                ) : folders.length === 0 ? (
+                  <div className="flex items-center justify-center w-full h-24 text-gray-500 text-sm">
+                    No folders found
+                  </div>
+                ) : (
+                  folders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      className={`relative flex-shrink-0 w-44 h-24 border-2 rounded-lg p-3 transition ${
+                        selectedFolder?.id === folder.id
+                          ? "bg-blue-50 border-blue-500"
+                          : "hover:bg-gray-50 border-gray-300"
+                      }`}
+                    >
+                      {/* Edit and Delete buttons at top right */}
+                      <div className="absolute top-1.5 right-1.5 flex gap-0.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFolder(folder);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-xs p-0.5"
+                          title="Edit folder"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFolder(folder.id, folder.name);
+                          }}
+                          className="text-red-600 hover:text-red-800 text-xs p-0.5"
+                          title="Delete folder"
+                          disabled={deletingFolder === folder.id}
+                        >
+                          {deletingFolder === folder.id ? (
+                            <LoadingSpinner size="w-3 h-3" />
+                          ) : (
+                            "🗑️"
+                          )}
+                        </button>
+                      </div>
+
+                      <div
+                        onDoubleClick={() =>
+                          navigateToFolder(folder.id, folder.name)
+                        }
+                        onClick={() => setSelectedFolder(folder)}
+                        className="cursor-pointer h-full"
+                      >
+                        <div className="flex items-center mb-1">
+                          <div
+                            className="w-3 h-3 rounded mr-1.5"
+                            style={{ backgroundColor: folder.color }}
+                          ></div>
+                          <h3 className="font-semibold text-sm text-gray-800 truncate pr-10">
+                            {folder.name}
+                          </h3>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-1 line-clamp-1 h-4">
+                          {folder.description}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-auto flex items-center justify-between">
+                          <span>
+                            {folder.document_count} docs
+                            {folder.total_document_count >
+                              folder.document_count &&
+                              ` (${folder.total_document_count})`}
+                          </span>
+                          {folder.subfolder_count > 0 && (
+                            <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">
+                              📁 {folder.subfolder_count}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              {folders.length === 0 && (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  No folders here. Create one to get started!
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -919,7 +1035,13 @@ const AdminPage = ({ onFileForReview }) => {
             >
               <table className="w-full table-fixed">
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDocuments.length === 0 ? (
+                  {loadingDocuments ? (
+                    <tr>
+                      <td colSpan="6" className="px-4 py-8 text-center">
+                        <LoadingText text="Loading documents..." />
+                      </td>
+                    </tr>
+                  ) : filteredDocuments.length === 0 ? (
                     <tr>
                       <td
                         colSpan="6"
@@ -1003,7 +1125,19 @@ const AdminPage = ({ onFileForReview }) => {
                             {doc.synced_to_chroma ? "✓ Synced" : "✗ Not synced"}
                           </span>
                         </td>
-                        <td className="w-1/12 px-4 py-2 whitespace-nowrap text-right text-xs font-medium space-x-2">
+                        <td className="w-1/12 px-4 py-2 whitespace-nowrap text-right text-xs font-medium space-x-1">
+                          <button
+                            onClick={() => handleDownloadDocument(doc.filename)}
+                            className="text-green-600 hover:text-green-900 transition"
+                            title="Download document"
+                            disabled={downloadingDoc === doc.filename}
+                          >
+                            {downloadingDoc === doc.filename ? (
+                              <LoadingSpinner size="w-3 h-3" />
+                            ) : (
+                              "📥"
+                            )}
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedDocument(doc);
@@ -1023,8 +1157,13 @@ const AdminPage = ({ onFileForReview }) => {
                             }
                             className="text-red-600 hover:text-red-900 transition"
                             title="Delete document"
+                            disabled={deletingDoc === doc.document_id}
                           >
-                            🗑️
+                            {deletingDoc === doc.document_id ? (
+                              <LoadingSpinner size="w-3 h-3" />
+                            ) : (
+                              "🗑️"
+                            )}
                           </button>
                         </td>
                       </tr>
