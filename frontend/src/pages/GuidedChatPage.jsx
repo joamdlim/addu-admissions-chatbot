@@ -447,28 +447,32 @@ const GuidedChatPage = () => {
                             const parts = text.split(urlRegex);
                             const processedContent = parts.map(
                               (part, index) => {
-                                if (part.match(urlRegex)) {
+                                // Clean the part to remove any trailing whitespace or newlines
+                                const cleanPart = part.trim();
+                                if (cleanPart.match(urlRegex)) {
                                   // Extract program name from URL or use a generic name
                                   let linkText = "View Curriculum";
-                                  if (part.includes("Nursing"))
+                                  if (cleanPart.includes("Nursing"))
                                     linkText = "BS Nursing Curriculum";
-                                  else if (part.includes("Computer"))
+                                  else if (cleanPart.includes("Computer"))
                                     linkText = "BS Computer Science Curriculum";
-                                  else if (part.includes("Business"))
+                                  else if (cleanPart.includes("Business"))
                                     linkText =
                                       "BS Business Management Curriculum";
-                                  else if (part.includes("Engineering"))
+                                  else if (cleanPart.includes("Engineering"))
                                     linkText = "Engineering Program Curriculum";
                                   else if (
-                                    part.includes("Information-Technology") ||
-                                    part.includes("Information-Technolgy")
+                                    cleanPart.includes(
+                                      "Information-Technology"
+                                    ) ||
+                                    cleanPart.includes("Information-Technolgy")
                                   )
                                     linkText =
                                       "BS Information Technology Curriculum";
-                                  else if (part.includes("programs/")) {
+                                  else if (cleanPart.includes("programs/")) {
                                     // Extract program name from URL path
                                     const programMatch =
-                                      part.match(/programs\/([^/?]+)/);
+                                      cleanPart.match(/programs\/([^/?]+)/);
                                     if (programMatch) {
                                       linkText =
                                         programMatch[1]
@@ -482,7 +486,7 @@ const GuidedChatPage = () => {
                                   return (
                                     <a
                                       key={index}
-                                      href={part}
+                                      href={cleanPart}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
@@ -543,7 +547,7 @@ const GuidedChatPage = () => {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
                           >
-                            {children}
+                            View Curriculum
                           </a>
                         ),
                       }}

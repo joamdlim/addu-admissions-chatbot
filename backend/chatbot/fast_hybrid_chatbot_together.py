@@ -29,10 +29,10 @@ try:
     import gensim
     from gensim.models import KeyedVectors
     WORD2VEC_AVAILABLE = True
-    print("✅ Gensim Word2Vec available")
+    print("[OK] Gensim Word2Vec available")
 except ImportError:
     WORD2VEC_AVAILABLE = False
-    print("⚠️ Gensim Word2Vec not available, using placeholder")
+    print("[WARN] Gensim Word2Vec not available, using placeholder")
 
 # Import the Together AI interface instead of llama_interface_optimized
 try:
@@ -676,9 +676,9 @@ class FastHybridChatbotTogether:
             fee_info['payment_term'] = 'full'
         
         # Detect program level for fee differentiation
-        if any(term in query_lower for term in ['undergraduate', 'bachelor']):
+        if any(term in query_lower for term in ['undergraduate', 'bachelor', 'bs ', 'bsa', 'bsb', 'bsc', 'bsd', 'bse', 'bsf', 'bsg', 'bsh', 'bsi', 'bsj', 'bsk', 'bsl', 'bsm', 'bsn', 'bso', 'bsp', 'bsq', 'bsr', 'bss', 'bst', 'bsu', 'bsv', 'bsw', 'bsx', 'bsy', 'bsz']):
             fee_info['program_level'] = 'undergraduate'
-        elif any(term in query_lower for term in ['graduate', 'master']):
+        elif any(term in query_lower for term in ['graduate', 'master', 'ms ', 'ma ', 'phd', 'doctorate']):
             fee_info['program_level'] = 'graduate'
         
         # Extract program name from query
@@ -1508,8 +1508,45 @@ class FastHybridChatbotTogether:
                         'program_info': program_info
                     })
                     
+            elif topic_id == 'fees':
+                # Apply fees-specific logic with fee information extraction
+                fee_info = self._extract_fee_info(normalized_query)
+                print(f"💰 Extracted fee info for fees: {fee_info}")
+                
+                # Get strategy configuration for fees
+                strategy_config = get_retrieval_strategy_config('fees_specialized')
+                priorities = strategy_config.get('metadata_priorities', {})
+                
+                query_lower = normalized_query.lower()
+                
+                for doc_data in topic_filtered_docs:
+                    metadata = doc_data['metadata']
+                    content = doc_data['content']
+                    
+                    filename = metadata.get('filename', '').lower()
+                    doc_keywords = metadata.get('keywords', '').lower()
+                    content_lower = content.lower()
+                    
+                    # Calculate specialized scores using existing methods
+                    filename_score = self._calculate_fees_filename_score(filename, fee_info)
+                    keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
+                    content_score = self._calculate_fees_content_score(content_lower, query_lower, fee_info)
+                    
+                    # Apply strategy priorities
+                    specialized_score = (
+                        filename_score * priorities.get('filename', 0.3) +
+                        keyword_score * priorities.get('keywords', 0.4) +
+                        content_score * priorities.get('content', 0.3)
+                    )
+                    
+                    specialized_scored_docs.append({
+                        'doc_data': doc_data,
+                        'specialized_score': specialized_score,
+                        'program_info': fee_info  # Store fee_info as program_info for consistency
+                    })
+                    
             else:
-                # For non-programs topics, use topic score as specialized score
+                # For other non-programs topics, use topic score as specialized score
                 for doc_data in topic_filtered_docs:
                     specialized_scored_docs.append({
                         'doc_data': doc_data,
@@ -2775,16 +2812,16 @@ If you want to see the list of programs, click on the buttons below per school, 
                     }
                 else:
                     welcome_message = f"Great! You've selected **{topic_info['label']}**. {topic_info['description']}\n\nWhat would you like to know about this topic?"
-                    
-                    button_configs = get_button_configs()
-                    return {
-                        'response': welcome_message,
-                        'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
-                        'buttons': button_configs['topic_conversation']['buttons'],
-                        'input_enabled': button_configs['topic_conversation']['input_enabled'],
-                        'current_topic': topic_id,
-                        'topic_info': topic_info
-                    }
+                
+                button_configs = get_button_configs()
+                return {
+                    'response': welcome_message,
+                    'state': CONVERSATION_STATES['TOPIC_CONVERSATION'],
+                    'buttons': button_configs['topic_conversation']['buttons'],
+                    'input_enabled': button_configs['topic_conversation']['input_enabled'],
+                    'current_topic': topic_id,
+                    'topic_info': topic_info
+                }
             
             elif action_type == 'action':
                 # Handle follow-up actions
@@ -2964,7 +3001,15 @@ If you want to see the list of programs, click on the buttons below per school, 
   * **INTERNATIONAL STUDENTS**: Foreign students, overseas students, non-Filipino students
   * **SCHOLAR STUDENTS**: Scholarship recipients, financial aid recipients, grant holders
 - **DO NOT MIX**: Never mix information from different student types in a single response
-- **FOCUS**: Cover admission requirements, required documents, processes, and procedures specific to the identified student type"""
+- **FOCUS**: Cover admission requirements, required documents, processes, and procedures specific to the identified student type
+
+=== LINK HANDLING FOR ADMISSIONS ===
+- **NO LINKS RULE**: Do NOT mention, suggest, or provide ANY links or URLs
+- **NO FABRICATION**: NEVER create, invent, or fabricate URLs
+- **NO LINK PHRASES**: Do NOT use phrases like "View Curriculum", "click here", "for more information", or any link-related text
+- **NO EXTERNAL REFERENCES**: Do NOT mention external resources, websites, or links
+- **FOCUS ON CONTENT**: Provide information directly from the source documents without referencing external links
+- **NO END LINKS**: Do NOT end responses with link suggestions or "for more information" statements"""
 
         elif topic_id == 'programs_courses':
             return """TOPIC-SPECIFIC INSTRUCTIONS FOR PROGRAMS AND COURSES:
@@ -3009,7 +3054,7 @@ If you want to see the list of programs, click on the buttons below per school, 
 - For specific program curriculum questions:
   * First confirm program exists in official list or context
   * Then provide curriculum details from curriculum documents
-  * Always include links to curriculum documents when available
+  * Do NOT mention or suggest any links or external resources
 
 === RESPONSE FORMAT ===
 - For availability: Start with clear confirmation based on official documents
@@ -3018,10 +3063,10 @@ If you want to see the list of programs, click on the buttons below per school, 
 - Always cite sources when providing program information
 
 === LINK HANDLING ===
-- **CONDITIONAL LINKS**: Only include links if they are explicitly present in the source document metadata
-- **NO FABRICATION**: NEVER create, invent, or fabricate URLs - only use URLs that actually exist in the provided context
+- **ALLOW LINKS**: Include links if they are explicitly present in the source document content
+- **NO FABRICATION**: NEVER create, invent, or fabricate URLs
 - **HYPERLINKS**: If URLs exist, format them as clickable hyperlinks using Markdown syntax: [link text](URL)
-- **CRITICAL**: Use the EXACT URL from the document metadata - DO NOT modify, autocorrect, or change ANY part of the URL
+- **CRITICAL**: Use the EXACT URL from the document content - DO NOT modify, autocorrect, or change ANY part of the URL
 - **NO CORRECTIONS**: Do NOT fix typos in URLs, do NOT change "Technolgy" to "Technology", do NOT modify any part of the original URL
 - **PRESERVE ORIGINAL**: Copy the URL character-for-character exactly as it appears in the source document
 - **FORMAT**: If URLs exist, use "For more information about [topic], head to this link: [link text](EXACT_URL_FROM_DOCUMENT)"
@@ -3052,7 +3097,15 @@ If you want to see the list of programs, click on the buttons below per school, 
 - **MATCH**: Provide fee information specific to the program the user asked about
 - **INCLUDE**: Tuition fees, miscellaneous fees, payment schedules, installment options for that specific program
 - **DIFFERENTIATE**: Different programs may have different fee structures
-- **SCOPE**: Undergraduate program fees only"""
+- **SCOPE**: Undergraduate program fees only
+
+=== LINK HANDLING FOR FEES ===
+- **NO LINKS RULE**: Do NOT mention, suggest, or provide ANY links or URLs
+- **NO FABRICATION**: NEVER create, invent, or fabricate URLs
+- **NO LINK PHRASES**: Do NOT use phrases like "View Curriculum", "click here", "for more information", or any link-related text
+- **NO EXTERNAL REFERENCES**: Do NOT mention external resources, websites, or links
+- **FOCUS ON CONTENT**: Provide information directly from the source documents without referencing external links
+- **NO END LINKS**: Do NOT end responses with link suggestions or "for more information" statements"""
 
         else:
             # Generic instructions for any other topics
@@ -3326,7 +3379,7 @@ If you want to see the list of programs, click on the buttons below per school, 
                 'transcript', 'diploma', 'certificate', 'form 137', 'form 138',
                 'birth certificate', 'medical certificate', 'clearance',
                 'recommendation letter', 'essay', 'portfolio',
-                'entrance exam', 'interview', 'assessment'
+                'entrance exam', 'interview', 'assessment', 'acat', 'ateneo college admissions test'
             ],
             'programs_courses': [
                 'program', 'degree', 'course', 'major', 'bachelor',
@@ -3712,12 +3765,38 @@ This will ensure you get the most relevant and up-to-date information for your q
                 r'do\s+i\s+need\s+to\s+', # "do I need to take"
             ]
             
+            # Detect if this is a yes/no question that needs answer-first format
+            yes_no_question_patterns = [
+                r'do\s+i\s+still\s+need\s+to',  # "do I still need to take an entrance exam"
+                r'do\s+i\s+need\s+to\s+',  # "do I need to take"
+                r'do\s+you\s+have\s+',  # "do you have"
+                r'does\s+\w+\s+have\s+',  # "does the program have"
+                r'does\s+\w+\s+require\s+',  # "does it require"
+                r'is\s+there\s+\w+',  # "is there an entrance exam"
+                r'are\s+there\s+\w+',  # "are there requirements"
+                r'is\s+\w+\s+required',  # "is summer required"
+                r'is\s+\w+\s+mandatory',  # "is it mandatory"
+                r'is\s+\w+\s+available',  # "is it available"
+                r'is\s+\w+\s+offered',  # "is it offered"
+                r'can\s+i\s+',  # "can I apply"
+                r'will\s+i\s+',  # "will I need"
+                r'should\s+i\s+',  # "should I take"
+                r'must\s+i\s+',  # "must I submit"
+                r'do\s+transferees\s+',  # "do transferees need"
+                r'do\s+new\s+students\s+',  # "do new students need"
+                r'do\s+international\s+students\s+',  # "do international students need"
+                r'does\s+addu\s+',  # "does addu require"
+                r'are\s+entrance\s+exams\s+',  # "are entrance exams required"
+                r'is\s+an\s+entrance\s+exam\s+',  # "is an entrance exam required"
+            ]
+            
             import re
             is_simple_question = any(re.search(pattern, enhanced_query.lower()) for pattern in simple_question_patterns)
+            is_yes_no_question = any(re.search(pattern, enhanced_query.lower()) for pattern in yes_no_question_patterns)
             
-            # For simple questions, use only the top document to avoid overwhelming context
+            # For simple questions and yes/no questions, use only the top document to avoid overwhelming context
             # For complex questions, use up to 3 documents for comprehensive answers
-            docs_to_use = 1 if is_simple_question else 3
+            docs_to_use = 1 if (is_simple_question or is_yes_no_question) else 3
             
             # Build context from retrieved docs (use full content to preserve URLs)
             doc_context = "\n\n".join([
@@ -3725,7 +3804,9 @@ This will ensure you get the most relevant and up-to-date information for your q
                 for doc in relevant_docs[:docs_to_use]
             ])
             
-            if is_simple_question:
+            if is_yes_no_question:
+                print(f"🎯 Yes/No question detected - using only top document: {relevant_docs[0].get('filename', 'Unknown') if relevant_docs else 'None'}")
+            elif is_simple_question:
                 print(f"🎯 Simple question detected - using only top document: {relevant_docs[0].get('filename', 'Unknown') if relevant_docs else 'None'}")
             
             # Build prompt with topic context and specialized instructions
@@ -3738,14 +3819,29 @@ This will ensure you get the most relevant and up-to-date information for your q
             
             # Add response length instruction based on question complexity
             response_length_instruction = ""
-            if is_simple_question:
+            if is_yes_no_question:
+                response_length_instruction = """
+YES/NO QUESTION FORMAT: This is a yes/no question. You MUST follow this exact format:
+1. Start with a clear YES or NO answer
+2. Then provide a brief explanation (1-2 sentences)
+3. Do NOT provide extensive background information first
+4. Follow topic-specific link handling rules (see topic instructions)
+
+Example format:
+"NO, you do not need to take an entrance exam as a transferee. [Brief explanation here]"
+
+CRITICAL: The YES/NO answer must come FIRST, before any explanation."""
+            elif is_simple_question:
                 response_length_instruction = """
 RESPONSE LENGTH: This is a simple factual question. Give a SHORT, DIRECT answer (1-2 sentences maximum). Do NOT provide extensive background information, full curriculum details, or comprehensive explanations unless specifically asked."""
             
             prompt = f"""<|system|>
 You are an ADDU (Ateneo de Davao University) Admissions Assistant. You provide accurate, helpful information based strictly on the provided context documents.
 
-CRITICAL URL RULE: ONLY display URLs if they are explicitly present in the source document metadata. NEVER create, invent, or fabricate URLs. If URLs exist, use the EXACT URL from the source document without any modifications. If no URLs are present in the documents, do NOT mention links at all.
+CRITICAL URL RULE: 
+- NEVER create, invent, fabricate, or hallucinate URLs
+- If no URLs are present in the source documents, do NOT mention links, URLs, or any reference to external resources
+- Use topic-specific link handling rules (see topic instructions below)
 
 {topic_specific_instructions}
 
@@ -3761,6 +3857,7 @@ GENERAL RESPONSE RULES:
 - NEVER use tables, charts, or markdown table format
 - Convert any tabular information to bullet points or numbered lists
 - For age/program/visa or any other combinations, use clear bullet point format instead of tables
+- Follow topic-specific link handling rules (see topic instructions)
 
 CONTEXT MATCHING:
 - Only use information that directly matches the user's specific query

@@ -24,7 +24,7 @@ from django.db.models import Count
 
 # Initialize Together AI chatbot at startup with improved intent analysis
 print("🚀 Initializing Together AI chatbot with intent analysis improvements...")
-together_chatbot = FastHybridChatbotTogether(use_chroma=True, use_hybrid_topic_retrieval=True)
+together_chatbot = FastHybridChatbotTogether(use_chroma=True, chroma_collection_name="documents", use_hybrid_topic_retrieval=True)
 print("✅ Together AI chatbot ready with improved intent analysis and document retrieval!")
 
 @api_view(['GET'])
