@@ -40,7 +40,7 @@ def initialize_embedding_models():
     # Load or fit TF-IDF vectorizer once, then persist
     if os.path.exists(TFIDF_VECTORIZER_PATH):
         tfidf_vectorizer = joblib.load(TFIDF_VECTORIZER_PATH)
-        print("✅ Loaded persisted TF-IDF vectorizer.")
+        print("[OK] Loaded persisted TF-IDF vectorizer.")
     else:
         # Build vocabulary from current metadata.json ONCE
         if not os.path.exists(METADATA_PATH):
@@ -52,12 +52,12 @@ def initialize_embedding_models():
         tfidf_vectorizer = TfidfVectorizer(max_features=20000, ngram_range=(1,2), lowercase=False)
         tfidf_vectorizer.fit(corpus)
         joblib.dump(tfidf_vectorizer, TFIDF_VECTORIZER_PATH)
-        print(f"✅ Fitted and saved TF-IDF vectorizer with {len(tfidf_vectorizer.get_feature_names_out())} features.")
+        print(f"[OK] Fitted and saved TF-IDF vectorizer with {len(tfidf_vectorizer.get_feature_names_out())} features.")
 
     # Load Word2Vec (300-dim)
     if os.path.exists(WORD2VEC_PATH):
         word2vec_model = KeyedVectors.load_word2vec_format(WORD2VEC_PATH, binary=True)
-        print("✅ Loaded Word2Vec (300-dim).")
+        print("[OK] Loaded Word2Vec (300-dim).")
     else:
         raise FileNotFoundError(f"Required Word2Vec model not found at {WORD2VEC_PATH}.")
 
@@ -99,7 +99,7 @@ def process_and_store_pdf_in_chroma(pdf_bytes: bytes, pdf_file_name: str):
     chroma_client = ChromaService.get_client()
     collection_name = os.getenv("CHROMA_COLLECTION", "documents")
     collection = chroma_client.get_or_create_collection(name=collection_name)
-    print(f"✅ Using collection '{collection_name}'")
+    print(f"[OK] Using collection '{collection_name}'")
 
     text = extract_text_from_pdf(pdf_bytes)
     embedding = embed_text(text)

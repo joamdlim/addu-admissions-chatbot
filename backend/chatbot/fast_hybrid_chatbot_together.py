@@ -121,6 +121,10 @@ class FastHybridChatbotTogether:
         self.word2vec_model = None
         # Initialize dialogue history
         self.dialogue_history = []
+        
+        # Initialize normalization config cache
+        self._normalization_config = None
+        self._config_file_path = os.path.join(current_dir, "program_normalization_config.json")
         self.max_history_length = 5  # Keep last 5 exchanges
         
         # Session state for guided conversation
@@ -152,11 +156,11 @@ class FastHybridChatbotTogether:
         # Try to load Word2Vec model if available
         if WORD2VEC_AVAILABLE and os.path.exists(word2vec_path):
             try:
-                print(f"🔄 Loading Word2Vec model from {word2vec_path}")
+                print(f"[LOADING] Loading Word2Vec model from {word2vec_path}")
                 self.word2vec_model = KeyedVectors.load_word2vec_format(word2vec_path, binary=True)
-                print("✅ Word2Vec model loaded successfully")
+                print("[OK] Word2Vec model loaded successfully")
             except Exception as e:
-                print(f"⚠️ Failed to load Word2Vec model: {e}")
+                print(f"[WARNING] Failed to load Word2Vec model: {e}")
         
         # Report load time
         load_time = time.time() - start_time
@@ -172,9 +176,9 @@ class FastHybridChatbotTogether:
             if os.path.exists(self.metadata_path):
                 with open(self.metadata_path, 'r', encoding='utf-8') as f:
                     self.documents = json.load(f)
-                print(f"✅ Loaded metadata for {len(self.documents)} documents")
+                print(f"[OK] Loaded metadata for {len(self.documents)} documents")
             else:
-                print(f"⚠️ Metadata file not found at: {self.metadata_path}")
+                print(f"[WARNING] Metadata file not found at: {self.metadata_path}")
                 # Try alternative locations
                 alt_paths = [
                     os.path.join(os.getcwd(), "embeddings", "metadata.json"),
@@ -188,34 +192,34 @@ class FastHybridChatbotTogether:
                         print(f"Found metadata at: {path}")
                         with open(path, 'r', encoding='utf-8') as f:
                             self.documents = json.load(f)
-                        print(f"✅ Loaded metadata for {len(self.documents)} documents")
+                        print(f"[OK] Loaded metadata for {len(self.documents)} documents")
                         self.metadata_path = path  # Update the path
                         break
                 else:
-                    print("❌ Could not find metadata.json in any location")
+                    print("[ERROR] Could not find metadata.json in any location")
                     return
             
             # Load vectors if they exist
             if os.path.exists(self.vectors_path):
                 self.vectors = np.load(self.vectors_path)
-                print(f"✅ Loaded vectors with shape: {self.vectors.shape}")
+                print(f"[OK] Loaded vectors with shape: {self.vectors.shape}")
                 
                 # Build TF-IDF vectorizer on document content
                 corpus = [" ".join(preprocess_text(doc["content"])) for doc in self.documents]
                 self.tfidf_vectorizer = TfidfVectorizer()
                 self.tfidf_vectorizer.fit(corpus)
-                print("✅ Built TF-IDF vectorizer")
+                print("[OK] Built TF-IDF vectorizer")
             else:
-                print("⚠️ Vector file not found, falling back to keyword search")
+                print("[WARNING] Vector file not found, falling back to keyword search")
         except Exception as e:
-            print(f"❌ Error loading data: {e}")
+            print(f"[ERROR] Error loading data: {e}")
     
     def _init_tfidf_for_chroma(self):
         """Initialize TF-IDF vectorizer when using ChromaDB"""
         try:
             from .chroma_connection import ChromaService
             
-            print("🔄 Initializing TF-IDF vectorizer for ChromaDB...")
+            print("[INIT] Initializing TF-IDF vectorizer for ChromaDB...")
             
             # Get all documents from ChromaDB to build TF-IDF corpus
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
@@ -241,12 +245,12 @@ class FastHybridChatbotTogether:
                 self.tfidf_vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
                 self.tfidf_vectorizer.fit(corpus)
                 
-                print(f"✅ TF-IDF vectorizer initialized with {len(self.tfidf_vectorizer.vocabulary_)} features")
+                print(f"[OK] TF-IDF vectorizer initialized with {len(self.tfidf_vectorizer.vocabulary_)} features")
             else:
-                print("⚠️ No documents found in ChromaDB for TF-IDF initialization")
+                print("[WARNING] No documents found in ChromaDB for TF-IDF initialization")
                 
         except Exception as e:
-            print(f"❌ Error initializing TF-IDF for ChromaDB: {e}")
+            print(f"[ERROR] Error initializing TF-IDF for ChromaDB: {e}")
             self.tfidf_vectorizer = None
     
     def _vectorize_query(self, query: str) -> np.ndarray:
@@ -469,8 +473,11 @@ class FastHybridChatbotTogether:
         }
 
     def _extract_program_info(self, query: str) -> dict:
-        """Extract program information from query for programs specialization"""
-        query_lower = query.lower()
+        """Extract program information from query using configurable normalization system"""
+        import re
+        # Remove punctuation for better program matching
+        query_clean = re.sub(r'[^\w\s]', '', query)
+        query_lower = query_clean.lower()
         
         program_info = {
             'program_name': None,
@@ -480,49 +487,109 @@ class FastHybridChatbotTogether:
             'context_source': None
         }
         
-        # Detect program names using scoring system to prioritize longer, more specific matches
-        program_patterns = self._get_program_patterns()
+        # Use the configurable normalization system for program detection
+        abbreviations = self._get_program_abbreviations()
         
         import re
-        best_match = None
-        best_score = 0
+        matches = []
         
-        for program, patterns in program_patterns.items():
-            for pattern in patterns:
-                match_found = False
-                pattern_score = 0
+        # Find all potential program matches using the same logic as normalization
+        for abbrev, abbrev_data in abbreviations.items():
+            if not isinstance(abbrev_data, dict):
+                continue
                 
-                # Use word boundaries for short patterns that could be substrings
-                if len(pattern) <= 3:
-                    # Use word boundary regex for short patterns like 'it', 'cs', etc.
-                    if re.search(r'\b' + re.escape(pattern) + r'\b', query_lower):
-                        match_found = True
-                        # Lower score for short patterns to avoid false positives
-                        pattern_score = len(pattern) * 1.0
-                else:
-                    # Use simple substring matching for longer patterns
-                    if pattern in query_lower:
-                        match_found = True
-                        # Higher score for longer patterns (more specific)
-                        pattern_score = len(pattern) * 2.0
+            full_name = abbrev_data.get("full_name", "")
+            description = abbrev_data.get("description", "")
+            priority = abbrev_data.get("priority", "safe")
+            is_common_word = abbrev_data.get("is_common_word", False)
+            
+            # Calculate match score using the same logic as program availability
+            match_score = self._calculate_program_match_score(query_lower, abbrev, full_name, description)
+            
+            if match_score > 0:
+                # Apply priority filtering (same as normalization)
+                should_include = False
                 
-                # Bonus points for exact matches or patterns that match more of the query
-                if match_found:
-                    # Bonus for patterns that cover more of the query
-                    coverage_bonus = (len(pattern) / len(query_lower)) * 10
-                    pattern_score += coverage_bonus
+                if priority == "safe":
+                    should_include = True
+                elif priority == "context_aware":
+                    # Check for program context
+                    context_patterns = self._get_context_patterns()
+                    program_keywords = context_patterns.get("program_keywords", [])
+                    has_program_context = any(re.search(rf'\b{keyword}\b', query_lower) for keyword in program_keywords)
+                    should_include = has_program_context
+                elif priority == "context_required":
+                    # Only include with strong context (for common English words)
+                    context_patterns = self._get_context_patterns()
+                    strong_program_patterns = context_patterns.get("strong_program", [])
+                    has_strong_context = False
                     
-                    # Bonus for exact word matches (e.g., "archi" vs "bs a")
-                    if pattern == query_lower.strip():
-                        pattern_score += 20
+                    for pattern_template in strong_program_patterns:
+                        pattern = pattern_template.replace("{abbrev}", re.escape(abbrev))
+                        if re.search(pattern, query_lower):
+                            has_strong_context = True
+                            break
                     
-                    # Update best match if this score is higher
-                    if pattern_score > best_score:
-                        best_score = pattern_score
-                        best_match = program
+                    # For common English words, be extra conservative
+                    if is_common_word:
+                        problematic_patterns = context_patterns.get("problematic", [])
+                        has_problematic_context = any(re.search(pattern, query_lower) for pattern in problematic_patterns)
+                        
+                        # SMART DETECTION: Check if the abbreviation appears as uppercase in original query
+                        # This handles cases like "is there IS" where "IS" is clearly a program reference
+                        has_uppercase_abbrev = abbrev.upper() in query
+                        
+                        # If the abbreviation appears in uppercase, it's likely a program reference
+                        if has_uppercase_abbrev:
+                            should_include = True  # Override filtering for uppercase program references
+                        else:
+                            should_include = has_strong_context and not has_problematic_context
+                    else:
+                        should_include = has_strong_context
+                
+                if should_include:
+                    matches.append({
+                        'score': match_score,
+                        'abbrev': abbrev,
+                        'full_name': full_name,
+                        'description': description,
+                        'abbrev_data': abbrev_data
+                    })
         
-        if best_match:
-            program_info['program_name'] = best_match
+        # Sort matches and handle ambiguity
+        if matches:
+            # Sort by score with tie-breaking (same as program availability)
+            def tie_breaker(match):
+                score = match['score']
+                length = len(match['abbrev'])
+                abbrev = match['abbrev']
+                
+                # Apply configurable tie-breaking logic
+                # Check for conflicts in the config
+                abbrev_data = match.get('abbrev_data', {})
+                conflicts_with = abbrev_data.get('conflicts_with', [])
+                
+                if conflicts_with and score >= 0.9 and length == 2:
+                    # Check if any conflicting abbreviations are present
+                    conflicting_abbrevs = [m['abbrev'] for m in matches if m['abbrev'] in conflicts_with]
+                    
+                    if conflicting_abbrevs:
+                        # Give priority to more specific matches (longer abbreviations first)
+                        # If same length, use alphabetical order for consistency
+                        return (score, length, 1 if abbrev > min(conflicting_abbrevs) else 0)
+                
+                return (score, length, 0)
+            
+            sorted_matches = sorted(matches, key=tie_breaker, reverse=True)
+            best_match = sorted_matches[0]
+            
+            # Extract program name from description
+            program_name = self._extract_program_name_from_description(best_match['description'])
+            if program_name:
+                program_info['program_name'] = program_name
+            else:
+                # Fallback to full name or abbreviation
+                program_info['program_name'] = best_match['full_name'] or best_match['abbrev']
         
         # Detect degree level
         if any(term in query_lower for term in ['undergraduate', 'bachelor', 'bs', 'ba']):
@@ -1324,7 +1391,7 @@ class FastHybridChatbotTogether:
             print("🔄 Falling back to simple topic filtering...")
             return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
 
-    def retrieve_documents_by_topic_hybrid(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+    def retrieve_documents_by_topic_hybrid(self, query: str, topic_id: str, top_k: int = 2, cluster_filter: str = None) -> List[Dict]:
         """
         HYBRID TOPIC + SEMANTIC RETRIEVAL:
         1. Filter documents by topic keywords (same as before)
@@ -1336,10 +1403,16 @@ class FastHybridChatbotTogether:
         
         print(f"🔬 Hybrid topic + semantic retrieval for: '{query}' (topic: {topic_id})")
         
-        # Normalize program acronyms in query for better matching
+        # Normalize program acronyms and school abbreviations in query for better matching
         normalized_query = self._normalize_program_acronyms(query)
         if normalized_query != query:
-            print(f"📝 Normalized query: '{query}' → '{normalized_query}'")
+            print(f"📝 Program normalized query: '{query}' → '{normalized_query}'")
+        
+        # Also normalize school abbreviations
+        school_normalized_query = self._normalize_school_abbreviations(normalized_query)
+        if school_normalized_query != normalized_query:
+            print(f"📝 School normalized query: '{normalized_query}' → '{school_normalized_query}'")
+            normalized_query = school_normalized_query
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
@@ -1432,8 +1505,27 @@ class FastHybridChatbotTogether:
             
             print(f"🎯 Found {len(topic_filtered_docs)} documents matching topic keywords")
             
+            # STAGE 1.5: Apply cluster filtering if specified
+            if cluster_filter:
+                print(f"🎯 Applying cluster filtering for: '{cluster_filter}'")
+                cluster_filtered_docs = []
+                
+                for doc in topic_filtered_docs:
+                    metadata = doc.get('metadata', {})
+                    doc_cluster = metadata.get('cluster', '')
+                    
+                    # Check if document belongs to the target cluster
+                    if cluster_filter.lower() in doc_cluster.lower():
+                        cluster_filtered_docs.append(doc)
+                        print(f"  ✅ {metadata.get('filename', 'Unknown')} - Cluster: {doc_cluster}")
+                    else:
+                        print(f"  ❌ {metadata.get('filename', 'Unknown')} - Cluster: {doc_cluster} (filtered out)")
+                
+                topic_filtered_docs = cluster_filtered_docs
+                print(f"🎯 After cluster filtering: {len(topic_filtered_docs)} documents")
+            
             if not topic_filtered_docs:
-                print("⚠️ No documents found after topic filtering")
+                print("⚠️ No documents found after filtering")
                 return []
             
             # STAGE 2: Apply specialized logic based on topic
@@ -1702,11 +1794,16 @@ class FastHybridChatbotTogether:
         
         # Check if hybrid retrieval is enabled
         if hasattr(self, 'use_hybrid_topic_retrieval') and self.use_hybrid_topic_retrieval:
-            print("✅ Using hybrid topic + semantic retrieval (60% topic + 40% semantic)")
+            print("✅ Using intent-enhanced hybrid retrieval (TF-IDF + Word2Vec + Intent Classification)")
             try:
-                return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+                return self.retrieve_documents_with_intent_classification(query, topic_id, top_k)
             except Exception as e:
-                print(f"❌ Hybrid retrieval failed: {e}")
+                print(f"❌ Intent-enhanced retrieval failed: {e}")
+                print("🔄 Falling back to standard hybrid retrieval...")
+                try:
+                    return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+                except Exception as e2:
+                    print(f"❌ Standard hybrid retrieval also failed: {e2}")
                 print("🔄 Falling back to specialized retrievers...")
         
         # Original specialized retriever logic
@@ -3083,130 +3180,237 @@ If you want to see the list of programs, click on the buttons below per school, 
 - Focus on answering questions within this topic area
 - Use only information from the provided context documents"""
     
+    def _load_normalization_config(self):
+        """Load and cache the normalization configuration from JSON file"""
+        if self._normalization_config is not None:
+            return self._normalization_config
+        
+        try:
+            import json
+            with open(self._config_file_path, 'r', encoding='utf-8') as f:
+                self._normalization_config = json.load(f)
+            print(f"[CONFIG] Loaded normalization config from {self._config_file_path}")
+            return self._normalization_config
+        except FileNotFoundError:
+            print(f"[ERROR] Normalization config file not found: {self._config_file_path}")
+            # Return empty config as fallback
+            return {
+                "program_abbreviations": {},
+                "context_patterns": {"problematic": [], "program_keywords": [], "strong_program": []},
+                "common_english_words": []
+            }
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Invalid JSON in normalization config: {e}")
+            return {
+                "program_abbreviations": {},
+                "context_patterns": {"problematic": [], "program_keywords": [], "strong_program": []},
+                "common_english_words": []
+            }
+    
+    def _reload_normalization_config(self):
+        """Force reload of normalization configuration"""
+        self._normalization_config = None
+        return self._load_normalization_config()
+    
+    def _get_program_abbreviations(self):
+        """Get all program abbreviations from config"""
+        config = self._load_normalization_config()
+        abbreviations = {}
+        
+        # Flatten all school sections into a single dict
+        for school_section, programs in config["program_abbreviations"].items():
+            if isinstance(programs, dict) and not school_section.startswith("_"):
+                abbreviations.update(programs)
+        
+        return abbreviations
+    
+    def _get_context_patterns(self):
+        """Get context patterns from config"""
+        config = self._load_normalization_config()
+        return config.get("context_patterns", {})
+    
+    def _get_school_keywords(self):
+        """Retrieve school keywords from the loaded configuration"""
+        config = self._load_normalization_config()
+        return config.get("school_keywords", {})
+    
+    def _get_cluster_keywords(self):
+        """Retrieve cluster keywords from the loaded configuration"""
+        config = self._load_normalization_config()
+        return config.get("cluster_keywords", {})
+    
+    def _get_priority_for_abbrev(self, abbrev: str) -> str:
+        """Get normalization priority for abbreviation"""
+        abbreviations = self._get_program_abbreviations()
+        abbrev_data = abbreviations.get(abbrev.lower(), {})
+        return abbrev_data.get("priority", "safe")
+    
+    def _is_common_english_word(self, word: str) -> bool:
+        """Check if word is a common English word that needs context checking"""
+        config = self._load_normalization_config()
+        common_words = config.get("common_english_words", [])
+        return word.lower() in common_words
+    
+    def _resolve_abbrev_conflict(self, query: str, abbrev: str) -> str:
+        """Resolve conflicts between abbreviations (e.g., AB IS vs BS IS)"""
+        config = self._load_normalization_config()
+        conflicts = config.get("conflict_resolution", {})
+        
+        if abbrev.lower() in conflicts:
+            # For now, use simple heuristics - could be enhanced with ML
+            query_lower = query.lower()
+            
+            # Check for computer/technology context for IS/DS conflicts
+            tech_keywords = ["computer", "technology", "information", "data", "programming", "software", "system"]
+            arts_keywords = ["islamic", "international", "development", "social", "studies", "culture"]
+            
+            if any(keyword in query_lower for keyword in tech_keywords):
+                # Prefer BS version (Computer Studies)
+                if abbrev.lower() == "is":
+                    return "BS IS"
+                elif abbrev.lower() == "ds":
+                    return "BS DS"
+            elif any(keyword in query_lower for keyword in arts_keywords):
+                # Prefer AB version (Arts/Social Sciences)
+                if abbrev.lower() == "is":
+                    return "AB IS"
+                elif abbrev.lower() == "ds":
+                    return "AB DS"
+        
+        # Default: return the first match from abbreviations
+        abbreviations = self._get_program_abbreviations()
+        abbrev_data = abbreviations.get(abbrev.lower(), {})
+        return abbrev_data.get("full_name", abbrev.upper())
+    
     def _normalize_program_acronyms(self, query: str) -> str:
-        """Normalize program acronyms to include space after BS/BA/AB (e.g., 'bsa' -> 'bs a')"""
+        """Normalize program acronyms using configurable, priority-based system
+        
+        ENHANCED: Uses JSON configuration with 3-tier priority system:
+        - safe: Always normalize (e.g., bscs -> BS CS)
+        - context_aware: Normalize with program keywords (e.g., cs near 'program')
+        - context_required: Only with strong context (e.g., 'is' only if 'BS IS program')
+        """
         import re
         
-        # Define common program acronyms and their variations (based on ADDU official programs)
-        program_mappings = {
-            # Business and Governance
-            r'\bbpm\b': 'BPM',  # Public Management
-            r'\bbsa\b': 'BSA',  # Accountancy
-            r'\bbsma\b': 'BSMA',  # Management Accounting
-            r'\bbsbm\b': 'BSBM',  # Business Management
-            r'\bbsentrep\b': 'BS ENTREP',  # Entrepreneurship
-            r'\bbsfin\b': 'BSFIN',  # Finance
-            r'\bbshrdm\b': 'BSHRDM',  # Human Resource Development Management
-            r'\bbsmktg\b': 'BS MKTG',  # Marketing
+        query_lower = query.lower()
+        
+        # Load configuration
+        context_patterns = self._get_context_patterns()
+        abbreviations = self._get_program_abbreviations()
+        
+        # Detect context types using config patterns
+        problematic_patterns = context_patterns.get("problematic", [])
+        program_keywords = context_patterns.get("program_keywords", [])
+        strong_program_patterns = context_patterns.get("strong_program", [])
+        
+        has_problematic_context = any(re.search(pattern, query_lower) for pattern in problematic_patterns)
+        has_program_context = any(re.search(rf'\b{keyword}\b', query_lower) for keyword in program_keywords)
+        
+        # Build normalization mappings based on priority
+        program_mappings = {}
+        
+        for abbrev, abbrev_data in abbreviations.items():
+            if not isinstance(abbrev_data, dict):
+                continue
+                
+            priority = abbrev_data.get("priority", "safe")
+            full_name = abbrev_data.get("full_name", abbrev.upper())
+            is_common_word = abbrev_data.get("is_common_word", False)
             
-            # Arts and Sciences - Technology
-            r'\bbsit\b': 'BS IT',  # Information Technology
-            r'\bbscs\b': 'BS CS',  # Computer Science
-            r'\bbsis\b': 'BS IS',  # Information Systems
-            r'\bbsds\b': 'BS DS',  # Data Science
-            # Abbreviations for Technology programs
-            r'\bit\b': 'BS IT',  # Information Technology abbreviation
-            r'\bcs\b': 'BS CS',  # Computer Science abbreviation
-            r'\bis\b': 'BS IS',  # Information Systems abbreviation
-            r'\bds\b': 'BS DS',  # Data Science abbreviation
-            r'\bcompsci\b': 'BS CS',  # Computer Science alternate
-            r'\binfotech\b': 'BS IT',  # Information Technology alternate
-            r'\bdatasci\b': 'BS DS',  # Data Science alternate
+            # Apply 3-tier logic
+            should_normalize = False
             
-            # Arts and Sciences - Science
-            r'\bbsbio\b': 'BS BIO',  # Biology
-            r'\bbschem\b': 'BS CHEM',  # Chemistry
-            r'\bbsmath\b': 'BS MATH',  # Mathematics
-            r'\bbsenvisci\b': 'BS ENVISCI',  # Environmental Science
-            r'\bbssocialwork\b': 'BS SOCIAL WORK',  # Social Work
-            # Abbreviations for Science programs
-            r'\bbio\b': 'BS BIO',  # Biology abbreviation
-            r'\bchem\b': 'BS CHEM',  # Chemistry abbreviation
-            r'\bmath\b': 'BS MATH',  # Mathematics abbreviation
-            r'\benvisci\b': 'BS ENVISCI',  # Environmental Science abbreviation
-            r'\bsocialwork\b': 'BS SOCIAL WORK',  # Social Work abbreviation
+            if priority == "safe":
+                # Always normalize safe abbreviations
+                should_normalize = True
+            elif priority == "context_aware":
+                # Normalize if program context is present
+                should_normalize = has_program_context
+            elif priority == "context_required":
+                # Only normalize with strong explicit context
+                has_strong_context = False
+                
+                # Check for strong program context patterns with this specific abbreviation
+                for pattern_template in strong_program_patterns:
+                    pattern = pattern_template.replace("{abbrev}", re.escape(abbrev))
+                    if re.search(pattern, query_lower):
+                        has_strong_context = True
+                        break
+                
+                # For common English words, be extra conservative
+                if is_common_word:
+                    should_normalize = has_strong_context and not has_problematic_context
+                else:
+                    should_normalize = has_strong_context or (has_program_context and not has_problematic_context)
             
-            # Arts and Sciences - Arts
-            r'\babanthro\b': 'AB ANTHRO',  # Anthropology (all tracks)
-            r'\babanth\b': 'AB ANTHRO',  # Anthropology (short form)
-            r'\babc\b': 'AB C',  # Communication
-            r'\babcomm\b': 'AB C',  # Communication (alternate)
-            r'\babds\b': 'AB DS',  # Development Studies
-            r'\babecon\b': 'AB ECON',  # Economics
-            r'\babel\b': 'AB EL',  # English Language
-            r'\babis\b': 'AB IS',  # Interdisciplinary Studies / International Studies / Islamic Studies
-            r'\babphilo\b': 'AB PHILO',  # Philosophy
-            r'\babpolsci\b': 'AB POLSCI',  # Political Science
-            r'\babpsych\b': 'AB PSYCH',  # Psychology
-            r'\babsocio\b': 'AB SOCIO',  # Sociology
-            # Abbreviations for Arts programs
-            r'\banthro\b': 'AB ANTHRO',  # Anthropology abbreviation
-            r'\banth\b': 'AB ANTHRO',  # Anthropology short abbreviation
-            r'\bcomm\b': 'AB C',  # Communication abbreviation
-            r'\becon\b': 'AB ECON',  # Economics abbreviation
-            r'\bel\b': 'AB EL',  # English Language abbreviation
-            r'\bphilo\b': 'AB PHILO',  # Philosophy abbreviation
-            r'\bpolsci\b': 'AB POLSCI',  # Political Science abbreviation
-            r'\bpsych\b': 'AB PSYCH',  # Psychology abbreviation
-            r'\bsocio\b': 'AB SOCIO',  # Sociology abbreviation
-            
-            # Education
-            r'\bbece\b': 'BECE',  # Early Childhood Education
-            r'\bbeed\b': 'BEED',  # Elementary Education
-            r'\bbsed\b': 'BSED',  # Secondary Education
-            # Abbreviations for Education programs
-            r'\bece\b': 'BECE',  # Early Childhood Education abbreviation
-            r'\beed\b': 'BEED',  # Elementary Education abbreviation
-            r'\bsed\b': 'BSED',  # Secondary Education abbreviation
-            
-            # Engineering and Architecture
-            r'\bbsae\b': 'BS AE',  # Aerospace Engineering
-            r'\bbsarch\b': 'BS ARCH',  # Architecture
-            r'\bbsche\b': 'BS CHE',  # Chemical Engineering
-            r'\bbsce\b': 'BS CE',  # Civil Engineering
-            r'\bbscompeng\b': 'BS COMP ENG',  # Computer Engineering
-            r'\bbscpe\b': 'BS COMP ENG',  # Computer Engineering (alternate)
-            r'\bbsee\b': 'BS EE',  # Electrical Engineering
-            r'\bbselectronicseng\b': 'BS ELECTRONICS ENG',  # Electronics Engineering
-            r'\bbsie\b': 'BS IE',  # Industrial Engineering
-            r'\bbsme\b': 'BS ME',  # Mechanical Engineering
-            r'\bbsre\b': 'BS RE',  # Robotics Engineering
-            # Abbreviations for Engineering programs
-            r'\bae\b': 'BS AE',  # Aerospace Engineering abbreviation
-            r'\barch\b': 'BS ARCH',  # Architecture abbreviation
-            r'\bche\b': 'BS CHE',  # Chemical Engineering abbreviation
-            r'\bce\b': 'BS CE',  # Civil Engineering abbreviation
-            r'\bcompeng\b': 'BS COMP ENG',  # Computer Engineering abbreviation
-            r'\bcpe\b': 'BS COMP ENG',  # Computer Engineering alternate abbreviation
-            r'\bee\b': 'BS EE',  # Electrical Engineering abbreviation
-            r'\belectronicseng\b': 'BS ELECTRONICS ENG',  # Electronics Engineering abbreviation
-            r'\bie\b': 'BS IE',  # Industrial Engineering abbreviation
-            r'\bme\b': 'BS ME',  # Mechanical Engineering abbreviation
-            r'\bre\b': 'BS RE',  # Robotics Engineering abbreviation
-            # Engineering field names
-            r'\baerospace\b': 'BS AE',  # Aerospace Engineering field name
-            r'\bchemical\b': 'BS CHE',  # Chemical Engineering field name
-            r'\bcivil\b': 'BS CE',  # Civil Engineering field name
-            r'\bcomputer\b': 'BS COMP ENG',  # Computer Engineering field name
-            r'\belectrical\b': 'BS EE',  # Electrical Engineering field name
-            r'\belectronics\b': 'BS ELECTRONICS ENG',  # Electronics Engineering field name
-            r'\bindustrial\b': 'BS IE',  # Industrial Engineering field name
-            r'\bmechanical\b': 'BS ME',  # Mechanical Engineering field name
-            r'\brobotics\b': 'BS RE',  # Robotics Engineering field name
-            
-            # Nursing
-            r'\bbsn\b': 'BSN',  # Nursing
-            r'\bnursing\b': 'BSN',  # Nursing field name
-            r'\bnurse\b': 'BSN',  # Nursing alternate
-        }
+            # Add to mappings if should normalize
+            if should_normalize:
+                # Handle conflicts (e.g., AB IS vs BS IS)
+                if abbrev_data.get("conflicts_with"):
+                    resolved_name = self._resolve_abbrev_conflict(query, abbrev)
+                    program_mappings[rf'\b{re.escape(abbrev)}\b'] = resolved_name
+                else:
+                    program_mappings[rf'\b{re.escape(abbrev)}\b'] = full_name
         
         # Apply normalizations (case insensitive)
         # Sort patterns by length (longest first) to avoid double replacements
         sorted_patterns = sorted(program_mappings.items(), key=lambda x: len(x[0]), reverse=True)
         
+        # IMPORTANT: Apply all normalizations to the ORIGINAL query to avoid double normalization
+        # Track positions that have been replaced to avoid overlapping replacements
         normalized_query = query
+        changes_made = []
+        replaced_positions = set()
+        
         for pattern, replacement in sorted_patterns:
-            normalized_query = re.sub(pattern, replacement, normalized_query, flags=re.IGNORECASE)
+            # Find all matches in the ORIGINAL query
+            matches = list(re.finditer(pattern, query, flags=re.IGNORECASE))
+            
+            for match in reversed(matches):  # Process from right to left to maintain positions
+                start, end = match.span()
+                
+                # Check if this position has already been replaced
+                if any(pos in replaced_positions for pos in range(start, end)):
+                    continue
+                
+                # Apply the replacement
+                normalized_query = normalized_query[:start] + replacement + normalized_query[end:]
+                changes_made.append(f"{match.group()} -> {replacement}")
+                
+                # Mark these positions as replaced
+                replaced_positions.update(range(start, end))
+        
+        # Log normalization decisions for debugging
+        if changes_made:
+            print(f"[NORM] Applied normalizations: {', '.join(changes_made)}")
+            print(f"[NORM] '{query}' -> '{normalized_query}'")
+        
+        return normalized_query
+
+    def _normalize_school_abbreviations(self, query: str) -> str:
+        """Normalize school abbreviations in queries (e.g., SBG -> School of Business & Governance)"""
+        import re
+        
+        # Load school abbreviations from config
+        config = self._load_normalization_config()
+        school_abbreviations = config.get("school_abbreviations", {})
+        
+        if not school_abbreviations:
+            return query
+        
+        query_lower = query.lower()
+        normalized_query = query
+        
+        # Sort by length (longest first) to avoid partial replacements
+        sorted_abbrevs = sorted(school_abbreviations.items(), key=lambda x: len(x[0]), reverse=True)
+        
+        for abbrev, full_name in sorted_abbrevs:
+            if abbrev in query_lower:
+                # Use word boundaries to avoid partial matches
+                pattern = r'\b' + re.escape(abbrev) + r'\b'
+                if re.search(pattern, query_lower):
+                    normalized_query = re.sub(pattern, full_name, normalized_query, flags=re.IGNORECASE)
+                    print(f"[SCHOOL] Normalized: '{abbrev}' -> '{full_name}'")
         
         return normalized_query
 
@@ -3675,17 +3879,23 @@ If you want to see the list of programs, click on the buttons below per school, 
             # Then check for program context enhancement
             enhanced_query = conversation_enhanced_query
             if program_info.get('program_name') and program_info.get('context_source'):
-                # For programs topic, ALWAYS add program context when available (it's more specific than general conversation context)
+                # For programs topic, only add program context if the current query doesn't already contain a program
                 if topic_id == 'programs_courses':
-                    # Only enhance if the current query doesn't already contain the program name
+                    # Check if the current query already contains a program name
                     current_program_info = self._extract_program_info(preprocessed_query)
                     if not current_program_info.get('program_name'):
-                        # Combine both conversation and program context for programs topic
-                        if conversation_enhanced_query != normalized_query:
-                            enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
+                        # Only add program context if it's different from what's already in the conversation
+                        # Check if the program from history is already mentioned in the current query
+                        program_name_lower = program_info['program_name'].lower()
+                        if program_name_lower not in preprocessed_query.lower():
+                            # Combine both conversation and program context for programs topic
+                            if conversation_enhanced_query != normalized_query:
+                                enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
+                            else:
+                                enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                            print(f"🎯 Enhanced query with program + conversation context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
                         else:
-                            enhanced_query = f"{program_info['program_name']} {normalized_query}"
-                        print(f"🎯 Enhanced query with program + conversation context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                            print(f"📝 Program from history already mentioned in current query, using conversation-enhanced query: '{enhanced_query}'")
                     else:
                         print(f"📝 Current query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
                 else:
@@ -3768,14 +3978,17 @@ This will ensure you get the most relevant and up-to-date information for your q
             
             # For programs topic, validate program availability first
             if topic_id == 'programs_courses':
-                # Check if this is a program availability or list query
-                availability_indicators = ['is there', 'do you have', 'available', 'offer', 'what programs', 'list of programs', 'what clusters', 'programs in', 'does addu have']
+                # First classify the query intent to distinguish overview vs specific queries
+                intent = self._classify_query_intent(query)
                 
-                if any(indicator in query.lower() for indicator in availability_indicators):
-                    print(f"🔍 Detected program availability query: '{query}'")
+                # Only check program availability for specific program queries, not overview queries
+                availability_indicators = ['is there', 'do you have', 'available', 'offer', 'does addu have']
+                
+                if intent != 'overview' and any(indicator in query.lower() for indicator in availability_indicators):
+                    print(f"🔍 Detected specific program availability query: '{query}'")
                     
                     # First check our program mappings for quick validation
-                    availability_result = self._parse_program_availability("", query)
+                    availability_result = self._parse_program_availability_configurable(query)
                     
                     if availability_result['exists'] == False:
                         # Program definitely doesn't exist - provide clear response
@@ -3783,15 +3996,34 @@ This will ensure you get the most relevant and up-to-date information for your q
                         return response_text, []
                     
                     elif availability_result['exists'] == True:
-                        # Program exists, enhance query with program context
-                        program_context = f"Program: {availability_result['details']}"
-                        if availability_result['school']:
-                            program_context += f"\nSchool: {availability_result['school']}"
-                        if availability_result['cluster']:
-                            program_context += f"\nCluster: {availability_result['cluster']}"
+                        # Check if this is an ambiguous query with multiple matches
+                        if availability_result.get('is_ambiguous', False):
+                            # Handle ambiguous query - provide multiple options
+                            print(f"🔀 Ambiguous query detected, providing multiple program options")
+                            
+                            response_parts = ["I found multiple programs that match your query. Here are the available options:\n"]
+                            
+                            for group_key, programs in availability_result['program_groups'].items():
+                                response_parts.append(f"\n**{group_key}:**")
+                                for program in programs:
+                                    response_parts.append(f"• **{program['program_name']}** - {program['description']}")
+                            
+                            response_parts.append(f"\nCould you please specify which program you're interested in? You can ask about any of these {availability_result['total_matches']} programs by name.")
+                            
+                            return "\n".join(response_parts), []
                         
-                        enhanced_query = f"{enhanced_query}\n\nProgram Context: {program_context}"
-                        print(f"✅ Program exists, enhanced query with context")
+                        else:
+                            # Single program match - enhance query with program context
+                            program_context = f"Program: {availability_result['details']}"
+                            if availability_result['school']:
+                                program_context += f"\nSchool: {availability_result['school']}"
+                            if availability_result['cluster']:
+                                program_context += f"\nCluster: {availability_result['cluster']}"
+                            
+                            enhanced_query = f"{enhanced_query}\n\nProgram Context: {program_context}"
+                            print(f"✅ Program exists, enhanced query with context")
+                    elif intent == 'overview':
+                        print(f"🔍 Detected overview query, skipping program availability check: '{query}'")
                     
                     # For general program list queries, try to retrieve the program list document
                     elif any(term in query.lower() for term in ['what programs', 'list programs', 'what clusters', 'programs available']):
@@ -4595,6 +4827,347 @@ RULES:
             print(f"Error retrieving program list: {e}")
             return {'content': '', 'metadata': {}, 'found': False}
 
+    def _parse_program_availability_configurable(self, query: str) -> Dict:
+        """
+        Parse program availability using the configurable normalization system
+        Uses intelligent matching with scoring to find the best program match
+        """
+        config = self._load_normalization_config()
+        abbreviations = self._get_program_abbreviations()
+        
+        import re
+        # Remove punctuation for better program matching
+        query_clean = re.sub(r'[^\w\s]', '', query)
+        query_lower = query_clean.lower().strip()
+        
+        # Find all potential matches with scores
+        matches = []
+        
+        for abbrev, abbrev_data in abbreviations.items():
+            if not isinstance(abbrev_data, dict):
+                continue
+                
+            full_name = abbrev_data.get("full_name", "")
+            description = abbrev_data.get("description", "")
+            
+            # Calculate match score for this program
+            match_score = self._calculate_program_match_score(query_lower, abbrev, full_name, description)
+            
+            if match_score > 0:
+                # Apply priority filtering (same as _extract_program_info)
+                priority = abbrev_data.get("priority", "safe")
+                is_common_word = abbrev_data.get("is_common_word", False)
+                should_include = False
+                
+                if priority == "safe":
+                    should_include = True
+                elif priority == "context_aware":
+                    # Check for program context
+                    context_patterns = self._get_context_patterns()
+                    program_keywords = context_patterns.get("program_keywords", [])
+                    has_program_context = any(re.search(rf'\b{keyword}\b', query_lower) for keyword in program_keywords)
+                    should_include = has_program_context
+                elif priority == "context_required":
+                    # Only include with strong context (for common English words)
+                    context_patterns = self._get_context_patterns()
+                    strong_program_patterns = context_patterns.get("strong_program", [])
+                    has_strong_context = False
+                    
+                    for pattern_template in strong_program_patterns:
+                        pattern = pattern_template.replace("{abbrev}", re.escape(abbrev))
+                        if re.search(pattern, query_lower):
+                            has_strong_context = True
+                            break
+                    
+                    # For common English words, be extra conservative
+                    if is_common_word:
+                        problematic_patterns = context_patterns.get("problematic", [])
+                        has_problematic_context = any(re.search(pattern, query_lower) for pattern in problematic_patterns)
+                        
+                        # SMART DETECTION: Check if the abbreviation appears as uppercase in original query
+                        # This handles cases like "is there IS" where "IS" is clearly a program reference
+                        has_uppercase_abbrev = abbrev.upper() in query
+                        
+                        # If the abbreviation appears in uppercase, it's likely a program reference
+                        if has_uppercase_abbrev:
+                            should_include = True  # Override filtering for uppercase program references
+                        else:
+                            should_include = has_strong_context and not has_problematic_context
+                    else:
+                        should_include = has_strong_context
+                
+                if should_include:
+                    matches.append({
+                        'score': match_score,
+                        'abbrev': abbrev,
+                        'full_name': full_name,
+                        'description': description,
+                        'abbrev_data': abbrev_data
+                    })
+        
+        # Check if both "is" and "ds" are present for tie-breaking
+        has_is = any(m['abbrev'] == "is" for m in matches)
+        has_ds = any(m['abbrev'] == "ds" for m in matches)
+        
+        # Sort matches by score (highest first), then by abbreviation length (longer = more specific)
+        # For ties, prioritize based on query context
+        if matches:
+            def tie_breaker(match):
+                score = match['score']
+                length = len(match['abbrev'])
+                abbrev = match['abbrev']
+                
+                # If scores and lengths are equal, prioritize based on query context
+                if score >= 0.9 and length == 2:  # Both are short abbreviations
+                    if abbrev == "ds" and has_is:
+                        return (score, length, 1)  # Give ds a boost
+                    elif abbrev == "is" and has_ds:
+                        return (score, length, 0)  # Give is lower priority
+                
+                return (score, length, 0)
+            
+            sorted_matches = sorted(matches, key=tie_breaker, reverse=True)
+            best_match = sorted_matches[0]
+            
+            # Check for ambiguous queries (multiple high-scoring matches)
+            if len(sorted_matches) > 1:
+                # Get matches with similar high scores (within 0.1 of the best)
+                high_scoring_matches = [
+                    m for m in sorted_matches 
+                    if m['score'] >= best_match['score'] - 0.1 and m['score'] > 0.3
+                ]
+                
+                # If we have multiple high-scoring matches, check if they're different programs
+                if len(high_scoring_matches) > 1:
+                    unique_programs = set(m['full_name'] for m in high_scoring_matches)
+                    
+                    if len(unique_programs) > 1:
+                        # Handle ambiguous query - return multiple options
+                        print(f"[AMBIGUOUS] Found {len(unique_programs)} matching programs for query: {query}")
+                        
+                        # Group matches by school/cluster for better organization
+                        program_groups = {}
+                        for match in high_scoring_matches:
+                            school = self._extract_school_from_config(match['abbrev_data'])
+                            cluster = self._extract_cluster_from_config(match['abbrev_data'])
+                            key = f"{school} - {cluster}" if school and cluster else "Unknown"
+                            
+                            if key not in program_groups:
+                                program_groups[key] = []
+                            
+                            program_groups[key].append({
+                                'program_name': match['full_name'],
+                                'description': match['description'],
+                                'school': school,
+                                'cluster': cluster
+                            })
+                        
+                        return {
+                            'exists': True,
+                            'is_ambiguous': True,
+                            'program_groups': program_groups,
+                            'total_matches': len(unique_programs)
+                        }
+            
+            # Only return if the match score is significant enough (> 0.3)
+            if best_match['score'] > 0.3:
+                print(f"[MATCH] Found program '{best_match['full_name']}' with score {best_match['score']:.3f}")
+                return {
+                    'exists': True,
+                    'is_ambiguous': False,
+                    'program_name': best_match['full_name'],
+                    'details': best_match['description'],
+                    'school': self._extract_school_from_config(best_match['abbrev_data']),
+                    'cluster': self._extract_cluster_from_config(best_match['abbrev_data'])
+                }
+        
+        return {
+            'exists': False,
+            'is_ambiguous': False,
+            'program_name': None,
+            'details': None,
+            'school': None,
+            'cluster': None
+        }
+    
+    def _calculate_program_match_score(self, query_lower: str, abbrev: str, full_name: str, description: str) -> float:
+        """
+        Calculate match score for a program based on query
+        Returns score between 0.0 and 1.0, where higher is better
+        """
+        import re
+        
+        score = 0.0
+        
+        # Extract program name from description (e.g., "Data Science" from "Bachelor of Science in Data Science")
+        program_name = self._extract_program_name_from_description(description)
+        
+        # 1. Exact program name match (highest priority) - Score: 1.0
+        if program_name and program_name.lower() in query_lower:
+            # Check if it's a word boundary match (not partial)
+            if re.search(r'\b' + re.escape(program_name.lower()) + r'\b', query_lower):
+                score = 1.0
+                return score
+        
+        # 2. Exact abbreviation match - Score: 0.9 (with length bonus for specificity)
+        if abbrev.lower() in query_lower:
+            if re.search(r'\b' + re.escape(abbrev.lower()) + r'\b', query_lower):
+                # Give bonus for longer, more specific abbreviations
+                length_bonus = min(0.1, len(abbrev) * 0.01)  # Up to 0.1 bonus for longer abbrevs
+                score = 0.9 + length_bonus
+                return score
+        
+        # 2.5. Handle space-separated abbreviations (e.g., "ab anthro" matches "abanthro")
+        # Check if abbreviation without spaces matches query with spaces removed
+        import re
+        abbrev_no_spaces = abbrev.replace(' ', '').lower()
+        # Remove punctuation from query for better matching
+        query_no_spaces = re.sub(r'[^\w\s]', '', query_lower).replace(' ', '')
+        
+        if abbrev_no_spaces in query_no_spaces:
+            # Additional check: ensure the abbreviation parts appear in sequence
+            abbrev_parts = abbrev.lower().split()
+            if len(abbrev_parts) > 1:  # Only for multi-word abbreviations
+                query_parts = query_lower.split()
+                
+                # Check if all abbreviation parts appear in sequence in query
+                for i in range(len(query_parts) - len(abbrev_parts) + 1):
+                    if query_parts[i:i + len(abbrev_parts)] == abbrev_parts:
+                        # Give bonus for longer, more specific abbreviations
+                        length_bonus = min(0.1, len(abbrev) * 0.01)
+                        score = 0.9 + length_bonus
+                        return score
+        else:
+            # Single word abbreviation - check if it can be formed from query parts
+            # For "abanthro", check if "ab" and "anthro" appear in sequence
+            query_parts = query_lower.split()
+            
+            # Try to find the abbreviation by combining consecutive query parts
+            for i in range(len(query_parts)):
+                for j in range(i + 1, len(query_parts) + 1):
+                    combined = ''.join(query_parts[i:j])
+                    if combined == abbrev_no_spaces:
+                        length_bonus = min(0.1, len(abbrev) * 0.01)
+                        score = 0.9 + length_bonus
+                        return score
+        
+        # 3. Exact full name match (e.g., "BS CS") - Score: 0.8
+        # CRITICAL FIX: Check base abbreviation directly instead of full name
+        # Extract the base abbreviation (e.g., "AB IS" from "AB IS - AMERICAN STUDIES" or "BS ENTREP" from "BS ENTREP-A")
+        if ' - ' in full_name:
+            base_abbrev = full_name.split(' - ')[0].strip()
+        elif '-' in full_name and not full_name.startswith('-'):
+            # Handle cases like "BS ENTREP-A" -> "BS ENTREP"
+            base_abbrev = full_name.split('-')[0].strip()
+        else:
+            base_abbrev = full_name
+        
+        if base_abbrev.lower() in query_lower:
+            if re.search(r'\b' + re.escape(base_abbrev.lower()) + r'\b', query_lower):
+                # Check if the query contains this base abbreviation exactly
+                query_parts = query_lower.split()
+                base_parts = base_abbrev.lower().split()
+                
+                # Look for exact match of the base abbreviation in the query
+                for i in range(len(query_parts) - len(base_parts) + 1):
+                    query_segment = ' '.join(query_parts[i:i + len(base_parts)])
+                    if query_segment == base_abbrev.lower():
+                        score = 0.8
+                        return score
+        
+        # 4. Partial program name match - Score: 0.4-0.6
+        if program_name:
+            program_words = program_name.lower().split()
+            matched_words = sum(1 for word in program_words if word in query_lower)
+            if matched_words > 0:
+                score = 0.4 + (matched_words / len(program_words)) * 0.2
+        
+        # 5. Description keyword match - Score: 0.1-0.3 (lowest priority)
+        description_words = [word.lower() for word in description.split() if len(word) > 4]
+        matched_desc_words = sum(1 for word in description_words if word in query_lower)
+        if matched_desc_words > 0 and score < 0.3:
+            score = max(score, 0.1 + (matched_desc_words / len(description_words)) * 0.2)
+        
+        return score
+    
+    def _extract_program_name_from_description(self, description: str) -> str:
+        """
+        Extract the actual program name from description
+        E.g., "Bachelor of Science in Data Science" -> "Data Science"
+        """
+        import re
+        
+        # Common patterns to extract program names
+        patterns = [
+            r'Bachelor of (?:Science|Arts) in (.+?)(?:\s*\(|$)',
+            r'Bachelor of (.+?)(?:\s*\(|$)',
+            r'BS (.+?)(?:\s*\(|$)',
+            r'BA (.+?)(?:\s*\(|$)',
+            r'AB (.+?)(?:\s*\(|$)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, description, re.IGNORECASE)
+            if match:
+                program_name = match.group(1).strip()
+                # Clean up common suffixes
+                program_name = re.sub(r'\s*Major in\s*', ' ', program_name, flags=re.IGNORECASE)
+                return program_name
+        
+        return ""
+
+    def _extract_school_from_config(self, abbrev_data: dict) -> str:
+        """Extract school name from program config (explicit or inferred)"""
+        # First check if school is explicitly defined in config
+        if "school" in abbrev_data:
+            return abbrev_data["school"]
+        
+        # Fallback to description-based inference
+        description = abbrev_data.get("description", "").lower()
+        
+        if any(term in description for term in ["arts", "sciences", "english", "communication", "biology", "chemistry", "computer", "psychology", "anthropology", "economics", "sociology"]):
+            return "School of Arts & Sciences"
+        elif any(term in description for term in ["business", "accountancy", "management", "entrepreneurship", "finance", "marketing", "public"]):
+            return "School of Business & Governance"
+        elif any(term in description for term in ["education", "elementary", "secondary", "childhood"]):
+            return "School of Education"
+        elif any(term in description for term in ["engineering", "architecture"]):
+            return "School of Engineering & Architecture"
+        elif "nursing" in description:
+            return "School of Nursing"
+        else:
+            return "Unknown School"
+
+    def _extract_cluster_from_config(self, abbrev_data: dict) -> str:
+        """Extract cluster name from program config (explicit or inferred)"""
+        # First check if cluster is explicitly defined in config
+        if "cluster" in abbrev_data:
+            return abbrev_data["cluster"]
+        
+        # Fallback to description-based inference
+        description = abbrev_data.get("description", "").lower()
+        
+        if any(term in description for term in ["english", "communication", "interdisciplinary", "philosophy"]):
+            return "Humanities & Letters"
+        elif any(term in description for term in ["biology", "chemistry", "mathematics", "environmental"]):
+            return "Natural Sciences & Mathematics"
+        elif any(term in description for term in ["computer", "information", "data"]):
+            return "Computer Studies"
+        elif any(term in description for term in ["economics", "political", "psychology", "sociology", "anthropology", "social"]):
+            return "Social Sciences"
+        elif any(term in description for term in ["accountancy", "accounting"]):
+            return "Accountancy"
+        elif any(term in description for term in ["business", "entrepreneurship", "finance", "marketing", "management", "public"]):
+            return "Business Management"
+        elif any(term in description for term in ["education", "elementary", "secondary", "childhood"]):
+            return "Education"
+        elif any(term in description for term in ["engineering", "architecture"]):
+            return "Engineering & Architecture"
+        elif "nursing" in description:
+            return "Nursing"
+        else:
+            return "Unknown Cluster"
+
     def _parse_program_availability(self, program_list_content: str, query: str) -> Dict:
         """
         Parse the program list document to check program availability
@@ -4689,44 +5262,43 @@ RULES:
     def _format_program_list_response(self, program_list_content: str, query: str) -> str:
         """
         Format the program list document content based on the query type
+        Uses configurable school and cluster keywords from config
         """
         query_lower = query.lower()
         
-        # Detect query type
+        # Detect query type using configurable keywords
         if 'cluster' in query_lower:
-            return self._extract_cluster_info(program_list_content, query_lower)
-        elif any(school in query_lower for school in ['arts', 'sciences', 'business', 'engineering', 'education', 'nursing']):
-            return self._extract_school_info(program_list_content, query_lower)
+            return self._extract_cluster_info_configurable(program_list_content, query_lower)
+        elif self._detect_school_query(query_lower):
+            return self._extract_school_info_configurable(program_list_content, query_lower)
         else:
             # General program list
             return f"Here are the available undergraduate programs at Ateneo de Davao University:\n\n{program_list_content}"
 
-    def _extract_cluster_info(self, content: str, query: str) -> str:
-        """Extract cluster-specific information"""
+    def _detect_school_query(self, query_lower: str) -> bool:
+        """Detect if query is asking for school-specific information using config"""
+        school_keywords = self._get_school_keywords()
+        return any(keyword in query_lower for keyword in school_keywords.keys())
+
+    def _extract_cluster_info_configurable(self, content: str, query: str) -> str:
+        """Extract cluster-specific information using configurable keywords"""
         lines = content.split('\n')
         result = []
         in_target_cluster = False
         current_school = None
         
-        cluster_keywords = {
-            'computer': 'Computer Studies',
-            'humanities': 'Humanities & Letters', 
-            'natural': 'Natural Sciences & Mathematics',
-            'sciences': 'Natural Sciences & Mathematics',
-            'social': 'Social Sciences',
-            'business': 'Business Management',
-            'accountancy': 'Accountancy',
-            'education': 'Education',
-            'engineering': 'Engineering & Architecture',
-            'architecture': 'Engineering & Architecture',
-            'nursing': 'Nursing'
-        }
+        # Get cluster keywords from config
+        cluster_keywords = self._get_cluster_keywords()
         
+        # Find target cluster from query
         target_cluster = None
         for keyword, cluster_name in cluster_keywords.items():
             if keyword in query:
                 target_cluster = cluster_name
                 break
+        
+        if not target_cluster:
+            return "I couldn't identify which cluster you're asking about. Please specify a cluster like 'computer', 'business', 'engineering', etc."
         
         for line in lines:
             line = line.strip()
@@ -4742,30 +5314,26 @@ RULES:
             elif in_target_cluster and line and (line[0].isdigit() or line.startswith('●')):
                 result.append(line)
         
-        return '\n'.join(result) if result else "I couldn't find specific cluster information for your query."
+        return '\n'.join(result) if result else f"I couldn't find programs in the {target_cluster} cluster."
 
-    def _extract_school_info(self, content: str, query: str) -> str:
-        """Extract school-specific information"""
+    def _extract_school_info_configurable(self, content: str, query: str) -> str:
+        """Extract school-specific information using configurable keywords"""
         lines = content.split('\n')
         result = []
         in_target_school = False
         
-        school_keywords = {
-            'arts': 'School of Arts & Sciences',
-            'sciences': 'School of Arts & Sciences',
-            'business': 'School of Business & Governance',
-            'governance': 'School of Business & Governance',
-            'education': 'School of Education',
-            'engineering': 'School of Engineering & Architecture',
-            'architecture': 'School of Engineering & Architecture',
-            'nursing': 'School of Nursing'
-        }
+        # Get school keywords from config
+        school_keywords = self._get_school_keywords()
         
+        # Find target school from query
         target_school = None
         for keyword, school_name in school_keywords.items():
             if keyword in query:
                 target_school = school_name
                 break
+        
+        if not target_school:
+            return "I couldn't identify which school you're asking about. Please specify a school like 'arts', 'business', 'engineering', etc."
         
         for line in lines:
             line = line.strip()
@@ -4778,7 +5346,7 @@ RULES:
             elif in_target_school and line:
                 result.append(line)
         
-        return '\n'.join(result) if result else f"I couldn't find information about that school."
+        return '\n'.join(result) if result else f"I couldn't find information about {target_school}."
 
     def _preprocess_pronoun_query(self, query: str, program_context: str = None) -> str:
         """Preprocess queries with pronouns to avoid misinterpretation"""
@@ -4812,6 +5380,202 @@ RULES:
             return processed_query
         
         return query
+
+    def _classify_query_intent(self, query: str) -> str:
+        """
+        Classify query intent as 'overview', 'specific', or 'mixed'
+        
+        Overview queries: Ask for program lists, available programs, school overviews
+        Specific queries: Ask for curriculum, subjects, program details
+        Mixed queries: Ambiguous or contain both types of indicators
+        """
+        import re
+        
+        query_lower = query.lower()
+        
+        # Overview indicators - queries asking for program lists or availability
+        overview_patterns = [
+            r'\b(what|show|list|all)\s+(programs?|degrees?)\s+(are\s+)?(available|offered|in|under)\b',
+            r'\bprograms?\s+(in|under|at|offered by)\s+(school|college|addu)\b',
+            r'\b(available|offered)\s+programs?\b',
+            r'\bwhat\s+(does|are)\s+(school|college|addu)\s+(offer|have)\b',
+            r'\bshow\s+me\s+all\s+programs?\b',
+            r'\blist\s+(of\s+)?(all\s+)?programs?\b',
+            r'\bwhat\s+programs?\s+(does|do|are)\s+',
+            r'\bprograms?\s+(available|offered)\s+(in|at|under)\b',
+            r'\ball\s+(the\s+)?programs?\s+(in|under|at)\b',
+            r'\bwhich\s+programs?\s+(are\s+)?(available|offered)\b'
+        ]
+        
+        # Specific program indicators - queries asking for curriculum, subjects, details
+        specific_patterns = [
+            r'\b(curriculum|subjects?|courses?|syllabus)\s+(for|of|in)\s+',
+            r'\b(what|show)\s+(subjects?|courses?|curriculum)\s+(are\s+)?(in|for|of)\s+',
+            r'\b(program|degree)\s+(requirements?|details?)\b',
+            r'\b(study|academic)\s+plan\b',
+            r'\bwhat\s+(subjects?|courses?)\s+(are\s+)?(in|for|of|required)\s+',
+            r'\bshow\s+me\s+(the\s+)?(curriculum|subjects?|courses?)\b',
+            r'\b(course|subject)\s+(list|outline)\b',
+            r'\bprogram\s+(structure|content)\b',
+            r'\bwhat\s+(do\s+)?(you|we)\s+(study|learn)\s+in\s+',
+            r'\bsyllabus\s+(for|of)\s+'
+        ]
+        
+        # Check for pattern matches
+        has_overview = any(re.search(pattern, query_lower) for pattern in overview_patterns)
+        has_specific = any(re.search(pattern, query_lower) for pattern in specific_patterns)
+        
+        # Additional context-based classification
+        # Overview context words
+        overview_context = ['school', 'college', 'university', 'addu', 'available', 'offered', 'all', 'list']
+        # Specific context words  
+        specific_context = ['curriculum', 'subjects', 'courses', 'syllabus', 'requirements', 'study', 'learn']
+        
+        overview_context_count = sum(1 for word in overview_context if word in query_lower)
+        specific_context_count = sum(1 for word in specific_context if word in query_lower)
+        
+        # Decision logic
+        if has_overview and not has_specific:
+            return "overview"
+        elif has_specific and not has_overview:
+            return "specific"
+        elif overview_context_count > specific_context_count:
+            return "overview"
+        elif specific_context_count > overview_context_count:
+            return "specific"
+        else:
+            return "mixed"
+
+    def _detect_cluster_query(self, query: str) -> str:
+        """
+        Detect if query is asking for cluster-specific information
+        Returns: cluster name if detected, None otherwise
+        """
+        query_lower = query.lower().strip()
+        
+        # Get cluster keywords from config
+        cluster_keywords = self._get_cluster_keywords()
+        
+        # Check if query contains cluster-related keywords
+        for keyword, cluster_name in cluster_keywords.items():
+            if keyword in query_lower:
+                return cluster_name
+        
+        return None
+
+    def _get_cluster_keywords(self) -> dict:
+        """Get cluster keywords from config"""
+        if not hasattr(self, '_cluster_keywords_cache'):
+            try:
+                with open(self._config_file_path, 'r') as f:
+                    config = json.load(f)
+                    self._cluster_keywords_cache = config.get('cluster_keywords', {})
+            except Exception as e:
+                print(f"⚠️ Error loading cluster keywords: {e}")
+                self._cluster_keywords_cache = {}
+        return self._cluster_keywords_cache
+
+    def retrieve_documents_with_intent_classification(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
+        """
+        ENHANCED RETRIEVAL WITH INTENT CLASSIFICATION:
+        1. Classify query intent (overview, specific, mixed)
+        2. Apply intent-aware document filtering
+        3. Use existing TF-IDF/Word2Vec hybrid scoring
+        4. Apply intent-based score boosting
+        """
+        import re
+        
+        # Step 1: Normalize school abbreviations first
+        school_normalized_query = self._normalize_school_abbreviations(query)
+        if school_normalized_query != query:
+            print(f"📝 School normalized query: '{query}' → '{school_normalized_query}'")
+            query = school_normalized_query
+        
+        # Step 2: Classify query intent
+        intent = self._classify_query_intent(query)
+        print(f"🎯 Query intent classified as: '{intent}'")
+        
+        # Step 3: Detect cluster query and apply cluster filtering
+        cluster_filter = self._detect_cluster_query(query)
+        if cluster_filter:
+            print(f"🎯 Detected cluster query: '{cluster_filter}'")
+        
+        # Step 4: Get base results using existing hybrid method with cluster filtering
+        base_results = self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k * 3, cluster_filter=cluster_filter)  # Get more to filter
+        
+        if not base_results:
+            print("⚠️ No base results found, falling back to simple retrieval")
+            return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
+        
+        # Step 3: Apply intent-based filtering and scoring
+        enhanced_results = []
+        
+        for doc in base_results:
+            doc_metadata = doc.get('metadata', {})
+            doc_type = doc.get('document_type', '')
+            filename = doc.get('filename', '').lower()
+            
+            # Get base score (from existing TF-IDF/Word2Vec hybrid)
+            base_score = doc.get('relevance', 0.0)
+            
+            # Apply intent-based scoring
+            intent_multiplier = 1.0
+            
+            if intent == "overview":
+                # Boost directory/overview documents
+                if any(keyword in filename for keyword in ['directory', 'programs', 'list', 'overview']):
+                    intent_multiplier = 1.5
+                    print(f"📈 Overview boost for: {filename[:50]}...")
+                elif doc_type == 'program_directory':
+                    intent_multiplier = 1.5
+                    print(f"📈 Directory document boost for: {filename[:50]}...")
+                # Slightly penalize very specific curriculum documents
+                elif any(keyword in filename for keyword in ['curriculum', 'syllabus', 'course']):
+                    intent_multiplier = 0.8
+                    
+            elif intent == "specific":
+                # Boost curriculum/specific documents
+                if any(keyword in filename for keyword in ['curriculum', 'syllabus', 'course', 'program']):
+                    intent_multiplier = 1.5
+                    print(f"📈 Specific boost for: {filename[:50]}...")
+                elif doc_type == 'program_curriculum':
+                    intent_multiplier = 1.5
+                    print(f"📈 Curriculum document boost for: {filename[:50]}...")
+                # Slightly penalize very general directory documents
+                elif any(keyword in filename for keyword in ['directory', 'list', 'overview']):
+                    intent_multiplier = 0.8
+            
+            # Mixed intent uses normal scoring (no boost/penalty)
+            
+            # Calculate final score
+            final_score = base_score * intent_multiplier
+            
+            enhanced_results.append({
+                'id': doc.get('id'),
+                'content': doc.get('content'),
+                'metadata': doc_metadata,
+                'filename': doc.get('filename', ''),
+                'document_type': doc.get('document_type', ''),
+                'relevance': final_score,
+                'base_score': base_score,
+                'intent_multiplier': intent_multiplier,
+                'intent': intent
+            })
+        
+        # Step 4: Sort by enhanced score and return top_k
+        enhanced_results.sort(key=lambda x: x['relevance'], reverse=True)
+        final_results = enhanced_results[:top_k]
+        
+        # Log the scoring details
+        print(f"🎯 Intent-enhanced results (top {len(final_results)}):")
+        for i, doc in enumerate(final_results, 1):
+            filename = doc.get('filename', 'Unknown')[:50]
+            print(f"   {i}. {filename}...")
+            print(f"      Final Score: {doc['relevance']:.3f}")
+            print(f"      Base Score: {doc['base_score']:.3f}")
+            print(f"      Intent Multiplier: {doc['intent_multiplier']:.1f}x")
+        
+        return final_results
 
 def test_fast_hybrid_chatbot_together():
     """Test the fast hybrid chatbot with Together AI"""

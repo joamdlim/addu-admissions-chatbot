@@ -1,0 +1,1028 @@
+{
+  "program_abbreviations": {
+    "_comment": "All 59 official ADDU programs with priority levels: safe (always normalize), context_aware (with program keywords), context_required (strong context only)",
+
+    "School of Arts & Sciences - Humanities & Letters": {
+      "abeng": {
+        "full_name": "AB ENG",
+        "priority": "safe",
+        "description": "Bachelor of Arts in English Language",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
+      },
+      "eng": {
+        "full_name": "AB ENG",
+        "priority": "context_aware",
+        "description": "English Language abbreviation"
+      },
+      "english": {
+        "full_name": "AB ENG",
+        "priority": "context_aware",
+        "description": "English Language field name"
+      },
+
+      "abmc": {
+        "full_name": "AB MC",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Mass Communication",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
+      },
+      "mc": {
+        "full_name": "AB MC",
+        "priority": "context_aware",
+        "description": "Mass Communication abbreviation"
+      },
+      "mass communication": {
+        "full_name": "AB MC",
+        "priority": "context_aware",
+        "description": "Mass Communication field name"
+      },
+      "communication": {
+        "full_name": "AB MC",
+        "priority": "context_aware",
+        "description": "Communication field name"
+      },
+
+      "abids-ll": {
+        "full_name": "AB IDS-LL",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Language & Literature"
+      },
+      "abids-mb": {
+        "full_name": "AB IDS-MB",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Business"
+      },
+      "abids-mp": {
+        "full_name": "AB IDS-MP",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Philosophy"
+      },
+      "abids-mt": {
+        "full_name": "AB IDS-MT",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Technology"
+      },
+      "abids-pt": {
+        "full_name": "AB IDS-PT",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Philosophy & Theology"
+      },
+      "ids": {
+        "full_name": "AB IDS",
+        "priority": "context_aware",
+        "description": "Interdisciplinary Studies abbreviation"
+      },
+      "interdisciplinary": {
+        "full_name": "AB IDS",
+        "priority": "context_aware",
+        "description": "Interdisciplinary Studies field name"
+      },
+
+      "abphilo": {
+        "full_name": "AB PHILO",
+        "priority": "safe",
+        "description": "Bachelor of Arts Major in Philosophy (Pre-Law)",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
+      },
+      "philo": {
+        "full_name": "AB PHILO",
+        "priority": "context_aware",
+        "description": "Philosophy abbreviation"
+      },
+      "philosophy": {
+        "full_name": "AB PHILO",
+        "priority": "context_aware",
+        "description": "Philosophy field name"
+      }
+    },
+
+    "School of Arts & Sciences - Natural Sciences & Mathematics": {
+      "bsbio": {
+        "full_name": "BS BIO",
+        "priority": "safe",
+        "description": "Bachelor of Science in Biology (General Biology)",
+        "school": "School of Arts & Sciences",
+        "cluster": "Natural Sciences & Mathematics"
+      },
+      "bio": {
+        "full_name": "BS BIO",
+        "priority": "context_aware",
+        "description": "Biology abbreviation"
+      },
+      "biology": {
+        "full_name": "BS BIO",
+        "priority": "context_aware",
+        "description": "Biology field name"
+      },
+
+      "bsbio-medbio": {
+        "full_name": "BS BIO - MEDBIO",
+        "priority": "safe",
+        "description": "Bachelor of Science in Biology Major in Medical Biology"
+      },
+      "medbio": {
+        "full_name": "BS BIO - MEDBIO",
+        "priority": "context_aware",
+        "description": "Medical Biology abbreviation"
+      },
+
+      "bschem": {
+        "full_name": "BS CHEM",
+        "priority": "safe",
+        "description": "Bachelor of Science in Chemistry",
+        "school": "School of Arts & Sciences",
+        "cluster": "Natural Sciences & Mathematics"
+      },
+      "chem": {
+        "full_name": "BS CHEM",
+        "priority": "context_aware",
+        "description": "Chemistry abbreviation"
+      },
+      "chemistry": {
+        "full_name": "BS CHEM",
+        "priority": "context_aware",
+        "description": "Chemistry field name"
+      },
+
+      "bsmath": {
+        "full_name": "BS MATH",
+        "priority": "safe",
+        "description": "Bachelor of Science in Mathematics",
+        "school": "School of Arts & Sciences",
+        "cluster": "Natural Sciences & Mathematics"
+      },
+      "math": {
+        "full_name": "BS MATH",
+        "priority": "context_aware",
+        "description": "Mathematics abbreviation"
+      },
+      "mathematics": {
+        "full_name": "BS MATH",
+        "priority": "context_aware",
+        "description": "Mathematics field name"
+      },
+
+      "bsenvisci": {
+        "full_name": "BS ENVI SCI",
+        "priority": "safe",
+        "description": "Bachelor of Science in Environmental Science",
+        "school": "School of Arts & Sciences",
+        "cluster": "Natural Sciences & Mathematics"
+      },
+      "envisci": {
+        "full_name": "BS ENVI SCI",
+        "priority": "context_aware",
+        "description": "Environmental Science abbreviation"
+      },
+      "environmental science": {
+        "full_name": "BS ENVI SCI",
+        "priority": "context_aware",
+        "description": "Environmental Science field name"
+      }
+    },
+
+    "School of Arts & Sciences - Computer Studies": {
+      "bsis": {
+        "full_name": "BS IS",
+        "priority": "safe",
+        "description": "Bachelor of Science in Information Systems",
+        "school": "School of Arts & Sciences",
+        "cluster": "Computer Studies"
+      },
+      "is": {
+        "full_name": "BS IS",
+        "priority": "context_required",
+        "is_common_word": true,
+        "conflicts_with": ["AB IS"],
+        "description": "Information Systems abbreviation"
+      },
+      "information systems": {
+        "full_name": "BS IS",
+        "priority": "context_aware",
+        "description": "Information Systems field name"
+      },
+
+      "bsit": {
+        "full_name": "BS IT",
+        "priority": "safe",
+        "description": "Bachelor of Science in Information Technology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Computer Studies"
+      },
+      "it": {
+        "full_name": "BS IT",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Information Technology abbreviation"
+      },
+      "information technology": {
+        "full_name": "BS IT",
+        "priority": "context_aware",
+        "description": "Information Technology field name"
+      },
+      "infotech": {
+        "full_name": "BS IT",
+        "priority": "context_aware",
+        "description": "Information Technology alternate"
+      },
+
+      "bscs": {
+        "full_name": "BS CS",
+        "priority": "safe",
+        "description": "Bachelor of Science in Computer Science",
+        "school": "School of Arts & Sciences",
+        "cluster": "Computer Studies"
+      },
+      "cs": {
+        "full_name": "BS CS",
+        "priority": "context_aware",
+        "description": "Computer Science abbreviation"
+      },
+      "computer science": {
+        "full_name": "BS CS",
+        "priority": "context_aware",
+        "description": "Computer Science field name"
+      },
+      "compsci": {
+        "full_name": "BS CS",
+        "priority": "context_aware",
+        "description": "Computer Science alternate"
+      },
+
+      "bsds": {
+        "full_name": "BS DS",
+        "priority": "safe",
+        "description": "Bachelor of Science in Data Science",
+        "school": "School of Arts & Sciences",
+        "cluster": "Computer Studies"
+      },
+      "ds": {
+        "full_name": "BS DS",
+        "priority": "context_aware",
+        "conflicts_with": ["AB DS"],
+        "description": "Data Science abbreviation"
+      },
+      "data science": {
+        "full_name": "BS DS",
+        "priority": "context_aware",
+        "description": "Data Science field name"
+      },
+      "datasci": {
+        "full_name": "BS DS",
+        "priority": "context_aware",
+        "description": "Data Science alternate"
+      }
+    },
+
+    "School of Arts & Sciences - Social Sciences": {
+      "abecon": {
+        "full_name": "AB ECON",
+        "priority": "safe",
+        "description": "Bachelor of Arts Major in Economics",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
+      },
+      "econ": {
+        "full_name": "AB ECON",
+        "priority": "context_aware",
+        "description": "Economics abbreviation"
+      },
+      "economics": {
+        "full_name": "AB ECON",
+        "priority": "context_aware",
+        "description": "Economics field name"
+      },
+
+      "abds": {
+        "full_name": "AB DS",
+        "priority": "safe",
+        "conflicts_with": ["BS DS"],
+        "description": "Bachelor of Arts in Development Studies",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
+      },
+      "development studies": {
+        "full_name": "AB DS",
+        "priority": "context_aware",
+        "conflicts_with": ["BS DS"],
+        "description": "Development Studies field name"
+      },
+
+      "abpolsci": {
+        "full_name": "AB POLSCI",
+        "priority": "safe",
+        "description": "Bachelor of Arts Major in Political Studies"
+      },
+      "polsci": {
+        "full_name": "AB POLSCI",
+        "priority": "context_aware",
+        "description": "Political Science abbreviation"
+      },
+      "political science": {
+        "full_name": "AB POLSCI",
+        "priority": "context_aware",
+        "description": "Political Science field name"
+      },
+
+      "abpsych": {
+        "full_name": "AB PSYCH",
+        "priority": "safe",
+        "description": "Bachelor of Arts Major in Psychology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
+      },
+      "psych": {
+        "full_name": "AB PSYCH",
+        "priority": "context_aware",
+        "description": "Psychology abbreviation"
+      },
+      "psychology": {
+        "full_name": "AB PSYCH",
+        "priority": "context_aware",
+        "description": "Psychology field name"
+      },
+
+      "absocio": {
+        "full_name": "AB SOCIO",
+        "priority": "safe",
+        "description": "Bachelor of Arts Major in Sociology"
+      },
+      "socio": {
+        "full_name": "AB SOCIO",
+        "priority": "context_aware",
+        "description": "Sociology abbreviation"
+      },
+      "sociology": {
+        "full_name": "AB SOCIO",
+        "priority": "context_aware",
+        "description": "Sociology field name"
+      },
+
+      "abis-islamic": {
+        "full_name": "AB IS",
+        "priority": "safe",
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Islamic Studies"
+      },
+      "abis-american": {
+        "full_name": "AB IS - AMERICAN STUDIES",
+        "priority": "safe",
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in International Studies Major in American Studies"
+      },
+      "abis-asian": {
+        "full_name": "AB IS - ASIAN STUDIES",
+        "priority": "safe",
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in International Studies Major in Asian Studies"
+      },
+      "islamic studies": {
+        "full_name": "AB IS",
+        "priority": "context_aware",
+        "description": "Islamic Studies field name"
+      },
+      "international studies": {
+        "full_name": "AB IS",
+        "priority": "context_aware",
+        "description": "International Studies field name"
+      },
+
+      "abanthro-acadres": {
+        "full_name": "AB ANTHRO - ACADRES",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology - Academic Research"
+      },
+      "abanthro-comdev": {
+        "full_name": "AB ANTHRO - COMDEV",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology - Community Development/Social Enterprise"
+      },
+      "abanthro-iped": {
+        "full_name": "AB ANTHRO - IPED",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology - IP Education"
+      },
+      "abanthro-medanth": {
+        "full_name": "AB ANTHRO - MEDANTH",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology - Medical Anthropology"
+      },
+      "abanthro-prelaw": {
+        "full_name": "AB ANTHRO - PRELAW",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology - Leadership/Pre-Law"
+      },
+      "abanthro": {
+        "full_name": "AB ANTHRO",
+        "priority": "safe",
+        "description": "Bachelor of Arts in Anthropology"
+      },
+      "anthro": {
+        "full_name": "AB ANTHRO",
+        "priority": "context_aware",
+        "description": "Anthropology abbreviation"
+      },
+      "anthropology": {
+        "full_name": "AB ANTHRO",
+        "priority": "context_aware",
+        "description": "Anthropology field name"
+      },
+
+      "bssocialwork": {
+        "full_name": "BS SOCIAL WORK",
+        "priority": "safe",
+        "description": "Bachelor of Science in Social Work"
+      },
+      "social work": {
+        "full_name": "BS SOCIAL WORK",
+        "priority": "context_aware",
+        "description": "Social Work field name"
+      },
+      "socialwork": {
+        "full_name": "BS SOCIAL WORK",
+        "priority": "context_aware",
+        "description": "Social Work alternate"
+      }
+    },
+
+    "School of Business & Governance": {
+      "bsa": {
+        "full_name": "BS A",
+        "priority": "safe",
+        "description": "Bachelor of Science in Accountancy",
+        "school": "School of Business & Governance",
+        "cluster": "Accountancy"
+      },
+      "accountancy": {
+        "full_name": "BS A",
+        "priority": "context_aware",
+        "description": "Accountancy field name"
+      },
+      "accounting": {
+        "full_name": "BS A",
+        "priority": "context_aware",
+        "description": "Accounting alternate"
+      },
+
+      "bsma": {
+        "full_name": "BS MA",
+        "priority": "safe",
+        "description": "Bachelor of Science in Management Accounting"
+      },
+      "management accounting": {
+        "full_name": "BS MA",
+        "priority": "context_aware",
+        "description": "Management Accounting field name"
+      },
+
+      "bsbm": {
+        "full_name": "BS BM",
+        "priority": "safe",
+        "description": "Bachelor of Science in Business Management",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
+      },
+      "bm": {
+        "full_name": "BS BM",
+        "priority": "context_aware",
+        "description": "Business Management abbreviation"
+      },
+      "business management": {
+        "full_name": "BS BM",
+        "priority": "context_aware",
+        "description": "Business Management field name"
+      },
+
+      "bsentrep": {
+        "full_name": "BS ENTREP",
+        "priority": "safe",
+        "description": "Bachelor of Science in Entrepreneurship"
+      },
+      "entrep": {
+        "full_name": "BS ENTREP",
+        "priority": "context_aware",
+        "description": "Entrepreneurship abbreviation"
+      },
+      "entrepreneurship": {
+        "full_name": "BS ENTREP",
+        "priority": "context_aware",
+        "description": "Entrepreneurship field name"
+      },
+
+      "bsentrep-a": {
+        "full_name": "BS ENTREP-A",
+        "priority": "safe",
+        "description": "Bachelor of Science in Entrepreneurship Major in Agri-Business"
+      },
+      "agri-business": {
+        "full_name": "BS ENTREP-A",
+        "priority": "context_aware",
+        "description": "Agri-Business field name"
+      },
+
+      "bsfin": {
+        "full_name": "BS FIN",
+        "priority": "safe",
+        "description": "Bachelor of Science in Finance"
+      },
+      "fin": {
+        "full_name": "BS FIN",
+        "priority": "context_aware",
+        "description": "Finance abbreviation"
+      },
+      "finance": {
+        "full_name": "BS FIN",
+        "priority": "context_aware",
+        "description": "Finance field name"
+      },
+
+      "bshrdm": {
+        "full_name": "BS HRDM",
+        "priority": "safe",
+        "description": "Bachelor of Science in Human Resource Development and Management"
+      },
+      "hrdm": {
+        "full_name": "BS HRDM",
+        "priority": "context_aware",
+        "description": "Human Resource Development and Management abbreviation"
+      },
+      "human resource": {
+        "full_name": "BS HRDM",
+        "priority": "context_aware",
+        "description": "Human Resource field name"
+      },
+      "hr": {
+        "full_name": "BS HRDM",
+        "priority": "context_aware",
+        "description": "Human Resource alternate"
+      },
+
+      "bsmktg": {
+        "full_name": "BS MKTG",
+        "priority": "safe",
+        "description": "Bachelor of Science in Marketing"
+      },
+      "mktg": {
+        "full_name": "BS MKTG",
+        "priority": "context_aware",
+        "description": "Marketing abbreviation"
+      },
+      "marketing": {
+        "full_name": "BS MKTG",
+        "priority": "context_aware",
+        "description": "Marketing field name"
+      },
+
+      "bpm": {
+        "full_name": "BPM",
+        "priority": "safe",
+        "description": "Bachelor of Public Management"
+      },
+      "public management": {
+        "full_name": "BPM",
+        "priority": "context_aware",
+        "description": "Public Management field name"
+      },
+      "governance": {
+        "full_name": "BPM",
+        "priority": "context_aware",
+        "description": "Governance alternate"
+      }
+    },
+
+    "School of Education": {
+      "bece": {
+        "full_name": "BECE",
+        "priority": "safe",
+        "description": "Bachelor of Early Childhood Education",
+        "school": "School of Education",
+        "cluster": "Education"
+      },
+      "ece": {
+        "full_name": "BECE",
+        "priority": "context_aware",
+        "description": "Early Childhood Education abbreviation"
+      },
+      "early childhood": {
+        "full_name": "BECE",
+        "priority": "context_aware",
+        "description": "Early Childhood Education field name"
+      },
+
+      "beed": {
+        "full_name": "BEED",
+        "priority": "safe",
+        "description": "Bachelor of Elementary Education"
+      },
+      "eed": {
+        "full_name": "BEED",
+        "priority": "context_aware",
+        "description": "Elementary Education abbreviation"
+      },
+      "elementary education": {
+        "full_name": "BEED",
+        "priority": "context_aware",
+        "description": "Elementary Education field name"
+      },
+
+      "bsed-english": {
+        "full_name": "BSED - English",
+        "priority": "safe",
+        "description": "Bachelor of Secondary Education Major in English"
+      },
+      "bsed-math": {
+        "full_name": "BSED - Math",
+        "priority": "safe",
+        "description": "Bachelor of Secondary Education Major in Mathematics"
+      },
+      "bsed-science": {
+        "full_name": "BSED - Science",
+        "priority": "safe",
+        "description": "Bachelor of Secondary Education Major in Science"
+      },
+      "bsed-ss": {
+        "full_name": "BSED - SS",
+        "priority": "safe",
+        "description": "Bachelor of Secondary Education Major in Social Studies"
+      },
+      "bsed": {
+        "full_name": "BSED",
+        "priority": "safe",
+        "description": "Bachelor of Secondary Education"
+      },
+      "sed": {
+        "full_name": "BSED",
+        "priority": "context_aware",
+        "description": "Secondary Education abbreviation"
+      },
+      "secondary education": {
+        "full_name": "BSED",
+        "priority": "context_aware",
+        "description": "Secondary Education field name"
+      }
+    },
+
+    "School of Engineering & Architecture": {
+      "bsae": {
+        "full_name": "BS AE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Aerospace Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
+      },
+      "ae": {
+        "full_name": "BS AE",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Aerospace Engineering abbreviation"
+      },
+      "aerospace": {
+        "full_name": "BS AE",
+        "priority": "context_aware",
+        "description": "Aerospace Engineering field name"
+      },
+
+      "bsarch": {
+        "full_name": "BS ARCH",
+        "priority": "safe",
+        "description": "Bachelor of Science in Architecture"
+      },
+      "arch": {
+        "full_name": "BS ARCH",
+        "priority": "context_aware",
+        "description": "Architecture abbreviation"
+      },
+      "architecture": {
+        "full_name": "BS ARCH",
+        "priority": "context_aware",
+        "description": "Architecture field name"
+      },
+
+      "bsche": {
+        "full_name": "BS CHE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Chemical Engineering"
+      },
+      "che": {
+        "full_name": "BS CHE",
+        "priority": "context_aware",
+        "description": "Chemical Engineering abbreviation"
+      },
+      "chemical": {
+        "full_name": "BS CHE",
+        "priority": "context_aware",
+        "description": "Chemical Engineering field name"
+      },
+
+      "bsce": {
+        "full_name": "BS CE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Civil Engineering"
+      },
+      "ce": {
+        "full_name": "BS CE",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Civil Engineering abbreviation"
+      },
+      "civil": {
+        "full_name": "BS CE",
+        "priority": "context_aware",
+        "description": "Civil Engineering field name"
+      },
+
+      "bscompeng": {
+        "full_name": "BS COMP ENG",
+        "priority": "safe",
+        "description": "Bachelor of Science in Computer Engineering"
+      },
+      "compeng": {
+        "full_name": "BS COMP ENG",
+        "priority": "context_aware",
+        "description": "Computer Engineering abbreviation"
+      },
+      "computer engineering": {
+        "full_name": "BS COMP ENG",
+        "priority": "context_aware",
+        "description": "Computer Engineering field name"
+      },
+
+      "bsee": {
+        "full_name": "BS EE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Electrical Engineering"
+      },
+      "ee": {
+        "full_name": "BS EE",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Electrical Engineering abbreviation"
+      },
+      "electrical": {
+        "full_name": "BS EE",
+        "priority": "context_aware",
+        "description": "Electrical Engineering field name"
+      },
+
+      "bselectronicseng": {
+        "full_name": "BS ELECTRONICS ENG",
+        "priority": "safe",
+        "description": "Bachelor of Science in Electronics Engineering"
+      },
+      "electronics": {
+        "full_name": "BS ELECTRONICS ENG",
+        "priority": "context_aware",
+        "description": "Electronics Engineering field name"
+      },
+
+      "bsie": {
+        "full_name": "BS IE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Industrial Engineering"
+      },
+      "ie": {
+        "full_name": "BS IE",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Industrial Engineering abbreviation"
+      },
+      "industrial": {
+        "full_name": "BS IE",
+        "priority": "context_aware",
+        "description": "Industrial Engineering field name"
+      },
+
+      "bsme": {
+        "full_name": "BS ME",
+        "priority": "safe",
+        "description": "Bachelor of Science in Mechanical Engineering"
+      },
+      "me": {
+        "full_name": "BS ME",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Mechanical Engineering abbreviation"
+      },
+      "mechanical": {
+        "full_name": "BS ME",
+        "priority": "context_aware",
+        "description": "Mechanical Engineering field name"
+      },
+
+      "bsre": {
+        "full_name": "BS RE",
+        "priority": "safe",
+        "description": "Bachelor of Science in Robotics Engineering"
+      },
+      "re": {
+        "full_name": "BS RE",
+        "priority": "context_required",
+        "is_common_word": true,
+        "description": "Robotics Engineering abbreviation"
+      },
+      "robotics": {
+        "full_name": "BS RE",
+        "priority": "context_aware",
+        "description": "Robotics Engineering field name"
+      }
+    },
+
+    "School of Nursing": {
+      "bsn": {
+        "full_name": "BS N",
+        "priority": "safe",
+        "description": "Bachelor of Science in Nursing",
+        "school": "School of Nursing",
+        "cluster": "Nursing"
+      },
+      "nursing": {
+        "full_name": "BS N",
+        "priority": "context_aware",
+        "description": "Nursing field name"
+      },
+      "nurse": {
+        "full_name": "BS N",
+        "priority": "context_aware",
+        "description": "Nursing alternate"
+      }
+    }
+  },
+
+  "context_patterns": {
+    "problematic": [
+      "\\bwhat\\s+is\\s+the\\b",
+      "\\bwhere\\s+is\\s+the\\b",
+      "\\bhow\\s+is\\s+the\\b",
+      "\\bwhen\\s+is\\s+the\\b",
+      "\\bwhy\\s+is\\s+the\\b",
+      "\\bwho\\s+is\\s+the\\b",
+      "\\bwhich\\s+is\\s+the\\b",
+      "\\bthere\\s+is\\s+\\b",
+      "\\bit\\s+is\\b",
+      "\\bthis\\s+is\\b",
+      "\\bthat\\s+is\\b",
+      "\\bfor\\s+it\\b",
+      "\\bsubmit\\s+it\\b",
+      "\\bdo\\s+it\\b",
+      "\\bget\\s+it\\b",
+      "\\btake\\s+it\\b",
+      "\\bmake\\s+it\\b",
+      "\\bfind\\s+it\\b",
+      "\\buse\\s+it\\b",
+      "\\bshow\\s+me\\s+",
+      "\\btell\\s+me\\s+",
+      "\\bwhen\\s+is\\s+it\\b",
+      "\\bwhere\\s+is\\s+it\\b",
+      "\\bhow\\s+is\\s+it\\b",
+      "\\bwhat\\s+is\\s+it\\b",
+      "\\bis\\s+it\\s+\\b",
+      "\\bdoes\\s+it\\b",
+      "\\bcan\\s+it\\b",
+      "\\bwill\\s+it\\b",
+      "\\bshould\\s+it\\b"
+    ],
+
+    "program_keywords": [
+      "program",
+      "course",
+      "degree",
+      "curriculum",
+      "major",
+      "minor",
+      "bachelor",
+      "bsed",
+      "bece",
+      "beed",
+      "bpm",
+      "school",
+      "college",
+      "department",
+      "faculty"
+    ],
+
+    "strong_program": [
+      "\\b{abbrev}\\s+(program|course|degree|curriculum)\\b",
+      "\\bstudy\\s+{abbrev}\\b",
+      "\\bmajor\\s+in\\s+{abbrev}\\b",
+      "\\benroll\\s+(in\\s+)?{abbrev}\\b",
+      "\\bapply\\s+(for\\s+)?{abbrev}\\b",
+      "\\b(requirements?|fees?|tuition)\\s+(for\\s+)?{abbrev}\\b",
+      "\\b{abbrev}\\s+(requirements?|fees?|tuition)\\b",
+      "\\b(admission|enrollment)\\s+(to|for)\\s+{abbrev}\\b",
+      "\\b{abbrev}\\s+(admission|enrollment)\\b"
+    ]
+  },
+
+  "priority_rules": {
+    "safe": "Always normalize - no context check needed (e.g., bscs, bsit, abeng)",
+    "context_aware": "Normalize if program keywords are present nearby (e.g., cs, bio, math)",
+    "context_required": "Only normalize with strong explicit program context (e.g., is, it, me)"
+  },
+
+  "common_english_words": [
+    "is",
+    "it",
+    "me",
+    "we",
+    "us",
+    "he",
+    "she",
+    "am",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "can",
+    "must",
+    "re",
+    "ce",
+    "ie",
+    "ae",
+    "ee",
+    "el",
+    "an",
+    "at",
+    "in",
+    "on",
+    "or",
+    "to"
+  ],
+
+  "conflict_resolution": {
+    "is": {
+      "BS IS": "Information Systems (Computer Studies)",
+      "AB IS": "Islamic Studies OR International Studies (Social Sciences)"
+    },
+    "ds": {
+      "BS DS": "Data Science (Computer Studies)",
+      "AB DS": "Development Studies (Social Sciences)"
+    }
+  },
+
+  "school_abbreviations": {
+    "_comment": "School name abbreviations and variations for better query understanding",
+    "sas": "School of Arts & Sciences",
+    "sbg": "School of Business & Governance",
+    "soe": "School of Education",
+    "sea": "School of Engineering & Architecture",
+    "son": "School of Nursing",
+    "school of arts and sciences": "School of Arts & Sciences",
+    "school of business and governance": "School of Business & Governance",
+    "school of education": "School of Education",
+    "school of engineering and architecture": "School of Engineering & Architecture",
+    "school of nursing": "School of Nursing",
+    "arts and sciences": "School of Arts & Sciences",
+    "business and governance": "School of Business & Governance",
+    "education": "School of Education",
+    "engineering and architecture": "School of Engineering & Architecture",
+    "nursing": "School of Nursing"
+  },
+
+  "school_keywords": {
+    "_comment": "Keywords that map to school names for query detection",
+    "arts": "School of Arts & Sciences",
+    "sciences": "School of Arts & Sciences",
+    "business": "School of Business & Governance",
+    "governance": "School of Business & Governance",
+    "education": "School of Education",
+    "engineering": "School of Engineering & Architecture",
+    "architecture": "School of Engineering & Architecture",
+    "nursing": "School of Nursing"
+  },
+
+  "cluster_keywords": {
+    "_comment": "Keywords that map to cluster names for query detection",
+    "computer studies": "Computer Studies",
+    "humanities & letters": "Humanities & Letters",
+    "letters": "Humanities & Letters",
+    "natural": "Natural Sciences & Mathematics",
+    "sciences": "Natural Sciences & Mathematics",
+    "mathematics": "Natural Sciences & Mathematics",
+    "social": "Social Sciences",
+    "business management": "Business Management",
+    "management": "Business Management",
+    "accountancy": "Accountancy",
+    "accounting": "Accountancy",
+    "education": "Education",
+    "engineering": "Engineering & Architecture",
+    "architecture": "Engineering & Architecture",
+    "nursing": "Nursing"
+  }
+}

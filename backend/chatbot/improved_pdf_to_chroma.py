@@ -15,9 +15,9 @@ from chatbot.preprocess import preprocess_text
 # Import pdfplumber - now required
 try:
     import pdfplumber
-    print("✅ pdfplumber available")
+    print("[OK] pdfplumber available")
 except ImportError:
-    raise ImportError("❌ pdfplumber is required. Please install it with: pip install pdfplumber")
+    raise ImportError("[ERROR] pdfplumber is required. Please install it with: pip install pdfplumber")
 
 # Configuration - matches existing setup
 EMBEDDINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "embeddings")

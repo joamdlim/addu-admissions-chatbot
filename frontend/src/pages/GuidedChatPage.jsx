@@ -366,11 +366,11 @@ const GuidedChatPage = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gray-50 flex flex-col items-center">
+    <div className="w-full h-full bg-gray-50 flex flex-col">
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 w-[950px] max-w-[950px] py-8 overflow-y-auto space-y-4 min-h-0"
+        className="flex-1 w-full px-4 xl:px-6 pt-4 xl:pt-6 pb-4 overflow-y-auto space-y-4 min-h-0"
         id="messages-container"
       >
         {messages.map((m, idx) => {
@@ -450,38 +450,8 @@ const GuidedChatPage = () => {
                                 // Clean the part to remove any trailing whitespace or newlines
                                 const cleanPart = part.trim();
                                 if (cleanPart.match(urlRegex)) {
-                                  // Extract program name from URL or use a generic name
-                                  let linkText = "View Curriculum";
-                                  if (cleanPart.includes("Nursing"))
-                                    linkText = "BS Nursing Curriculum";
-                                  else if (cleanPart.includes("Computer"))
-                                    linkText = "BS Computer Science Curriculum";
-                                  else if (cleanPart.includes("Business"))
-                                    linkText =
-                                      "BS Business Management Curriculum";
-                                  else if (cleanPart.includes("Engineering"))
-                                    linkText = "Engineering Program Curriculum";
-                                  else if (
-                                    cleanPart.includes(
-                                      "Information-Technology"
-                                    ) ||
-                                    cleanPart.includes("Information-Technolgy")
-                                  )
-                                    linkText =
-                                      "BS Information Technology Curriculum";
-                                  else if (cleanPart.includes("programs/")) {
-                                    // Extract program name from URL path
-                                    const programMatch =
-                                      cleanPart.match(/programs\/([^/?]+)/);
-                                    if (programMatch) {
-                                      linkText =
-                                        programMatch[1]
-                                          .replace(/-/g, " ")
-                                          .replace(/\b\w/g, (l) =>
-                                            l.toUpperCase()
-                                          ) + " Program";
-                                    }
-                                  }
+                                  // Use generic link text for all URLs
+                                  const linkText = "Click Here";
 
                                   return (
                                     <a
@@ -613,7 +583,7 @@ const GuidedChatPage = () => {
       </div>
 
       {/* Guided Prompt Area - fixed at bottom */}
-      <div className="w-[900px] max-w-[900px] pb-6 bg-gray-50 flex-shrink-0">
+      <div className="w-full px-4 xl:px-6 pb-4 xl:pb-6 bg-gray-50 flex-shrink-0">
         <GuidedPromptArea
           conversationState={conversationState}
           topics={topics}

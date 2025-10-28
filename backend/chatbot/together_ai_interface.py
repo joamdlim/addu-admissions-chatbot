@@ -37,7 +37,7 @@ WORD_PREDICTION_CONFIG = {
     "top_k": 8
 }
 
-print("🧠 Initializing Together AI client with Llama-4-Scout model...")
+print("[AI] Initializing Together AI client with Llama-4-Scout model...")
 start_time = time.time()
 
 try:
@@ -48,10 +48,10 @@ try:
     
     client = Together(api_key=api_key)
     init_time = time.time() - start_time
-    print(f"✅ Together AI client initialized with Llama-4-Scout-17B-16E-Instruct in {init_time:.2f} seconds")
-    print("🎯 Model upgraded to Llama-4-Scout for significantly reduced hallucinations and better context retrieval")
+    print(f"[OK] Together AI client initialized with Llama-4-Scout-17B-16E-Instruct in {init_time:.2f} seconds")
+    print("[INFO] Model upgraded to Llama-4-Scout for significantly reduced hallucinations and better context retrieval")
 except Exception as e:
-    print(f"❌ Together AI initialization failed: {e}")
+    print(f"[ERROR] Together AI initialization failed: {e}")
     raise
 
 def extract_response_text(result: Any) -> str:
@@ -128,12 +128,12 @@ def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = F
             gen_time = time.time() - start_time
             tokens_per_second = max_tokens / gen_time if gen_time > 0 else 0
             
-            print(f"⚡ Generated ~{len(response_text.split())} words in {gen_time:.2f}s ({tokens_per_second:.1f} tokens/sec)")
+            print(f"[PERF] Generated ~{len(response_text.split())} words in {gen_time:.2f}s ({tokens_per_second:.1f} tokens/sec)")
             
             return response_text
             
     except Exception as e:
-        print(f"❌ Together AI generation error: {e}")
+        print(f"[ERROR] Together AI generation error: {e}")
         return ""
 
 def generate_response(prompt: str, max_tokens: int = 1024) -> str:
@@ -169,13 +169,13 @@ def stream_response(prompt: str, max_tokens: int = 1024) -> str:
                         first_token_latency = first_token_time - start_time
                         
     except Exception as e:
-        print(f"\n⚠️ Streaming error: {e}")
+        print(f"\n[WARNING] Streaming error: {e}")
     
     # Calculate time
     gen_time = time.time() - start_time
     tokens_per_second = max_tokens / gen_time if gen_time > 0 else 0
     
-    print(f"\n\n⚡ Generated ~{len(full_response.split())} words in {gen_time:.2f}s ({tokens_per_second:.1f} tokens/sec)")
+    print(f"\n\n[PERF] Generated ~{len(full_response.split())} words in {gen_time:.2f}s ({tokens_per_second:.1f} tokens/sec)")
     
     return full_response
 
@@ -199,7 +199,7 @@ def correct_typos(text: str) -> str:
         return corrected_text if corrected_text else text
         
     except Exception as e:
-        print(f"⚠️ Typo correction failed: {e}")
+        print(f"[WARNING] Typo correction failed: {e}")
         return text
 
 def predict_next_words(text: str, num_suggestions: int = 2) -> List[str]:
@@ -224,7 +224,7 @@ def predict_next_words(text: str, num_suggestions: int = 2) -> List[str]:
                 suggestions.append(suggestion)
                 
     except Exception as e:
-        print(f"⚠️ Word prediction failed: {e}")
+        print(f"[WARNING] Word prediction failed: {e}")
     
     return suggestions
 
@@ -267,7 +267,7 @@ def stream_response_together(prompt: str, max_tokens: int = 1024):
                     text_chunk = chunk["choices"][0]["delta"]["content"]
                     yield text_chunk  # Yield just the string, not the dict
     except Exception as e:
-        print(f"⚠️ Streaming error: {e}")
+        print(f"[WARNING] Streaming error: {e}")
         yield ""  # Yield empty string on error
 
 # Export the same interface as the original file

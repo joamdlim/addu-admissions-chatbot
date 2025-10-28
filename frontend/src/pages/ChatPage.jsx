@@ -177,7 +177,7 @@ const ChatPage = () => {
   return (
     <div className="w-full h-full bg-gray-50 flex flex-col items-center">
       {/* Messages */}
-      <div className="flex-1 w-[800px] max-w-[800px] py-8 overflow-y-auto space-y-4 min-h-0">
+      <div className="flex-1 w-full max-w-4xl px-4 xl:px-6 py-8 overflow-y-auto space-y-4 min-h-0">
         {messages.map((m, idx) => {
           const isUser = m.role === "user";
           return (
@@ -360,7 +360,7 @@ const ChatPage = () => {
       </div>
 
       {/* FAQs and input - fixed at bottom */}
-      <div className="w-[800px] max-w-[800px] pb-6 bg-gray-50 flex-shrink-0">
+      <div className="w-full max-w-4xl px-4 xl:px-6 pb-6 bg-gray-50 flex-shrink-0">
         <PromptArea
           faqs={mockFaqs}
           onFaqClick={handleFaqClick}

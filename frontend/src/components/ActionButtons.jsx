@@ -41,38 +41,17 @@ const ActionButtons = ({
 
   return (
     <div className="w-full flex flex-col items-center space-y-2">
-      {/* School buttons (for Program Curriculum only) - Always show in 3-2 layout */}
+      {/* School buttons (for Program Curriculum only) - Responsive grid */}
       {showSchoolButtons && (
         <div className="w-full max-w-6xl">
-          {/* First row - 3 buttons */}
-          <div className="flex justify-center gap-3 mb-3">
-            {schoolButtons.slice(0, 3).map((button) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            {schoolButtons.map((button) => (
               <button
                 key={button.id}
                 onClick={() => !disabled && onAction(button.id)}
                 disabled={disabled}
                 className={`
-                  px-6 py-3 rounded text-sm font-medium transition-all duration-200 flex-1 max-w-[280px] whitespace-nowrap text-center
-                  ${
-                    disabled
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-blue-50 text-[#063970] border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
-                  }
-                `}
-              >
-                {button.label}
-              </button>
-            ))}
-          </div>
-          {/* Second row - 2 buttons */}
-          <div className="flex justify-center gap-3">
-            {schoolButtons.slice(3, 5).map((button) => (
-              <button
-                key={button.id}
-                onClick={() => !disabled && onAction(button.id)}
-                disabled={disabled}
-                className={`
-                  px-6 py-3 rounded text-sm font-medium transition-all duration-200 flex-1 max-w-[280px] whitespace-nowrap text-center
+                  px-4 py-3 rounded text-sm font-medium transition-all duration-200 text-center
                   ${
                     disabled
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
