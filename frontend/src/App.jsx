@@ -27,7 +27,7 @@ function App() {
         </div>
 
         {/* Mode Toggle */}
-        <div className="flex items-center space-x-4">
+        {/* <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-sm">Chat Mode:</span>
             <button
@@ -41,7 +41,7 @@ function App() {
               {isGuidedMode ? "Guided" : "Free Chat"}
             </button>
           </div>
-        </div>
+        </div> */}
       </header>
 
       {/* Main Content Area */}
