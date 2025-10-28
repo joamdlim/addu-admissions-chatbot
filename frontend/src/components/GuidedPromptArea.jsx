@@ -33,16 +33,15 @@ const GuidedPromptArea = ({
       )}
 
       {/* Action Buttons (for follow-up state) - pass all buttons except topic buttons */}
-      {buttons &&
-        buttons.length > 0 &&
-        conversationState !== "topic_selection" && (
-          <ActionButtons
-            buttons={buttons.filter((btn) => btn.type !== "topic")}
-            onAction={onAction}
-            disabled={disabled}
-            currentTopic={currentTopicLabel}
-          />
-        )}
+      {conversationState !== "topic_selection" && (
+        <ActionButtons
+          buttons={buttons ? buttons.filter((btn) => btn.type !== "topic") : []}
+          onAction={onAction}
+          disabled={disabled}
+          currentTopic={currentTopic}
+          currentTopicLabel={currentTopicLabel}
+        />
+      )}
 
       {/* Text Input (when enabled) */}
       {inputEnabled && (

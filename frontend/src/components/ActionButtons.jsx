@@ -5,37 +5,85 @@ const ActionButtons = ({
   onAction,
   disabled = false,
   currentTopic = null,
+  currentTopicLabel = null,
 }) => {
-  if (!buttons || buttons.length === 0) return null;
+  // Define school buttons for program curriculum topic
+  const schoolButtons = [
+    {
+      id: "school_arts_sciences",
+      label: "School of Arts & Sciences",
+      type: "school",
+    },
+    {
+      id: "school_business_governance",
+      label: "School of Business & Governance",
+      type: "school",
+    },
+    { id: "school_education", label: "School of Education", type: "school" },
+    {
+      id: "school_engineering_architecture",
+      label: "School of Engineering & Architecture",
+      type: "school",
+    },
+    { id: "school_nursing", label: "School of Nursing", type: "school" },
+  ];
 
-  // Separate school buttons and action buttons
-  const schoolButtons = buttons.filter((btn) => btn.type === "school");
-  const actionButtons = buttons.filter(
-    (btn) => btn.type !== "school" && btn.type !== "topic"
-  );
+  // Separate action buttons from the passed buttons
+  const actionButtons = buttons
+    ? buttons.filter((btn) => btn.type !== "school" && btn.type !== "topic")
+    : [];
+
+  // Show school buttons only for program curriculum topic
+  const showSchoolButtons = currentTopic === "programs_courses";
+
+  if (!showSchoolButtons && (!actionButtons || actionButtons.length === 0))
+    return null;
 
   return (
     <div className="w-full flex flex-col items-center space-y-2">
-      {/* School buttons (for Program Curriculum only) */}
-      {schoolButtons.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-1 w-full">
-          {schoolButtons.map((button) => (
-            <button
-              key={button.id}
-              onClick={() => !disabled && onAction(button.id)}
-              disabled={disabled}
-              className={`
-                px-2 py-1 rounded text-xs font-medium transition-all duration-200
-                ${
-                  disabled
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-blue-50 text-[#063970] border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
-                }
-              `}
-            >
-              {button.label}
-            </button>
-          ))}
+      {/* School buttons (for Program Curriculum only) - Always show in 3-2 layout */}
+      {showSchoolButtons && (
+        <div className="w-full max-w-6xl">
+          {/* First row - 3 buttons */}
+          <div className="flex justify-center gap-3 mb-3">
+            {schoolButtons.slice(0, 3).map((button) => (
+              <button
+                key={button.id}
+                onClick={() => !disabled && onAction(button.id)}
+                disabled={disabled}
+                className={`
+                  px-6 py-3 rounded text-sm font-medium transition-all duration-200 flex-1 max-w-[280px] whitespace-nowrap text-center
+                  ${
+                    disabled
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-50 text-[#063970] border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
+                  }
+                `}
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
+          {/* Second row - 2 buttons */}
+          <div className="flex justify-center gap-3">
+            {schoolButtons.slice(3, 5).map((button) => (
+              <button
+                key={button.id}
+                onClick={() => !disabled && onAction(button.id)}
+                disabled={disabled}
+                className={`
+                  px-6 py-3 rounded text-sm font-medium transition-all duration-200 flex-1 max-w-[280px] whitespace-nowrap text-center
+                  ${
+                    disabled
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-50 text-[#063970] border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
+                  }
+                `}
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -63,11 +111,13 @@ const ActionButtons = ({
       )}
 
       {/* Show current topic below action buttons */}
-      {currentTopic && (
+      {(currentTopic || currentTopicLabel) && (
         <div className="text-center">
           <p className="text-sm text-gray-600">
             Currently discussing:{" "}
-            <span className="font-semibold text-[#063970]">{currentTopic}</span>
+            <span className="font-semibold text-[#063970]">
+              {currentTopicLabel || currentTopic}
+            </span>
           </p>
         </div>
       )}
