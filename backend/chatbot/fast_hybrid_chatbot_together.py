@@ -1510,19 +1510,43 @@ class FastHybridChatbotTogether:
                 print(f"🎯 Applying cluster filtering for: '{cluster_filter}'")
                 cluster_filtered_docs = []
                 
-                for doc in topic_filtered_docs:
-                    metadata = doc.get('metadata', {})
-                    doc_cluster = metadata.get('cluster', '')
-                    
-                    # Check if document belongs to the target cluster
-                    if cluster_filter.lower() in doc_cluster.lower():
-                        cluster_filtered_docs.append(doc)
-                        print(f"  ✅ {metadata.get('filename', 'Unknown')} - Cluster: {doc_cluster}")
-                    else:
-                        print(f"  ❌ {metadata.get('filename', 'Unknown')} - Cluster: {doc_cluster} (filtered out)")
+                # Check if this is a school-level query (no cluster filtering needed)
+                school_abbreviations = self._get_school_abbreviations()
+                is_school_query = False
+                for abbrev, school_name in school_abbreviations.items():
+                    if abbrev.lower() in normalized_query.lower() or school_name.lower() in normalized_query.lower():
+                        is_school_query = True
+                        print(f"🏫 Detected school-level query: {school_name}")
+                        break
                 
-                topic_filtered_docs = cluster_filtered_docs
-                print(f"🎯 After cluster filtering: {len(topic_filtered_docs)} documents")
+                if is_school_query:
+                    # For school-level queries, don't apply cluster filtering
+                    print(f"🎯 School-level query detected, skipping cluster filtering")
+                    print(f"🎯 Using all topic-filtered documents: {len(topic_filtered_docs)} documents")
+                else:
+                    # Get programs in this cluster from JSON config
+                    cluster_programs = self._get_programs_in_cluster(cluster_filter)
+                    print(f"📋 Programs in {cluster_filter}: {cluster_programs}")
+                    
+                    for doc in topic_filtered_docs:
+                        metadata = doc.get('metadata', {})
+                        filename = metadata.get('filename', '').lower()
+                        
+                        # Check if document filename matches any program in this cluster
+                        matches_cluster = False
+                        for program in cluster_programs:
+                            if program.lower() in filename:
+                                matches_cluster = True
+                                break
+                        
+                        if matches_cluster:
+                            cluster_filtered_docs.append(doc)
+                            print(f"  ✅ {metadata.get('filename', 'Unknown')} - Matches cluster programs")
+                        else:
+                            print(f"  ❌ {metadata.get('filename', 'Unknown')} - No cluster program match (filtered out)")
+                    
+                    topic_filtered_docs = cluster_filtered_docs
+                    print(f"🎯 After cluster filtering: {len(topic_filtered_docs)} documents")
             
             if not topic_filtered_docs:
                 print("⚠️ No documents found after filtering")
@@ -3128,6 +3152,19 @@ If you want to see the list of programs, click on the buttons below per school, 
 - For program lists: Use the exact structure from the official document
 - For curriculum: Combine program confirmation + curriculum details
 - Always cite sources when providing program information
+
+=== AMBIGUOUS PROGRAM RESPONSES ===
+- When multiple programs match a query (e.g., "AB IDS" matches multiple IDS programs):
+  * Start with: "I found multiple programs that match your query. Here are the available options:"
+  * Format each program on a separate line with proper line breaks
+  * Use this exact format:
+    ```
+    School of [Name] - [Cluster]:
+    • [Program Code] - [Full Program Name]
+    • [Program Code] - [Full Program Name]
+    ```
+  * Group programs by school and cluster
+  * End with: "Could you please specify which program you're interested in? You can ask about any of these [X] programs by name."
 
 === LINK HANDLING ===
 - **ALLOW LINKS**: Include links if they are explicitly present in the source document content
@@ -5453,6 +5490,13 @@ RULES:
         """
         query_lower = query.lower().strip()
         
+        # First check for school-level queries that should include all clusters
+        school_abbreviations = self._get_school_abbreviations()
+        for abbrev, school_name in school_abbreviations.items():
+            if abbrev.lower() in query_lower or school_name.lower() in query_lower:
+                # This is a school-level query, not a cluster query
+                return None
+        
         # Get cluster keywords from config
         cluster_keywords = self._get_cluster_keywords()
         
@@ -5474,6 +5518,40 @@ RULES:
                 print(f"⚠️ Error loading cluster keywords: {e}")
                 self._cluster_keywords_cache = {}
         return self._cluster_keywords_cache
+
+    def _get_school_abbreviations(self) -> dict:
+        """Get school abbreviations from config"""
+        if not hasattr(self, '_school_abbreviations_cache'):
+            try:
+                with open(self._config_file_path, 'r') as f:
+                    config = json.load(f)
+                    self._school_abbreviations_cache = config.get('school_abbreviations', {})
+            except Exception as e:
+                print(f"⚠️ Error loading school abbreviations: {e}")
+                self._school_abbreviations_cache = {}
+        return self._school_abbreviations_cache
+
+    def _get_programs_in_cluster(self, cluster_name: str) -> List[str]:
+        """Get all programs that belong to a specific cluster from JSON config"""
+        try:
+            with open(self._config_file_path, 'r') as f:
+                config = json.load(f)
+                abbreviations = config.get('abbreviations', {})
+                
+                cluster_programs = []
+                for abbrev, data in abbreviations.items():
+                    if data.get('cluster', '').lower() == cluster_name.lower():
+                        # Get the full program name for filename matching
+                        full_name = data.get('full_name', '')
+                        if full_name:
+                            cluster_programs.append(full_name)
+                        # Also add the abbreviation for matching
+                        cluster_programs.append(abbrev)
+                
+                return cluster_programs
+        except Exception as e:
+            print(f"⚠️ Error loading programs for cluster {cluster_name}: {e}")
+            return []
 
     def retrieve_documents_with_intent_classification(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
         """

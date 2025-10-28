@@ -585,11 +585,6 @@
         "full_name": "BPM",
         "priority": "context_aware",
         "description": "Public Management field name"
-      },
-      "governance": {
-        "full_name": "BPM",
-        "priority": "context_aware",
-        "description": "Governance alternate"
       }
     },
 
