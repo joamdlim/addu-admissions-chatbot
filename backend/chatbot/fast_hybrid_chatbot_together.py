@@ -628,8 +628,26 @@ class FastHybridChatbotTogether:
         has_curriculum_context = any(term in query_lower for term in curriculum_indicators)
         has_general_program_context = any(term in query_lower for term in general_program_indicators)
         
-        # If this looks like a pronoun reference, skip normal program extraction and go to history
-        if has_pronoun and (has_curriculum_context or has_general_program_context):
+        # Check if apparent "pronouns" are actually uppercase program abbreviations
+        uppercase_program_detected = False
+        if has_pronoun:
+            # Check for uppercase program abbreviations that might look like pronouns
+            import re
+            potential_programs = re.findall(r'\b[A-Z]{2,4}\b', query)  # Find 2-4 letter uppercase words
+            if potential_programs:
+                # Check if any of these are actual program abbreviations
+                abbreviations = self._get_program_abbreviations()
+                for abbrev_upper in potential_programs:
+                    abbrev_lower = abbrev_upper.lower()
+                    if abbrev_lower in abbreviations:
+                        abbrev_data = abbreviations[abbrev_lower]
+                        if abbrev_data.get('is_common_word', False):
+                            print(f"🎯 Detected uppercase program abbreviation '{abbrev_upper}' (not a pronoun)")
+                            uppercase_program_detected = True
+                            break
+        
+        # If this looks like a pronoun reference AND not an uppercase program, skip normal program extraction and go to history
+        if has_pronoun and (has_curriculum_context or has_general_program_context) and not uppercase_program_detected:
             context_type = "curriculum" if has_curriculum_context else "general program"
             print(f"🔍 Detected pronoun reference with {context_type} context: '{query}' - skipping normal extraction")
             
@@ -660,6 +678,11 @@ class FastHybridChatbotTogether:
                     program_info['context_source'] = 'pronoun_resolution_session'
                     print(f"✅ Resolved pronoun to program '{session_program}' from session state")
                     return program_info
+            
+            # If pronoun resolution failed, mark it as ambiguous
+            print(f"❌ Pronoun resolution failed - no conversation history or session context")
+            program_info['context_source'] = 'pronoun_resolution_failed'
+            return program_info
         
         # Normal program extraction if not a pronoun reference
         program_info = self._extract_program_info(query)
@@ -790,8 +813,39 @@ class FastHybridChatbotTogether:
             score += 0.4
         
         # Bonus for program name match
-        if program_info['program_name'] and program_info['program_name'].replace(' ', '') in filename.replace(' ', ''):
-            score += 0.4
+        if program_info['program_name']:
+            program_name = program_info['program_name']
+            
+            # Direct match (e.g., "BS IT" in filename)
+            if program_name.lower() in filename:
+                score += 0.4
+            # Abbreviated match (e.g., "BSIT" in filename)
+            elif program_name.replace(' ', '').lower() in filename.replace(' ', ''):
+                score += 0.4
+            # Expanded match (e.g., "information technology" for "BS IT")
+            else:
+                # Map common abbreviations to their full forms
+                expansion_map = {
+                    'bs it': 'information technology',
+                    'bs is': 'information systems', 
+                    'bs cs': 'computer science',
+                    'bs ds': 'data science',
+                    'bs arch': 'architecture',
+                    'bs ce': 'civil engineering',
+                    'bs me': 'mechanical engineering',
+                    'bs ee': 'electrical engineering',
+                    'bs ie': 'industrial engineering',
+                    'bs che': 'chemical engineering',
+                    'bs ae': 'aerospace engineering',
+                    'bs re': 'robotics engineering',
+                    'bs n': 'nursing',
+                    'ab eng': 'english language',
+                    'ab mc': 'mass communication'
+                }
+                
+                expanded_form = expansion_map.get(program_name.lower())
+                if expanded_form and expanded_form in filename:
+                    score += 0.4
         
         # Bonus for year level match
         if program_info['year_level']:
@@ -2977,6 +3031,9 @@ If you want to see the list of programs, click on the buttons below per school, 
                         # Process the query with topic filtering
                         response, sources = self._process_topic_query(user_input, topic_id)
                         
+                        # Add to dialogue history for conversation context
+                        self.add_to_history(user_input, response)
+                        
                         button_configs = get_button_configs()
                         return {
                             'response': response,
@@ -3015,6 +3072,9 @@ If you want to see the list of programs, click on the buttons below per school, 
                     # Process query with topic filtering
                     response, sources = self._process_topic_query(user_input, current_topic)
                     
+                    # Add to dialogue history for conversation context
+                    self.add_to_history(user_input, response)
+                    
                     button_configs = get_button_configs()
                     return {
                         'response': response,
@@ -3030,6 +3090,9 @@ If you want to see the list of programs, click on the buttons below per school, 
                     # Process as follow-up question in same topic
                     if current_topic:
                         response, sources = self._process_topic_query(user_input, current_topic)
+                        
+                        # Add to dialogue history for conversation context
+                        self.add_to_history(user_input, response)
                         
                         button_configs = get_button_configs()
                         return {
@@ -3901,6 +3964,10 @@ If you want to see the list of programs, click on the buttons below per school, 
         try:
             # Enhanced program extraction with conversation history awareness
             program_info = self._extract_program_info_with_history(query)
+            
+            # Handle failed pronoun resolution
+            if program_info.get('context_source') == 'pronoun_resolution_failed':
+                return "I notice you're using a pronoun like 'it' or 'that', but I don't have enough context to understand which program you're referring to. Could you please specify the program name? For example: 'What is the curriculum for BS IT?' or 'What is the curriculum for BS CS?'", []
             
             # CRITICAL: Preprocess pronouns if we have program context
             preprocessed_query = query

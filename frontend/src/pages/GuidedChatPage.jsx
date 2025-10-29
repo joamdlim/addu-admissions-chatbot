@@ -517,7 +517,7 @@ const GuidedChatPage = () => {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
                           >
-                            View Curriculum
+                            Click Here
                           </a>
                         ),
                       }}
