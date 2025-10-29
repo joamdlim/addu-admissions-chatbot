@@ -815,36 +815,19 @@ class FastHybridChatbotTogether:
         # Bonus for program name match
         if program_info['program_name']:
             program_name = program_info['program_name']
+            program_name_lower = program_name.lower()
+            filename_lower = filename.lower()
             
             # Direct match (e.g., "BS IT" in filename)
-            if program_name.lower() in filename:
+            if program_name_lower in filename_lower:
                 score += 0.4
             # Abbreviated match (e.g., "BSIT" in filename)
-            elif program_name.replace(' ', '').lower() in filename.replace(' ', ''):
+            elif program_name.replace(' ', '').lower() in filename.replace(' ', '').lower():
                 score += 0.4
-            # Expanded match (e.g., "information technology" for "BS IT")
+            # Enhanced match using normalization config
             else:
-                # Map common abbreviations to their full forms
-                expansion_map = {
-                    'bs it': 'information technology',
-                    'bs is': 'information systems', 
-                    'bs cs': 'computer science',
-                    'bs ds': 'data science',
-                    'bs arch': 'architecture',
-                    'bs ce': 'civil engineering',
-                    'bs me': 'mechanical engineering',
-                    'bs ee': 'electrical engineering',
-                    'bs ie': 'industrial engineering',
-                    'bs che': 'chemical engineering',
-                    'bs ae': 'aerospace engineering',
-                    'bs re': 'robotics engineering',
-                    'bs n': 'nursing',
-                    'ab eng': 'english language',
-                    'ab mc': 'mass communication'
-                }
-                
-                expanded_form = expansion_map.get(program_name.lower())
-                if expanded_form and expanded_form in filename:
+                match_found = self._find_program_filename_match(program_name_lower, filename_lower)
+                if match_found:
                     score += 0.4
         
         # Bonus for year level match
@@ -860,6 +843,205 @@ class FastHybridChatbotTogether:
                 score += 0.2
         
         return min(score, 1.0)
+    
+    def _is_program_list_query(self, query: str) -> bool:
+        """
+        Comprehensive detection for program list queries including school/cluster specific queries.
+        Handles queries like:
+        - "what are the programs under sea"
+        - "programs in school of engineering"
+        - "what clusters are available"
+        - "is this program available"
+        """
+        query_lower = query.lower().strip()
+        
+        # Normalize school abbreviations first for better detection
+        normalized_query = self._normalize_school_abbreviations(query_lower)
+        
+        import re
+        
+        # Pattern 1: General program list queries
+        general_patterns = [
+            r'\b(what|show|list|all)\s+(programs?|degrees?)\b',
+            r'\blist\s+(of\s+)?(all\s+)?programs?\b',
+            r'\bprograms?\s+(available|offered)\b',
+            r'\b(available|offered)\s+programs?\b',
+            r'\bwhat\s+clusters?\b',
+            r'\blist\s+clusters?\b'
+        ]
+        
+        # Pattern 2: School-specific queries
+        school_patterns = [
+            r'\bprograms?\s+(in|under|at|offered\s+by)\s+',
+            r'\b(what|show|list)\s+(programs?|degrees?)\s+(are\s+)?(available|offered|in|under)\s+',
+            r'\bwhat\s+(are\s+the\s+)?programs?\s+(in|under|at)\s+',
+            r'\bprograms?\s+(under|in)\s+\w+',
+            r'\b(school|college)\s+of\s+\w+.*programs?\b',
+            r'\bsea\s+programs?\b',  # Direct abbreviation
+            r'\bsas\s+programs?\b',
+            r'\bsbg\s+programs?\b',
+            r'\bsoe\s+programs?\b',
+            r'\bson\s+programs?\b'
+        ]
+        
+        # Pattern 3: Cluster-specific queries  
+        cluster_patterns = [
+            r'\bprograms?\s+(in|under)\s+(cluster|humanities|sciences|computer|business|engineering)\b',
+            r'\b(cluster|humanities|sciences|computer|business|engineering)\s+programs?\b',
+            r'\bwhat\s+(programs?|degrees?)\s+(are\s+in\s+)?(cluster|humanities|sciences|computer|business|engineering)\b'
+        ]
+        
+        # Pattern 4: Program availability queries
+        availability_patterns = [
+            r'\bis\s+\w+\s+(program\s+)?(available|offered)\b',
+            r'\bis\s+\w+\s+\w+\s+(available|offered)\b',  # "is computer science available"
+            r'\bis\s+bs\s+\w+\s+(available|offered)\b',   # "is bs it offered"
+            r'\bdoes\s+addu\s+(have|offer)\s+\w+\b',
+            r'\b(available|offered)\s+at\s+addu\b',
+            r'\bprogram\s+(availability|available)\b'
+        ]
+        
+        # Check all patterns
+        all_patterns = general_patterns + school_patterns + cluster_patterns + availability_patterns
+        
+        for pattern in all_patterns:
+            if re.search(pattern, query_lower) or re.search(pattern, normalized_query):
+                print(f"📋 Program list query detected with pattern: {pattern}")
+                return True
+        
+        # Additional keyword-based detection
+        program_list_keywords = [
+            'what programs', 'list programs', 'programs available', 'programs offered',
+            'programs under', 'programs in', 'programs at', 'show programs',
+            'all programs', 'available programs', 'offered programs',
+            'what clusters', 'list clusters', 'cluster programs',
+            'school programs', 'college programs', 'university programs',
+            'program availability', 'is available', 'does addu have',
+            'does addu offer', 'programs does addu'
+        ]
+        
+        for keyword in program_list_keywords:
+            if keyword in query_lower or keyword in normalized_query:
+                print(f"📋 Program list query detected with keyword: {keyword}")
+                return True
+        
+        # Context-aware detection for follow-up queries
+        # Check if this looks like a context-enhanced follow-up query about programs
+        context_enhanced_patterns = [
+            r'\bprograms\s+list\s+what\s+about\b',  # "programs list what about SEA"
+            r'\bschool\s+programs\s+what\s+about\b',  # "school programs what about SEA"
+            r'\bprograms\s+under\s+what\s+about\b',   # "programs under what about SEA"
+            r'\bprograms\s+.*what\s+about\s+\w+\b',   # "programs ... what about [school]"
+            r'\blist\s+.*what\s+about\s+\w+\b',       # "list ... what about [school]"
+        ]
+        
+        for pattern in context_enhanced_patterns:
+            if re.search(pattern, query_lower) or re.search(pattern, normalized_query):
+                print(f"📋 Context-enhanced program list query detected with pattern: {pattern}")
+                return True
+        
+        return False
+    
+    def _find_program_filename_match(self, program_name_lower: str, filename_lower: str) -> bool:
+        """
+        Find program matches in filename using normalization config.
+        This replaces the hardcoded expansion map with dynamic config-based matching.
+        """
+        try:
+            # Load normalization config
+            config = self._load_normalization_config()
+            abbreviations = config.get("program_abbreviations", {})
+            
+            # Search through all schools and programs
+            for school_name, school_data in abbreviations.items():
+                if isinstance(school_data, dict):  # Skip non-dict entries like "_comment"
+                    for abbrev, program_data in school_data.items():
+                        # Get the full program name from config
+                        full_name = program_data.get("full_name", "").lower()
+                        
+                        # Check if this matches our target program
+                        if full_name == program_name_lower:
+                            # Found matching program, now check various forms in filename
+                            
+                            # 1. Check abbreviation itself (e.g., "bsit" in filename)
+                            # Use word boundaries for short abbreviations to avoid false matches
+                            import re
+                            if len(abbrev) <= 2:
+                                # For short abbreviations like "it", use word boundaries
+                                pattern = r'\b' + re.escape(abbrev.lower()) + r'\b'
+                                if re.search(pattern, filename_lower):
+                                    return True
+                            else:
+                                # For longer abbreviations, simple substring match is fine
+                                if abbrev.lower() in filename_lower:
+                                    return True
+                            
+                            # 2. Check description field for expanded forms
+                            description = program_data.get("description", "").lower()
+                            if description:
+                                # Extract key terms from description
+                                # e.g., "Bachelor of Science in Information Technology" -> "information technology"
+                                if "bachelor of science in" in description:
+                                    field_name = description.replace("bachelor of science in", "").strip()
+                                    if field_name and field_name in filename_lower:
+                                        return True
+                                elif "bachelor of arts in" in description:
+                                    field_name = description.replace("bachelor of arts in", "").strip()
+                                    if field_name and field_name in filename_lower:
+                                        return True
+                                elif "bachelor of" in description:
+                                    field_name = description.replace("bachelor of", "").strip()
+                                    if field_name and field_name in filename_lower:
+                                        return True
+                                
+                                # Check if any significant words from description are in filename
+                                desc_words = [word for word in description.split() if len(word) > 3 and word not in ['bachelor', 'science', 'arts', 'major']]
+                                if len(desc_words) >= 2:
+                                    # Check if at least 2 significant words match
+                                    matches = sum(1 for word in desc_words if word in filename_lower)
+                                    if matches >= 2:
+                                        return True
+                            
+                            # 3. Check all related abbreviations for this program from config
+                            # Look for other abbreviations that map to the same full_name
+                            for other_abbrev, other_data in school_data.items():
+                                if other_data.get("full_name", "").lower() == full_name:
+                                    # Check if this abbreviation or its description matches filename
+                                    # Use word boundaries for short abbreviations
+                                    if len(other_abbrev) <= 2:
+                                        pattern = r'\b' + re.escape(other_abbrev.lower()) + r'\b'
+                                        if re.search(pattern, filename_lower):
+                                            return True
+                                    else:
+                                        if other_abbrev.lower() in filename_lower:
+                                            return True
+                                    
+                                    other_desc = other_data.get("description", "").lower()
+                                    if other_desc:
+                                        # Extract field names from descriptions
+                                        field_terms = []
+                                        
+                                        # Common patterns to extract field names
+                                        if " abbreviation" in other_desc:
+                                            field_name = other_desc.replace(" abbreviation", "").strip()
+                                            field_terms.append(field_name)
+                                        elif " field name" in other_desc:
+                                            field_name = other_desc.replace(" field name", "").strip()
+                                            field_terms.append(field_name)
+                                        elif " alternate" in other_desc:
+                                            field_name = other_desc.replace(" alternate", "").strip()
+                                            field_terms.append(field_name)
+                                        
+                                        # Check extracted terms
+                                        for term in field_terms:
+                                            if term and len(term) > 2 and term in filename_lower:
+                                                return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"[ERROR] Error in _find_program_filename_match: {e}")
+            return False
     
     def _calculate_fees_filename_score(self, filename: str, fee_info: dict) -> float:
         """Calculate filename score for fees documents"""
@@ -3611,8 +3793,29 @@ If you want to see the list of programs, click on the buttons below per school, 
             # Look for program, curriculum, course context
             if 'curriculum' in last_query or 'curriculum' in last_response:
                 context_keywords.extend(['curriculum', 'courses'])
-            if 'program' in last_query or 'program' in last_response:
+            
+            # Check if the last query was about program lists (school/cluster queries)
+            was_program_list_query = self._is_program_list_query(last_query)
+            
+            if was_program_list_query:
+                # Preserve program list context for follow-up queries
+                context_keywords.extend(['programs', 'list'])
+                
+                # Extract school context from last query
+                school_abbreviations = self._get_school_abbreviations()
+                for abbrev, school_name in school_abbreviations.items():
+                    if abbrev.lower() in last_query or school_name.lower() in last_query:
+                        context_keywords.extend(['school programs', 'programs under'])
+                        break
+                
+                # Extract cluster context from last query
+                cluster_keywords = ['cluster', 'humanities', 'sciences', 'computer', 'business', 'engineering']
+                if any(keyword in last_query for keyword in cluster_keywords):
+                    context_keywords.extend(['cluster programs', 'programs in'])
+            
+            elif 'program' in last_query or 'program' in last_response:
                 context_keywords.extend(['program', 'degree'])
+                
             # Extract specific program names from last query
             import re
             program_patterns = [
@@ -4130,7 +4333,7 @@ This will ensure you get the most relevant and up-to-date information for your q
                         print(f"🔍 Detected overview query, skipping program availability check: '{query}'")
                     
                     # For general program list queries, try to retrieve the program list document
-                    elif any(term in query.lower() for term in ['what programs', 'list programs', 'what clusters', 'programs available']):
+                    elif self._is_program_list_query(query):
                         print(f"🔍 Detected program list query, retrieving official program list")
                         program_list_doc = self._retrieve_program_list_document()
                         
@@ -5370,11 +5573,14 @@ RULES:
         """
         query_lower = query.lower()
         
+        # Normalize school abbreviations for better detection
+        normalized_query = self._normalize_school_abbreviations(query_lower)
+        
         # Detect query type using configurable keywords
         if 'cluster' in query_lower:
-            return self._extract_cluster_info_configurable(program_list_content, query_lower)
-        elif self._detect_school_query(query_lower):
-            return self._extract_school_info_configurable(program_list_content, query_lower)
+            return self._extract_cluster_info_configurable(program_list_content, normalized_query)
+        elif self._detect_school_query_enhanced(query_lower, normalized_query):
+            return self._extract_school_info_configurable(program_list_content, normalized_query)
         else:
             # General program list
             return f"Here are the available undergraduate programs at Ateneo de Davao University:\n\n{program_list_content}"
@@ -5383,6 +5589,24 @@ RULES:
         """Detect if query is asking for school-specific information using config"""
         school_keywords = self._get_school_keywords()
         return any(keyword in query_lower for keyword in school_keywords.keys())
+    
+    def _detect_school_query_enhanced(self, query_lower: str, normalized_query: str) -> bool:
+        """Enhanced school query detection that handles abbreviations"""
+        # Check original query
+        if self._detect_school_query(query_lower):
+            return True
+        
+        # Check normalized query
+        if self._detect_school_query(normalized_query):
+            return True
+        
+        # Check school abbreviations directly
+        school_abbreviations = self._get_school_abbreviations()
+        for abbrev in school_abbreviations.keys():
+            if abbrev.lower() in query_lower:
+                return True
+        
+        return False
 
     def _extract_cluster_info_configurable(self, content: str, query: str) -> str:
         """Extract cluster-specific information using configurable keywords"""
