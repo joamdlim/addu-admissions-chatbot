@@ -106,7 +106,9 @@ class FastHybridChatbotTogether:
         if processed_dir is None:
             processed_dir = os.path.join(current_dir, "processed")
         if word2vec_path is None:
-            word2vec_path = os.path.join(current_dir, "model", "GoogleNews-vectors-negative300.bin")
+            # Word2Vec model is in backend/model/, not backend/chatbot/model/
+            backend_dir = os.path.dirname(current_dir)  # Go up from chatbot/ to backend/
+            word2vec_path = os.path.join(backend_dir, "model", "GoogleNews-vectors-negative300.bin")
         
         self.vectors_path = os.path.join(embeddings_dir, "hybrid_vectors.npy")
         self.metadata_path = os.path.join(embeddings_dir, "metadata.json")
@@ -254,12 +256,18 @@ class FastHybridChatbotTogether:
             self.tfidf_vectorizer = None
     
     def _vectorize_query(self, query: str) -> np.ndarray:
-        """Convert query to vector representation - optimized for speed"""
-        # Simple preprocessing
-        processed_query = preprocess_text(query)
-        query_text = " ".join(processed_query)
+        """Convert query to vector representation with proper preprocessing for each model"""
         
-        # Get TF-IDF vector
+        # Dual preprocessing approach for optimal performance
+        # TF-IDF: Use stemmed text (consistent with training corpus)
+        processed_query_stemmed = preprocess_text(query)
+        query_text_stemmed = " ".join(processed_query_stemmed)
+        
+        # Word2Vec: Use raw text (no stemming, as Word2Vec expects full words)
+        query_text_raw = query.lower()
+        raw_tokens = query_text_raw.split()
+        
+        # Get TF-IDF vector (using stemmed text)
         try:
             if self.tfidf_vectorizer is None:
                 print("⚠️ TF-IDF vectorizer not available")
@@ -267,15 +275,15 @@ class FastHybridChatbotTogether:
                 tfidf_dim = 1000 if self.vectors is None else self.vectors.shape[1] - 300
                 tfidf_vector = np.zeros(tfidf_dim)
             else:
-                tfidf_vector = sparse_to_array(self.tfidf_vectorizer.transform([query_text]))[0]
+                tfidf_vector = sparse_to_array(self.tfidf_vectorizer.transform([query_text_stemmed]))[0]
         except Exception as e:
             print(f"❌ Error creating TF-IDF vector: {e}")
             # Create a zero vector with a reasonable dimension
             tfidf_dim = 1000 if self.vectors is None else self.vectors.shape[1] - 300
             tfidf_vector = np.zeros(tfidf_dim)
         
-        # Get Word2Vec vector - use model if available
-        w2v_vector = compute_word2vec_vector(processed_query, self.word2vec_model)
+        # Get Word2Vec vector (using raw tokens, no stemming)
+        w2v_vector = compute_word2vec_vector(raw_tokens, self.word2vec_model)
         
         # Combine them
         hybrid_vector = np.concatenate((tfidf_vector, w2v_vector))
@@ -808,56 +816,56 @@ class FastHybridChatbotTogether:
         """Calculate filename score for programs documents"""
         score = 0.0
         
+        # NEGATIVE FILTERING: Exclude irrelevant documents for curriculum queries
+        if program_info.get('program_name'):
+            # If looking for a specific program, exclude documents that are clearly for other programs
+            irrelevant_patterns = [
+                'secondary education',  # Exclude secondary education when looking for BS programs
+                'bachelor of secondary education',
+                'master of',  # Exclude master's programs when looking for bachelor's
+                'doctor of',  # Exclude doctoral programs when looking for bachelor's
+            ]
+            
+            program_name = program_info['program_name'].lower()
+            # Only apply negative filtering if we're looking for a bachelor's program
+            if program_name.startswith('bs ') or program_name.startswith('ab '):
+                for pattern in irrelevant_patterns:
+                    if pattern in filename.lower():
+                        print(f"🚫 Excluding irrelevant document: {filename} (matches pattern: {pattern})")
+                        return 0.0  # Completely exclude this document
+        
         # Base score for program-related filenames
         if any(term in filename for term in ['curriculum', 'program', 'course', 'syllabus']):
             score += 0.4
         
-        # Bonus for program name match
+        # PRIORITY: Strong bonus for exact program name match
         if program_info['program_name']:
             program_name = program_info['program_name']
             
-            # Direct match (e.g., "BS IT" in filename)
+            # Direct match (e.g., "BS IT" in filename) - highest priority
             if program_name.lower() in filename:
-                score += 0.4
+                score += 0.6  # Increased from 0.4 to prioritize exact matches
             # Abbreviated match (e.g., "BSIT" in filename)
             elif program_name.replace(' ', '').lower() in filename.replace(' ', ''):
-                score += 0.4
-            # Expanded match (e.g., "information technology" for "BS IT")
+                score += 0.6  # Increased from 0.4 to prioritize exact matches
+            # Expanded match using JSON config (e.g., "information technology" for "BS IT")
             else:
-                # Map common abbreviations to their full forms
-                expansion_map = {
-                    'bs it': 'information technology',
-                    'bs is': 'information systems', 
-                    'bs cs': 'computer science',
-                    'bs ds': 'data science',
-                    'bs arch': 'architecture',
-                    'bs ce': 'civil engineering',
-                    'bs me': 'mechanical engineering',
-                    'bs ee': 'electrical engineering',
-                    'bs ie': 'industrial engineering',
-                    'bs che': 'chemical engineering',
-                    'bs ae': 'aerospace engineering',
-                    'bs re': 'robotics engineering',
-                    'bs n': 'nursing',
-                    'ab eng': 'english language',
-                    'ab mc': 'mass communication'
-                }
-                
-                expanded_form = expansion_map.get(program_name.lower())
-                if expanded_form and expanded_form in filename:
-                    score += 0.4
+                # Get expanded form from JSON config
+                expanded_form = self._get_program_full_name_from_config(program_name)
+                if expanded_form and expanded_form != program_name:
+                    # Extract key terms from the description for matching
+                    # e.g., "Bachelor of Science in Information Technology" -> "information technology"
+                    import re
+                    # Remove degree prefixes and extract the main field
+                    clean_description = re.sub(r'^(Bachelor of (Arts|Science) (in|Major in)?|AB|BS)\s*', '', expanded_form, flags=re.IGNORECASE)
+                    clean_description = clean_description.lower().strip()
+                    
+                    if clean_description and clean_description in filename.lower():
+                        score += 0.5  # Good match for expanded form
         
-        # Bonus for year level match
-        if program_info['year_level']:
-            year_patterns = {
-                'first': ['1st', 'first', '1'],
-                'second': ['2nd', 'second', '2'],
-                'third': ['3rd', 'third', '3'],
-                'fourth': ['4th', 'fourth', '4']
-            }
-            patterns = year_patterns.get(program_info['year_level'], [])
-            if any(pattern in filename for pattern in patterns):
-                score += 0.2
+        # REMOVED: Year level matching to prevent false positives
+        # The year level matching was causing "2nd" to match "SECONDARY" documents
+        # Year filtering should be handled at the curriculum parsing level, not document retrieval
         
         return min(score, 1.0)
     
@@ -890,8 +898,23 @@ class FastHybridChatbotTogether:
         if not query_terms:
             return 0.0
         
-        matches = len(query_terms.intersection(keyword_terms))
-        return matches / len(query_terms)
+        # IMPROVED: Filter out problematic partial matches
+        # Remove year-related terms that can cause false positives
+        problematic_terms = {'2nd', '3rd', '4th', 'first', 'second', 'third', 'fourth'}
+        
+        # Only count exact matches, not partial matches for problematic terms
+        valid_matches = 0
+        for query_term in query_terms:
+            if query_term in problematic_terms:
+                # For problematic terms, require exact match
+                if query_term in keyword_terms:
+                    valid_matches += 1
+            else:
+                # For other terms, allow partial matching
+                if any(query_term in keyword_term for keyword_term in keyword_terms):
+                    valid_matches += 1
+        
+        return valid_matches / len(query_terms)
     
     def _calculate_admissions_content_score(self, content: str, query_lower: str, student_type: str) -> float:
         """Calculate content score for admissions documents"""
@@ -914,14 +937,35 @@ class FastHybridChatbotTogether:
         score = 0.0
         query_terms = query_lower.split()
         
-        # Basic term matching
-        matches = sum(1 for term in query_terms if term in content)
-        if query_terms:
-            score += (matches / len(query_terms)) * 0.4
+        # IMPROVED: Smarter term matching to avoid false positives
+        problematic_terms = {'2nd', '3rd', '4th', 'first', 'second', 'third', 'fourth'}
         
-        # Bonus for program name in content
-        if program_info['program_name'] and program_info['program_name'] in content:
-            score += 0.4
+        valid_matches = 0
+        for term in query_terms:
+            if term in problematic_terms:
+                # For year-related terms, be more strict to avoid "2nd" matching "secondary"
+                # Only count as match if it appears as a standalone word
+                import re
+                pattern = r'\b' + re.escape(term) + r'\b'
+                if re.search(pattern, content, re.IGNORECASE):
+                    valid_matches += 1
+            else:
+                # For other terms, use regular substring matching
+                if term in content:
+                    valid_matches += 1
+        
+        if query_terms:
+            score += (valid_matches / len(query_terms)) * 0.4
+        
+        # PRIORITY: Strong bonus for program name in content
+        if program_info['program_name']:
+            program_name = program_info['program_name']
+            # Check for exact program name match
+            if program_name.lower() in content.lower():
+                score += 0.6  # Increased from 0.4 to prioritize program-specific documents
+            # Also check for program acronym in content (e.g., "BS ENVISCI")
+            elif program_name.replace(' ', '').lower() in content.lower():
+                score += 0.5
         
         return min(score, 1.0)
     
@@ -1307,6 +1351,1035 @@ class FastHybridChatbotTogether:
             import traceback
             traceback.print_exc()
             return []
+
+    def retrieve_programs_by_subject(self, query: str, top_k: int = 10) -> List[Dict]:
+        """
+        NEW METHOD: Retrieve programs that contain specific subjects
+        Handles various query types:
+        - "what programs have math" (general positive)
+        - "what programs don't offer OJT" (general negative)
+        - "what math subjects are in BS CS" (program-specific)
+        - "how many programming courses in BS IT" (count)
+        """
+        print(f"🔍 Subject-to-program mapping for: '{query}'")
+        
+        # Extract subject and query type information
+        subject_info = self._extract_subject_from_query(query)
+        
+        # Get query type (general, negative, program_specific, count)
+        query_type = subject_info.get('query_type', 'general')
+        print(f"📝 Extracted subject: '{subject_info['subject']}'")
+        print(f"🔍 Query type: {query_type}")
+        
+        # For backward compatibility, also check the old way
+        is_negative_query = 'negative' in query_type or self._is_negative_subject_query(query)
+        cluster_filter = self._detect_cluster_query(query)
+        
+        print(f"🔄 Negative query: {is_negative_query}")
+        if cluster_filter:
+            print(f"🎯 Cluster filter: {cluster_filter}")
+        
+        # Get ALL curriculum documents
+        all_curriculum_docs = self._get_all_curriculum_documents()
+        
+        # Apply cluster filtering using JSON config
+        if cluster_filter:
+            print(f"🎯 Applying cluster filter: {cluster_filter}")
+            curriculum_docs = self._apply_cluster_filter_to_curriculum_docs(all_curriculum_docs, cluster_filter)
+            print(f"📚 Filtered to {len(curriculum_docs)} documents in {cluster_filter} cluster")
+        else:
+            curriculum_docs = all_curriculum_docs
+        
+        # Parse subjects from each curriculum document
+        program_subject_map = {}
+        for doc in curriculum_docs:
+            program_acronym = self._extract_program_acronym_from_curriculum(doc['content'])
+            if program_acronym:
+                subjects = self._extract_subjects_from_curriculum_content(doc['content'])
+                program_subject_map[program_acronym] = subjects
+        
+        print(f"📊 Parsed {len(program_subject_map)} programs with subjects")
+        
+        # For program-specific or count queries, filter to just that program
+        target_program = subject_info.get('program')
+        if target_program and (query_type in ['program_specific', 'negative_program_specific', 'count']):
+            print(f"🎯 Filtering to specific program: {target_program}")
+            # Normalize the program name for better matching
+            normalized_program = target_program.upper().strip()
+            
+            # Filter the program_subject_map
+            filtered_map = {}
+            for program, subjects in program_subject_map.items():
+                # Simple program name matching (could be enhanced)
+                if normalized_program in program.upper() or program.upper() in normalized_program:
+                    filtered_map[program] = subjects
+                    print(f"✅ Found matching program: {program}")
+            
+            # Update the map to only include the target program
+            if filtered_map:
+                program_subject_map = filtered_map
+            else:
+                print(f"⚠️ No matching program found for: {target_program}")
+        
+        # Find matching programs using semantic matching
+        matching_programs = self._find_programs_with_subject_semantic(
+            program_subject_map, 
+            subject_info, 
+            is_negative_query
+        )
+        
+        # Add query type to subject_info for response formatting
+        subject_info['query_type'] = query_type
+        
+        # Return raw matching programs data for further processing
+        # Format: [{'program': 'BS CS', 'matching_programs': {...}, 'subject_info': {...}, 'is_negative': bool}]
+        return [{
+            'id': 'subject_mapping_raw_data',
+            'matching_programs': matching_programs,
+            'subject_info': subject_info,
+            'is_negative': is_negative_query,
+            'cluster_filter': cluster_filter,
+            'total_programs': len(matching_programs)
+        }]
+
+    def _extract_subject_from_query(self, query: str) -> dict:
+        """Extract the target subject from the user query with enhanced query type detection"""
+        import re
+        
+        query_lower = query.lower()
+        
+        # Check for count queries first (how many X subjects in Y)
+        count_match = re.search(r'how many (\w+) (?:subjects|courses|classes) (?:in|does) ([^?]+)', query_lower)
+        if count_match:
+            subject = count_match.group(1).strip()
+            program = count_match.group(2).strip()
+            return {
+                'subject': subject,
+                'program': program,
+                'query_type': 'count',
+                'original_query': query
+            }
+            
+        # Check for program-specific subject queries (what X subjects are in Y)
+        program_specific_match = re.search(r'what (\w+) (?:subjects|courses|classes) (?:are in|does) ([^?]+)', query_lower)
+        if program_specific_match:
+            subject = program_specific_match.group(1).strip()
+            program = program_specific_match.group(2).strip()
+            return {
+                'subject': subject,
+                'program': program,
+                'query_type': 'program_specific',
+                'original_query': query
+            }
+        
+        # Enhanced patterns to extract subject for general queries
+        subject_patterns = [
+            # Positive patterns
+            r'programs?\s+(?:have|offer|include|contain|teach)\s+([^?]+)',
+            r'programs?\s+(?:with|that\s+have|that\s+offer|that\s+include)\s+([^?]+)',
+            r'(?:what|which)\s+programs?\s+(?:have|offer|include|contain|teach)\s+([^?]+)',
+            
+            # Enhanced negative patterns
+            r'programs?\s+(?:do\s+not|don\'t|doesn\'t|doesnt)\s+(?:have|offer|include|provide)\s+([^?]+)',
+            r'programs?\s+(?:without|that\s+do\s+not|that\s+don\'t|that\s+doesn\'t)\s+([^?]+)',
+            r'(?:what|which)\s+programs?\s+(?:do\s+not|don\'t|doesn\'t)\s+(?:have|offer|include|provide)\s+([^?]+)',
+            r'programs?\s+that\s+(?:doesn\'t|doesnt)\s+(?:offer|have|include|provide)\s+([^?]+)',
+            
+            # Subject-in-program patterns
+            r'(?:subjects?|courses?)\s+(?:in|under|for)\s+([^?]+)',
+        ]
+        
+        # Check for program context in subject queries (X in program Y)
+        program_context_pattern = r'([^?]+)\s+(?:in|under|for)\s+([^?]+)'
+        
+        for pattern in subject_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                subject = match.group(1).strip()
+                # Clean up common words and punctuation
+                subject = re.sub(r'\b(the|a|an|in|on|at|for|of|with)\b', '', subject).strip()
+                # Remove trailing punctuation (question marks, periods, etc.)
+                subject = re.sub(r'[?.,!;]+$', '', subject).strip()
+                
+                # Check if there's a program context
+                program_match = re.search(program_context_pattern, subject)
+                if program_match:
+                    actual_subject = program_match.group(1).strip()
+                    program = program_match.group(2).strip()
+                    # Clean up punctuation from both subject and program
+                    actual_subject = re.sub(r'[?.,!;]+$', '', actual_subject).strip()
+                    program = re.sub(r'[?.,!;]+$', '', program).strip()
+                    # Determine if this is a negative query
+                    query_type = 'program_specific'
+                    negative_indicators = ['without', 'not have', 'don\'t have', 'do not have', 'not offer', 'don\'t offer', 
+                                         'doesn\'t have', 'doesn\'t offer', 'doesnt have', 'doesnt offer']
+                    if any(neg in query_lower for neg in negative_indicators):
+                        query_type = 'negative_program_specific'
+                        print(f"📝 Detected negative program-specific query: {query}")
+                    
+                    return {
+                        'subject': actual_subject, 
+                        'program': program,
+                        'query_type': query_type,
+                        'original_query': query
+                    }
+                
+                # Determine if this is a negative query with enhanced detection
+                query_type = 'general'
+                negative_indicators = ['without', 'not have', 'don\'t have', 'do not have', 'not offer', 'don\'t offer',
+                                     'doesn\'t have', 'doesn\'t offer', 'doesnt have', 'doesnt offer', 'that do not',
+                                     'that don\'t', 'that doesn\'t', 'that doesnt']
+                if any(neg in query_lower for neg in negative_indicators):
+                    query_type = 'negative'
+                    print(f"📝 Detected negative general query: {query}")
+                else:
+                    print(f"📝 Detected positive general query: {query}")
+                
+                return {
+                    'subject': subject, 
+                    'query_type': query_type,
+                    'original_query': query
+                }
+        
+        # Fallback: extract last meaningful word
+        words = query_lower.split()
+        meaningful_words = [w for w in words if len(w) > 2 and w not in ['what', 'which', 'programs', 'have', 'offer', 'the', 'and', 'or']]
+        if meaningful_words:
+            return {
+                'subject': meaningful_words[-1], 
+                'query_type': 'general',
+                'original_query': query
+            }
+        
+        return {
+            'subject': '', 
+            'query_type': 'unknown',
+            'original_query': query
+        }
+
+    def _detect_query_subtype(self, query: str) -> dict:
+        """
+        Detect the specific subtype of subject mapping query and return structured classification.
+        
+        Returns:
+            dict with keys: subtype, is_negative, is_program_specific, is_count, confidence
+        """
+        import re
+        
+        query_lower = query.lower()
+        
+        # Initialize classification
+        classification = {
+            'subtype': 'general_positive',
+            'is_negative': False,
+            'is_program_specific': False,
+            'is_count': False,
+            'confidence': 0.0,
+            'matched_patterns': []
+        }
+        
+        # Count query detection
+        count_patterns = [
+            r'\bhow\s+many\s+\w+\s+(?:subjects?|courses?)\s+(?:in|does)\s+',
+            r'\bhow\s+many\s+(?:subjects?|courses?)\s+(?:of|about)\s+\w+\s+(?:in|does)\s+'
+        ]
+        
+        for pattern in count_patterns:
+            if re.search(pattern, query_lower):
+                classification['subtype'] = 'count'
+                classification['is_count'] = True
+                classification['is_program_specific'] = True
+                classification['confidence'] = 0.9
+                classification['matched_patterns'].append(f"Count: {pattern}")
+                print(f"🔢 Detected count query with pattern: {pattern}")
+                return classification
+        
+        # Program-specific query detection
+        program_specific_patterns = [
+            r'\bwhat\s+\w+\s+(?:subjects?|courses?)\s+(?:are\s+)?(?:in|offered\s+in|taught\s+in)\s+',
+            r'\blist\s+\w+\s+(?:subjects?|courses?)\s+(?:in|for)\s+',
+            r'\b(?:subjects?|courses?)\s+(?:in|offered\s+in|taught\s+in)\s+\w+',
+            r'\bwhat\s+(?:subjects?|courses?)\s+(?:does|are\s+offered\s+in)\s+\w+\s+(?:have|offer)\s*'
+        ]
+        
+        for pattern in program_specific_patterns:
+            if re.search(pattern, query_lower):
+                classification['is_program_specific'] = True
+                classification['confidence'] = 0.8
+                classification['matched_patterns'].append(f"Program-specific: {pattern}")
+                print(f"🎯 Detected program-specific query with pattern: {pattern}")
+                break
+        
+        # Negative query detection
+        negative_patterns = [
+            r'\bdo\s+not\s+(?:have|offer|include|provide)\b',
+            r'\bdon\'t\s+(?:have|offer|include|provide)\b',
+            r'\bdoesn\'t\s+(?:have|offer|include|provide)\b',
+            r'\bdoesnt\s+(?:have|offer|include|provide)\b',
+            r'\bwithout\b',
+            r'\bthat\s+(?:do\s+not|don\'t|doesn\'t|doesnt)\s+(?:have|offer|include|provide)\b'
+        ]
+        
+        for pattern in negative_patterns:
+            if re.search(pattern, query_lower):
+                classification['is_negative'] = True
+                classification['confidence'] = max(classification['confidence'], 0.85)
+                classification['matched_patterns'].append(f"Negative: {pattern}")
+                print(f"❌ Detected negative query with pattern: {pattern}")
+                break
+        
+        # Determine final subtype
+        if classification['is_count']:
+            classification['subtype'] = 'count'
+        elif classification['is_program_specific'] and classification['is_negative']:
+            classification['subtype'] = 'program_specific_negative'
+        elif classification['is_program_specific']:
+            classification['subtype'] = 'program_specific_positive'
+        elif classification['is_negative']:
+            classification['subtype'] = 'general_negative'
+        else:
+            classification['subtype'] = 'general_positive'
+            classification['confidence'] = max(classification['confidence'], 0.7)
+        
+        print(f"📊 Query classification: {classification['subtype']} (confidence: {classification['confidence']:.2f})")
+        
+        return classification
+
+    def _is_negative_subject_query(self, query: str) -> bool:
+        """Check if this is a negative query (programs that DON'T have something)"""
+        import re
+        
+        negative_patterns = [
+            r'\bdo\s+not\b',
+            r'\bdon\'t\b',
+            r'\bdoesn\'t\b',
+            r'\bdoesnt\b',
+            r'\bwithout\b',
+            r'\bnot\s+offer\b',
+            r'\bnot\s+have\b',
+            r'\bnot\s+include\b',
+            r'\bnot\s+provide\b',
+            r'\bdon\'t\s+offer\b',
+            r'\bdon\'t\s+have\b',
+            r'\bdon\'t\s+include\b',
+            r'\bdon\'t\s+provide\b',
+            r'\bdoesn\'t\s+offer\b',
+            r'\bdoesn\'t\s+have\b',
+            r'\bdoesn\'t\s+include\b',
+            r'\bdoesn\'t\s+provide\b',
+            r'\bthat\s+do\s+not\s+(offer|have|include|provide)\b',
+            r'\bthat\s+don\'t\s+(offer|have|include|provide)\b',
+            r'\bthat\s+doesn\'t\s+(offer|have|include|provide)\b'
+        ]
+        
+        query_lower = query.lower()
+        matched_negative = False
+        for pattern in negative_patterns:
+            if re.search(pattern, query_lower):
+                matched_negative = True
+                print(f"🔍 Negative query detected with pattern: {pattern}")
+                break
+        
+        return matched_negative
+
+    def _get_all_curriculum_documents(self) -> List[Dict]:
+        """Get all curriculum documents from ChromaDB"""
+        try:
+            from .chroma_connection import ChromaService
+            collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
+            
+            # Get documents with curriculum-related document types
+            # Based on analysis: curriculum documents are stored as "academic" type
+            where_clause = {
+                "$and": [
+                    {"source": "pdf_scrape"},
+                    {"$or": [
+                        {"document_type": "curriculum"},
+                        {"document_type": "academic"}  # This is where curriculum docs are actually stored
+                    ]}
+                ]
+            }
+            
+            all_docs = collection.get(
+                where=where_clause,
+                include=["documents", "metadatas"]
+            )
+            
+            curriculum_docs = []
+            for doc_id, content, metadata in zip(
+                all_docs.get('ids', []), 
+                all_docs.get('documents', []), 
+                all_docs.get('metadatas', [])
+            ):
+                curriculum_docs.append({
+                    'id': doc_id,
+                    'content': content,
+                    'metadata': metadata
+                })
+            
+            print(f"📚 Retrieved {len(curriculum_docs)} curriculum documents")
+            return curriculum_docs
+            
+        except Exception as e:
+            print(f"❌ Error retrieving curriculum documents: {e}")
+            return []
+
+    def _extract_program_acronym_from_curriculum(self, content: str) -> str:
+        """Extract program acronym from curriculum document content"""
+        import re
+        
+        # Pattern to match "Program Acronym: BS IT" or "Acronym: BS IT"
+        acronym_pattern = r'(?:Program\s+)?Acronym:\s*([A-Z][A-Z\s\-]*?)(?:\n|$|Effective|Curriculum)'
+        match = re.search(acronym_pattern, content, re.IGNORECASE)
+        
+        if match:
+            acronym = match.group(1).strip()
+            # Clean up common suffixes
+            acronym = re.sub(r'\s*(Effective|Academic|Year|Curriculum).*$', '', acronym, re.IGNORECASE)
+            return acronym.strip()
+        
+        # Fallback: look for specific program patterns at the beginning
+        program_patterns = [
+            r'(BS\s+[A-Z]+(?:\s*-\s*[A-Z]+)?)',  # BS IT, BS CS, BS ENTREP - A
+            r'(AB\s+[A-Z]+(?:\s*-\s*[A-Z]+)?)',  # AB ENG, AB MC
+            r'(BSED\s*-?\s*[A-Z]+)',             # BSED - ENGLISH
+            r'(BSN|BPM|BECE|BEED)',              # Single acronyms
+        ]
+        
+        # Look for patterns in the first 500 characters
+        content_start = content[:500]
+        for pattern in program_patterns:
+            matches = re.findall(pattern, content_start, re.IGNORECASE)
+            if matches:
+                # Return the first match, cleaned up
+                acronym = matches[0].strip()
+                return acronym
+        
+        return None
+
+    def _extract_subjects_from_curriculum_content(self, content: str) -> List[Dict]:
+        """Extract subjects and course codes from curriculum document content"""
+        import re
+        
+        subjects = []
+        
+        # Updated pattern to match "ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM"
+        # Allows for spaces in the code and handles various formats
+        course_pattern = r'([A-Z]{2,4}\s*\d{2,4})\s*-\s*([A-Z][^\n\r]+?)(?:\s*\d+\.\d+\.\s*(?:Pay|Credit)\s*Units|$)'
+        
+        matches = re.findall(course_pattern, content, re.MULTILINE)
+        seen_codes = set()  # Avoid duplicates
+        
+        for code, title in matches:
+            # Clean up the code and title
+            code = re.sub(r'\s+', ' ', code.strip())  # Normalize spaces
+            title = title.strip()
+            
+            # Skip if we've already seen this code
+            if code in seen_codes:
+                continue
+            seen_codes.add(code)
+            
+            # Clean up the title - remove common suffixes and patterns
+            title = re.sub(r'\s*\([^)]*\)\s*$', '', title)  # Remove (3 units)
+            title = re.sub(r'\s*\d+\.?\d*\s*CU\s*$', '', title, re.IGNORECASE)  # Remove 3.0 CU
+            title = re.sub(r'\s*\d+\.\d+\.\s*.*$', '', title)  # Remove "1.1. Pay Units: 0.0"
+            title = re.sub(r'\s+', ' ', title.strip())  # Normalize spaces
+            
+            # Only add if title is substantial (more than just a few characters)
+            if len(title) > 3:
+                subjects.append({
+                    'code': code,
+                    'title': title,
+                    'full': f"{code} - {title}"
+                })
+        
+        return subjects
+
+    def _is_false_positive_match(self, search_term: str, subject_text: str) -> bool:
+        """Detect false positive matches to avoid irrelevant results, but be context-aware"""
+        
+        search_term_lower = search_term.lower()
+        subject_text_lower = subject_text.lower()
+        
+        # Don't filter service programs if the user is specifically searching for them
+        if search_term_lower in ['nstp', 'integration', 'service', 'training program', 'national service']:
+            return False
+        
+        # Define false positive patterns - more comprehensive list
+        false_positive_patterns = {
+            'programming': [
+                'national service training program',
+                'seniors integration program', 
+                'seniors\' integration program',
+                'senior integration program',
+                'civic welfare training program',
+                'nstp program',
+                'training program',
+                'integration program',
+                'asf 4204',  # Specific course code for seniors integration program
+                'asf 1102',  # Specific course code for national service training
+                'asf 1203'   # Another NSTP course code
+            ],
+            'program': [
+                'national service training program',
+                'seniors integration program',
+                'seniors\' integration program', 
+                'civic welfare training program',
+                'integration program',
+                'asf 4204',
+                'asf 1102',
+                'asf 1203'
+            ],
+            'research': [
+                'national service training program',  # Avoid matching "training" as research
+                'seniors integration program'
+            ],
+            'training': [
+                'national service training program',  # This is civic training, not academic training
+                'civic welfare training'
+            ],
+            # Don't add entries for service-related terms
+        }
+        
+        # Check term-specific false positives
+        if search_term_lower in false_positive_patterns:
+            for false_pattern in false_positive_patterns[search_term_lower]:
+                if false_pattern in subject_text_lower:
+                    return True
+        
+        # Only apply general false positives for non-service searches
+        if not any(term in search_term_lower for term in ['nstp', 'integration', 'service', 'training']):
+            # Additional general false positive patterns for any subject
+            general_false_positives = [
+                'seniors integration program',
+                'seniors\' integration program',
+                'national service training program',
+                'civic welfare training program',
+                'asf 4204',
+                'asf 1102',
+                'asf 1203'
+            ]
+            
+            # Check general false positives that apply to any search term
+            for false_pattern in general_false_positives:
+                if false_pattern in subject_text_lower:
+                    # Return true only if the similarity would be borderline (like 0.362)
+                    # This prevents filtering out legitimate matches with high similarity
+                    return True
+        
+        return False
+    
+    def _find_programs_with_subject_semantic(self, program_subject_map: dict, subject_info: dict, is_negative: bool) -> dict:
+        """Find programs that have (or don't have) the specified subject using AI semantic matching"""
+        import numpy as np
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        target_subject = subject_info['subject'].lower()
+        matching_programs = {}
+        
+        print(f"🤖 Using AI semantic matching for subject: '{target_subject}'")
+        
+        # Enhanced cross-term awareness for academic final requirements
+        cross_term_mappings = {
+            'thesis': ['capstone', 'research project', 'final project', 'dissertation'],
+            'capstone': ['thesis', 'research project', 'final project', 'design project'],
+            'research project': ['thesis', 'capstone', 'final project', 'research'],
+            'final project': ['thesis', 'capstone', 'research project', 'project study'],
+            'practicum': ['internship', 'fieldwork', 'clinical', 'teaching practice'],
+            'internship': ['practicum', 'fieldwork', 'work experience', 'training'],
+            'ojt': ['practicum', 'internship', 'work experience', 'industry practice']
+        }
+        
+        # Get related terms for broader matching
+        search_terms = [target_subject]
+        if target_subject in cross_term_mappings:
+            search_terms.extend(cross_term_mappings[target_subject])
+            print(f"🔗 Cross-term matching enabled. Searching for: {search_terms}")
+        
+        # Vectorize all search terms using both TF-IDF and Word2Vec
+        all_target_vectors = []
+        for term in search_terms:
+            try:
+                # Dual preprocessing approach for optimal performance
+                # TF-IDF: Use stemmed text (consistent with training corpus)
+                term_stemmed = " ".join(preprocess_text(term))
+                # Word2Vec: Use raw text (no stemming, as Word2Vec expects full words)
+                term_raw = term
+                
+                # TF-IDF vectorization (using stemmed text)
+                tfidf_vector = None
+                if hasattr(self, 'tfidf_vectorizer') and self.tfidf_vectorizer is not None:
+                    tfidf_vector = self.tfidf_vectorizer.transform([term_stemmed])
+                    tfidf_vector = sparse_to_array(tfidf_vector)
+                
+                # Word2Vec vectorization (using raw tokens)
+                w2v_vector = None
+                if hasattr(self, 'word2vec_model') and self.word2vec_model is not None:
+                    raw_tokens = term_raw.split()
+                    w2v_vector = compute_word2vec_vector(raw_tokens, self.word2vec_model)
+                
+                all_target_vectors.append({
+                    'term': term,
+                    'tfidf': tfidf_vector,
+                    'w2v': w2v_vector,
+                    'weight': 1.0 if term == target_subject else 0.7  # Primary term gets full weight
+                })
+            except Exception as e:
+                print(f"⚠️ Error vectorizing term '{term}': {e}")
+        
+        for program, subjects in program_subject_map.items():
+            program_matches = []
+            
+            for subject in subjects:
+                subject_text = f"{subject['code']} {subject['title']}".lower()
+                
+                # Calculate semantic similarity against all search terms
+                max_similarity_score = 0.0
+                best_matching_term = target_subject
+                
+                for target_vector in all_target_vectors:
+                    similarity_score = 0.0
+                    term = target_vector['term']
+                    weight = target_vector['weight']
+                    
+                    try:
+                        # TF-IDF similarity (60% weight) - using stemmed text
+                        if target_vector['tfidf'] is not None:
+                            subject_stemmed = " ".join(preprocess_text(subject_text))
+                            subject_tfidf_vector = self.tfidf_vectorizer.transform([subject_stemmed])
+                            subject_tfidf_vector = sparse_to_array(subject_tfidf_vector)
+                            tfidf_similarity = cosine_similarity(target_vector['tfidf'], subject_tfidf_vector)[0][0]
+                            similarity_score += tfidf_similarity * 0.6
+                        
+                        # Word2Vec similarity (40% weight) - using raw text
+                        if target_vector['w2v'] is not None:
+                            subject_raw_tokens = subject_text.split()
+                            subject_w2v_vector = compute_word2vec_vector(subject_raw_tokens, self.word2vec_model)
+                            if subject_w2v_vector is not None and target_vector['w2v'] is not None:
+                                w2v_similarity = cosine_similarity(
+                                    target_vector['w2v'].reshape(1, -1), 
+                                    subject_w2v_vector.reshape(1, -1)
+                                )[0][0]
+                                similarity_score += w2v_similarity * 0.4
+                        
+                        # Enhanced keyword matching with partial matches and false positive filtering
+                        if term in subject_text:
+                            # Check for false positives (e.g., "programming" matching "program")
+                            if self._is_false_positive_match(term, subject_text):
+                                # Service programs like "SENIORS INTEGRATION PROGRAM" get almost no boost
+                                # This will drop them below the threshold
+                                similarity_score = similarity_score * 0.5  # Reduce existing score by half
+                            else:
+                                similarity_score += 0.4  # Boost for exact matches
+                        else:
+                            # Check for partial word matches (e.g., "math" matches "mathematics")
+                            term_words = term.split()
+                            for word in term_words:
+                                if len(word) > 3 and word in subject_text:
+                                    # Check for false positives in partial matches too
+                                    if not self._is_false_positive_match(word, subject_text):
+                                        similarity_score += 0.2  # Smaller boost for partial matches
+                        
+                        # Apply cross-term weight and check if this is the best match
+                        weighted_score = similarity_score * weight
+                        if weighted_score > max_similarity_score:
+                            max_similarity_score = weighted_score
+                            best_matching_term = term
+                        
+                    except Exception as e:
+                        print(f"⚠️ Error calculating similarity for {subject_text} vs {term}: {e}")
+                        # Fallback to simple string matching
+                        if term in subject_text:
+                            fallback_score = 0.8 * weight
+                            if fallback_score > max_similarity_score:
+                                max_similarity_score = fallback_score
+                                best_matching_term = term
+                
+                # Only filter service programs if the search is NOT specifically for them
+                # This way, if someone asks about NSTP, they'll get results
+                if target_subject not in ['nstp', 'integration', 'service', 'training program', 'national service']:
+                    # Check if this is a service program that should be excluded from non-service searches
+                    service_program_indicators = [
+                        'asf 4204', 'asf 1102', 'asf 1203',
+                        'seniors integration program', "seniors' integration program",
+                        'national service training program', 'civic welfare training'
+                    ]
+                    
+                    # Skip this match only if it's a service program AND we're not looking for service programs
+                    if any(indicator in subject_text.lower() for indicator in service_program_indicators):
+                        continue
+                
+                # Set threshold for matches (0.35 to filter out false positives)
+                if max_similarity_score > 0.35:
+                    program_matches.append({
+                        'subject': subject,
+                        'similarity': max_similarity_score,
+                        'matched_term': best_matching_term
+                    })
+                    match_indicator = "🔗" if best_matching_term != target_subject else "✅"
+                    print(f"{match_indicator} Match: {program} - {subject['full']} (similarity: {max_similarity_score:.3f}, term: {best_matching_term})")
+        
+            # Apply positive/negative logic
+            if is_negative:
+                if not program_matches:  # Programs that DON'T have the subject
+                    matching_programs[program] = []
+            else:
+                if program_matches:  # Programs that DO have the subject
+                    # Sort by similarity and keep the matches
+                    program_matches.sort(key=lambda x: x['similarity'], reverse=True)
+                    matching_programs[program] = [match['subject'] for match in program_matches]
+        
+        print(f"🎯 Found {len(matching_programs)} matching programs")
+        return matching_programs
+
+    def _get_program_school_from_config(self, program_acronym: str) -> str:
+        """Get school name for a program using the JSON config"""
+        try:
+            config = self._load_normalization_config()
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            # Search through all school sections
+            for school_section, programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in programs.items():
+                    # Check if this matches our program
+                    full_name = abbrev_data.get('full_name', '').upper()
+                    if full_name == program_acronym.upper():
+                        school = abbrev_data.get('school', '')
+                        print(f"🔍 Found school for {program_acronym}: {school}")
+                        return school
+            
+            print(f"⚠️ No school found for program: {program_acronym}")
+            return None
+        except Exception as e:
+            print(f"⚠️ Error getting school from config: {e}")
+            return None
+            
+    def _get_program_cluster_from_config(self, program_acronym: str) -> str:
+        """Get cluster name for a program using the JSON config"""
+        try:
+            config = self._load_normalization_config()
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            # Search through all school sections
+            for school_section, programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in programs.items():
+                    # Check if this matches our program
+                    full_name = abbrev_data.get('full_name', '').upper()
+                    if full_name == program_acronym.upper():
+                        cluster = abbrev_data.get('cluster', '')
+                        print(f"🔍 Found cluster for {program_acronym}: {cluster}")
+                        return cluster
+            
+            print(f"⚠️ No cluster found for program: {program_acronym}")
+            return None
+        except Exception as e:
+            print(f"⚠️ Error getting cluster from config: {e}")
+            return None
+    
+    def _get_program_full_name_from_config(self, program_acronym: str) -> str:
+        """Get full program name/description for a program using the JSON config"""
+        try:
+            config = self._load_normalization_config()
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            # Search through all school sections
+            for school_section, programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in programs.items():
+                    # Check if this matches our program
+                    full_name = abbrev_data.get('full_name', '').upper()
+                    if full_name == program_acronym.upper():
+                        description = abbrev_data.get('description', '')
+                        print(f"🔍 Found description for {program_acronym}: {description}")
+                        return description
+            
+            print(f"⚠️ No description found for program: {program_acronym}")
+            return program_acronym  # Fallback to acronym if no description found
+        except Exception as e:
+            print(f"⚠️ Error getting description from config: {e}")
+            return program_acronym
+
+    def _apply_cluster_filter_to_curriculum_docs(self, curriculum_docs: List[Dict], cluster_filter: str) -> List[Dict]:
+        """Filter curriculum documents by cluster using JSON config mapping"""
+        if not cluster_filter:
+            return curriculum_docs
+        
+        filtered_docs = []
+        
+        for doc in curriculum_docs:
+            # Extract program acronym from curriculum content
+            program_acronym = self._extract_program_acronym_from_curriculum(doc['content'])
+            
+            if program_acronym:
+                # Get cluster from JSON config
+                doc_cluster = self._get_program_cluster_from_config(program_acronym)
+                
+                # Check if it matches the filter
+                if doc_cluster and cluster_filter.lower() in doc_cluster.lower():
+                    filtered_docs.append(doc)
+                    print(f"✅ Including {program_acronym} (cluster: {doc_cluster})")
+                else:
+                    print(f"🚫 Excluding {program_acronym} (cluster: {doc_cluster}, filter: {cluster_filter})")
+            else:
+                print(f"⚠️ Could not extract program acronym from document")
+        
+        return filtered_docs
+
+    def _clean_ai_response(self, response: str) -> str:
+        """Clean AI response from malformed tags and duplicate content"""
+        if not response:
+            return response
+        
+        # Remove any AI assistant tags that might have leaked through
+        response = response.replace('<|assistant|>', '')
+        response = response.replace('</|assistant|>', '')
+        response = response.replace('<|system|>', '')
+        response = response.replace('</|system|>', '')
+        response = response.replace('<|user|>', '')
+        response = response.replace('</|user|>', '')
+        
+        # Remove duplicate "assistant" text that appears at the end
+        lines = response.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            stripped_line = line.strip()
+            # Skip lines that are just "assistant" or similar AI artifacts
+            if stripped_line.lower() in ['assistant', '<|assistant|>', '</|assistant|>']:
+                continue
+            cleaned_lines.append(line)
+        
+        # Join back and clean up extra whitespace
+        cleaned_response = '\n'.join(cleaned_lines).strip()
+        
+        # Remove any duplicate content by splitting on common patterns
+        # If the response appears to be duplicated, take only the first occurrence
+        if 'Here are the programs that' in cleaned_response:
+            parts = cleaned_response.split('Here are the programs that')
+            if len(parts) > 2:  # More than one occurrence
+                # Keep the first complete response
+                first_part = 'Here are the programs that' + parts[1]
+                # Find where the first response ends (usually at "For more detailed information")
+                if 'For more detailed information' in first_part:
+                    end_index = first_part.find('For more detailed information')
+                    cleaned_response = first_part[:end_index + len('For more detailed information, please contact the admissions office.')]
+        
+        return cleaned_response
+    
+    def _format_subject_mapping_response_text(self, response_text: str) -> str:
+        """Post-process subject mapping response to ensure proper formatting"""
+        import re
+        
+        # CRITICAL: Fix programs that are on the same line (most common issue)
+        # Look for patterns like "• **Program 1**: courses • **Program 2**: courses"
+        if '• **' in response_text:
+            # Replace bullet points that appear mid-line with newline + bullet
+            response_text = re.sub(r'([^•\n])\s*•\s*\*\*', r'\1\n• **', response_text)
+            
+            # Also handle cases where there's no space before the bullet
+            response_text = re.sub(r'([^•\n])•\s*\*\*', r'\1\n• **', response_text)
+        
+        # If the response doesn't have proper line breaks, fix it
+        if '•' in response_text and response_text.count('\n•') < response_text.count('•') - 1:
+            # Split on bullet points and rejoin with proper line breaks
+            parts = response_text.split('•')
+            if len(parts) > 1:
+                intro = parts[0].strip()
+                program_lines = []
+                
+                for part in parts[1:]:
+                    if part.strip():
+                        # Clean up the part and ensure it starts properly
+                        cleaned_part = part.strip()
+                        if not cleaned_part.startswith('**'):
+                            # Find where the program name starts
+                            if '**' in cleaned_part:
+                                cleaned_part = cleaned_part[cleaned_part.find('**'):]
+                        program_lines.append(f"• {cleaned_part}")
+                
+                # Find conclusion (usually starts with "For more detailed")
+                conclusion = ""
+                if program_lines:
+                    last_line = program_lines[-1]
+                    if "For more detailed" in last_line:
+                        # Extract conclusion from last line
+                        conclusion_match = re.search(r'(For more detailed.*)', last_line)
+                        if conclusion_match:
+                            conclusion = conclusion_match.group(1)
+                            # Remove conclusion from last program line
+                            program_lines[-1] = re.sub(r'\s*For more detailed.*', '', last_line)
+                
+                # Reconstruct with proper formatting
+                formatted_response = intro
+                if program_lines:
+                    formatted_response += "\n\n" + "\n".join(program_lines)
+                if conclusion:
+                    formatted_response += "\n\n" + conclusion
+                
+                return formatted_response
+        
+        # Additional cleanup: ensure each bullet point is on its own line
+        lines = response_text.split('\n')
+        new_lines = []
+        
+        for line in lines:
+            # Check if line has multiple bullet points
+            if line.count('• **') > 1:
+                # Split this line into multiple program lines
+                # Use a more sophisticated split that preserves the program content
+                bullet_positions = []
+                start = 0
+                while True:
+                    pos = line.find('• **', start)
+                    if pos == -1:
+                        break
+                    bullet_positions.append(pos)
+                    start = pos + 1
+                
+                # Extract each program segment
+                for i, pos in enumerate(bullet_positions):
+                    if i == len(bullet_positions) - 1:
+                        # Last segment - take everything from this position to end
+                        segment = line[pos:].strip()
+                    else:
+                        # Take from this position to just before next bullet
+                        next_pos = bullet_positions[i + 1]
+                        segment = line[pos:next_pos].strip()
+                    
+                    if segment:
+                        new_lines.append(segment)
+            else:
+                new_lines.append(line)
+        
+        response_text = '\n'.join(new_lines)
+        
+        # Final cleanup: remove any empty lines between programs (but keep one blank line after intro)
+        lines = response_text.split('\n')
+        final_lines = []
+        intro_done = False
+        
+        for i, line in enumerate(lines):
+            if not intro_done and line.strip() and not line.strip().startswith('•'):
+                # This is intro text
+                final_lines.append(line)
+                if i + 1 < len(lines) and lines[i + 1].strip().startswith('•'):
+                    # Next line is a bullet point, add blank line
+                    final_lines.append('')
+                    intro_done = True
+            elif line.strip().startswith('•'):
+                # This is a program line
+                final_lines.append(line)
+                intro_done = True
+            elif line.strip() and 'For more detailed' in line:
+                # This is the conclusion
+                if final_lines and final_lines[-1].strip():
+                    final_lines.append('')  # Add blank line before conclusion
+                final_lines.append(line)
+            elif line.strip():
+                # Other non-empty lines
+                final_lines.append(line)
+        
+        return '\n'.join(final_lines)
+    
+    def _format_subject_mapping_response(self, matching_programs: dict, subject_info: dict, is_negative: bool, cluster_filter: str = None) -> List[Dict]:
+        """Format the response for subject mapping queries based on query type"""
+        
+        subject = subject_info['subject']
+        query_type = subject_info.get('query_type', 'general')
+        program = subject_info.get('program')
+        
+        # Handle empty results first
+        if not matching_programs:
+            if query_type in ['program_specific', 'count']:
+                if program:
+                    response_text = f"I couldn't find any {subject} courses in the {program} program. This subject may not be offered in this program."
+                else:
+                    response_text = f"I couldn't find the specified program. Please check the program name and try again."
+            elif is_negative:
+                response_text = f"I couldn't find any programs that don't offer {subject}. All programs may include this subject."
+            else:
+                response_text = f"I couldn't find any programs that offer {subject}. Please try a different subject or check the spelling."
+            
+            return [{
+                'id': 'subject_mapping_result',
+                'content': response_text,
+                'relevance': 1.0,
+                'retrieval_strategy': 'subject_mapping',
+                'matching_programs': 0,
+                'subject_searched': subject,
+                'query_type': query_type
+            }]
+        
+        # Handle different query types
+        if query_type == 'count':
+            # Count query: How many X subjects in program Y?
+            program_name = list(matching_programs.keys())[0]  # Should only be one program
+            subjects = matching_programs[program_name]
+            count = len(subjects)
+            
+            response_text = f"**{program_name}** offers {count} {subject} courses:\n\n"
+            for subj in subjects:
+                response_text += f"• {subj['full']}\n"
+                
+        elif query_type in ['program_specific', 'negative_program_specific']:
+            # Program-specific query: What X subjects are in program Y?
+            program_name = list(matching_programs.keys())[0]  # Should only be one program
+            subjects = matching_programs[program_name]
+            
+            if query_type == 'negative_program_specific':
+                if not subjects:
+                    response_text = f"**{program_name}** does not offer any {subject} courses."
+                else:
+                    response_text = f"**{program_name}** does not have these specific {subject} courses, but it offers other related courses:\n\n"
+                    for subj in subjects:
+                        response_text += f"• {subj['full']}\n"
+            else:
+                if subjects:
+                    response_text = f"Here are the {subject} courses offered in **{program_name}**:\n\n"
+                    for subj in subjects:
+                        response_text += f"• {subj['full']}\n"
+                else:
+                    response_text = f"**{program_name}** does not offer any {subject} courses."
+                    
+        elif is_negative:
+            # Negative query: What programs don't have X?
+            response_text = f"These programs do not offer {subject}:\n\n"
+            for program in matching_programs.keys():
+                response_text += f"• **{program}**\n"
+                
+        else:
+            # General positive query: What programs have X?
+            # This is handled by the AI prompt for better school/cluster organization
+            cluster_text = f" under {cluster_filter} cluster" if cluster_filter else ""
+            response_text = f"Here are the programs{cluster_text} that offer {subject}:\n\n"
+            
+            # Let the AI organize by school/cluster using the prompt
+            # Just provide the raw data here
+            for program, subjects in matching_programs.items():
+                response_text += f"• **{program}**: "
+                subject_texts = [s['full'] for s in subjects]
+                response_text += ", ".join(subject_texts) + "\n"
+        
+        return [{
+            'id': 'subject_mapping_result',
+            'content': response_text,
+            'relevance': 1.0,
+            'retrieval_strategy': 'subject_mapping',
+            'matching_programs': len(matching_programs),
+            'subject_searched': subject,
+            'query_type': query_type,
+            'is_negative': is_negative,
+            'cluster_filter': cluster_filter
+        }]
 
     def retrieve_documents_by_topic_keywords(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
         """
@@ -1883,6 +2956,17 @@ class FastHybridChatbotTogether:
                 except Exception as e2:
                     print(f"❌ Standard hybrid retrieval also failed: {e2}")
                 print("🔄 Falling back to specialized retrievers...")
+        
+        # Check for subject mapping intent for programs_courses topic
+        if topic_id == 'programs_courses':
+            intent = self._classify_programs_query_intent(query)
+            if intent == "subject_mapping":
+                print("🎯 Using subject-to-program mapping retrieval")
+                try:
+                    return self.retrieve_programs_by_subject(query, top_k)
+                except Exception as e:
+                    print(f"❌ Subject mapping retrieval failed: {e}")
+                    print("🔄 Falling back to standard programs retrieval...")
         
         # Original specialized retriever logic
         TOPIC_RETRIEVERS = {
@@ -2639,6 +3723,16 @@ class FastHybridChatbotTogether:
             self.session_state['conversation_state'] = conversation_state
         if current_program is not None:
             self.session_state['current_program'] = current_program
+            # Initialize curriculum state when program is set
+            if 'curriculum_state' not in self.session_state:
+                self.session_state['curriculum_state'] = {
+                    'current_program': current_program,
+                    'last_displayed_year': None,
+                    'parsed_curriculum': {},
+                    'available_years': []
+                }
+            else:
+                self.session_state['curriculum_state']['current_program'] = current_program
         
         print(f"🔄 Session state updated: topic={self.session_state.get('current_topic')}, state={self.session_state.get('conversation_state')}, program={self.session_state.get('current_program')}")
     
@@ -3205,10 +4299,14 @@ If you want to see the list of programs, click on the buttons below per school, 
 - **STRUCTURE**: School of [Name] → [Cluster] (Cluster) → Programs with codes and full names
 
 === CURRICULUM QUERIES ===
-- For specific program curriculum questions:
-  * First confirm program exists in official list or context
-  * Then provide curriculum details from curriculum documents
-  * Do NOT mention or suggest any links or external resources
+- **YEAR-BASED DISPLAY**: For curriculum queries, ALWAYS show only ONE YEAR at a time
+- **INITIAL QUERIES**: For first-time curriculum requests (e.g., "BS CS curriculum"), show ONLY FIRST YEAR courses (1st semester, 2nd semester, summer if exists)
+- **FOLLOW-UP QUERIES**: For requests like "what about 2nd year", "can you proceed with remaining", show ONLY the requested year
+- **FORMAT REQUIREMENTS**:
+  * Include program title and details (school, cluster, total credits)
+  * Show year-specific curriculum with proper semester organization
+  * Always end with link footer: "For more information about the curriculum of the program, head to this link: [URL]"
+- **SESSION CONTINUITY**: Remember which program and year was last displayed for follow-up queries
 
 === RESPONSE FORMAT ===
 - For availability: Start with clear confirmation based on official documents
@@ -3959,6 +5057,746 @@ If you want to see the list of programs, click on the buttons below per school, 
         
         return school_programs.get(school_id, "School information not found.")
     
+    def _parse_curriculum_by_years(self, curriculum_content: str) -> dict:
+        """
+        Parse curriculum content and organize by year levels and semesters.
+        
+        Returns:
+            dict: {year: {semester: [courses]}} structure
+        """
+        import re
+        
+        print(f"📚 Parsing curriculum content ({len(curriculum_content)} characters)")
+        
+        # Combined year-semester patterns (most common format)
+        combined_year_semester_patterns = [
+            # With "Semester" word
+            r'([IVX]+)\.\s*Year\s+(\d+)\s*[—\-–]\s*(First|Second|Summer)\s+Semester',
+            r'(\d+)\.\s*Year\s+(\d+)\s*[—\-–]\s*(First|Second|Summer)\s+Semester',
+            # Without "Semester" word (e.g., "III. Year 1 — Summer (6.0 CU)")
+            r'([IVX]+)\.\s*Year\s+(\d+)\s*[—\-–]\s*(First|Second|Summer)\s*\(',
+            r'(\d+)\.\s*Year\s+(\d+)\s*[—\-–]\s*(First|Second|Summer)\s*\('
+        ]
+        
+        # Separate year patterns (fallback)
+        year_patterns = [
+            r'([IVX]+)\.\s*Year\s+(\d+)',
+            r'(\d+)\.\s*Year\s+(\d+)',
+            r'Year\s+(\d+)',
+            r'(\d+)(?:st|nd|rd|th)\s+Year'
+        ]
+        
+        # Separate semester patterns (fallback)
+        semester_patterns = [
+            r'(First|Second|Summer)\s+Semester',
+            r'(\d+)(?:st|nd|rd|th)\s+Semester',
+            r'Semester\s+(\d+)'
+        ]
+        
+        # Course patterns - extract course codes and titles (improved patterns)
+        course_patterns = [
+            # Pattern 1: Simple numbered courses (most reliable) - supports mixed case codes
+            r'(\d+)\.\s*([A-Za-z]{2,}\s+\d+[A-Za-z]*)\s*[-–—]\s*(.+)',
+            # Pattern 2: Numbered courses with optional credits in parentheses - supports mixed case codes
+            r'(\d+)\.\s*([A-Za-z]{2,}\s+\d+[A-Za-z]*)\s*[-–—]\s*([^(\n]+?)(?:\s*\(([^)]+)\))?',
+            # Pattern 3: Course codes without numbers (fallback) - supports mixed case codes
+            r'([A-Za-z]{2,}\s+\d+[A-Za-z]*)\s*[-–—]\s*(.+)'
+        ]
+        
+        curriculum_structure = {}
+        current_year = None
+        current_semester = None
+        
+        lines = curriculum_content.split('\n')
+        
+        for line_num, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Skip page markers (various formats) - these interrupt curriculum flow
+            page_marker_patterns = [
+                r'^Page\s+\d+\s*[-–—]\s*[-–—]*$',  # "Page 2 - --" or "Page 2 -"
+                r'^[-–—]+\s*Page\s+\d+\s*[-–—]+$',  # "--- Page 3 ---"
+                r'^Page\s+\d+\s*[-–—]+$',  # "Page 2 ---"
+                r'^[-–—]+\s*Page\s+\d+\s*[-–—]*$',  # "--- Page 3" or "--- Page 3 ---"
+                r'^\d+\s*[-–—]+\s*Page\s*[-–—]+\s*\d+$',  # "2 -- Page -- 3"
+                r'^Page\s+\d+$',  # Simple "Page 2"
+            ]
+            
+            is_page_marker = False
+            for pattern in page_marker_patterns:
+                if re.match(pattern, line, re.IGNORECASE):
+                    print(f"📄 Skipping page marker at line {line_num + 1}: '{line}'")
+                    is_page_marker = True
+                    break
+            
+            if is_page_marker:
+                continue  # Skip page markers but maintain current year/semester context
+            
+            # Check for combined year-semester markers first (most common)
+            combined_found = False
+            for pattern in combined_year_semester_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    groups = match.groups()
+                    
+                    # Extract year with enhanced error handling
+                    try:
+                        if len(groups) >= 2 and groups[1]:
+                            year_str = groups[1]  # Second group is the year number
+                            current_year = int(year_str)
+                        else:
+                            print(f"⚠️ Year group missing or empty in pattern match: {groups}")
+                            current_year = 1
+                    except (ValueError, IndexError) as e:
+                        print(f"⚠️ Error extracting year from groups {groups}: {e}")
+                        current_year = 1
+                    
+                    # Extract semester with enhanced error handling
+                    try:
+                        if len(groups) >= 3 and groups[2]:
+                            semester_str = groups[2].lower()  # Third group is the semester
+                        else:
+                            print(f"⚠️ Semester group missing or empty in pattern match: {groups}")
+                            continue  # Skip this match if no semester info
+                    except (IndexError, AttributeError) as e:
+                        print(f"⚠️ Error extracting semester from groups {groups}: {e}")
+                        continue
+                    
+                    # Normalize semester names
+                    if semester_str in ['first', '1st', '1']:
+                        current_semester = 'first'
+                    elif semester_str in ['second', '2nd', '2']:
+                        current_semester = 'second'
+                    elif semester_str in ['summer', '3rd', '3']:
+                        current_semester = 'summer'
+                    else:
+                        current_semester = semester_str
+                    
+                    # Initialize structure
+                    if current_year and current_year not in curriculum_structure:
+                        curriculum_structure[current_year] = {}
+                    
+                    if current_semester and current_semester not in curriculum_structure[current_year]:
+                        curriculum_structure[current_year][current_semester] = []
+                    
+                    print(f"📅 Found Year {current_year} - {current_semester.title()} Semester at line {line_num + 1}")
+                    combined_found = True
+                    break
+            
+            if combined_found:
+                continue
+            
+            # Check for separate year markers (fallback)
+            year_found = False
+            for pattern in year_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    # Handle different year formats with enhanced error handling
+                    try:
+                        if len(match.groups()) >= 1 and match.group(-1):
+                            year_str = match.group(-1)  # Last group is usually the year
+                            # Convert Roman numerals to Arabic
+                            if year_str in ['I', 'II', 'III', 'IV', 'V']:
+                                roman_to_arabic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
+                                current_year = roman_to_arabic.get(year_str, 1)
+                            else:
+                                try:
+                                    current_year = int(year_str)
+                                except ValueError:
+                                    print(f"⚠️ Could not convert year string '{year_str}' to integer")
+                                    current_year = 1
+                        else:
+                            print(f"⚠️ Year group missing or empty in pattern match")
+                            current_year = 1
+                    except (IndexError, AttributeError) as e:
+                        print(f"⚠️ Error extracting year from match: {e}")
+                        current_year = 1
+                    
+                    if current_year and current_year not in curriculum_structure:
+                        curriculum_structure[current_year] = {}
+                    
+                    print(f"📅 Found Year {current_year} at line {line_num + 1}")
+                    year_found = True
+                    break
+            
+            if year_found:
+                continue
+            
+            # Check for separate semester markers (fallback)
+            semester_found = False
+            for pattern in semester_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match and current_year:
+                    semester_str = match.group(1).lower()
+                    
+                    # Normalize semester names
+                    if semester_str in ['first', '1st', '1']:
+                        current_semester = 'first'
+                    elif semester_str in ['second', '2nd', '2']:
+                        current_semester = 'second'
+                    elif semester_str in ['summer', '3rd', '3']:
+                        current_semester = 'summer'
+                    
+                    if current_semester and current_semester not in curriculum_structure[current_year]:
+                        curriculum_structure[current_year][current_semester] = []
+                    
+                    print(f"📝 Found {current_semester.title()} Semester for Year {current_year}")
+                    semester_found = True
+                    break
+            
+            if semester_found:
+                continue
+            
+            # Check for course entries
+            if current_year and current_semester:
+                # Skip Pay Units/Credit Units lines (decimal numbering like "1.1.", "1.2.")
+                if re.match(r'\d+\.\d+\.\s*(Pay Units|Credit Units|Prerequisite)', line, re.IGNORECASE):
+                    continue
+                
+                # Double-check for page markers in course extraction (additional safety)
+                is_page_marker_in_course = False
+                for pattern in page_marker_patterns:
+                    if re.match(pattern, line, re.IGNORECASE):
+                        print(f"📄 Skipping page marker in course section at line {line_num + 1}: '{line}'")
+                        is_page_marker_in_course = True
+                        break
+                
+                if is_page_marker_in_course:
+                    continue
+                
+                for i, pattern in enumerate(course_patterns):
+                    match = re.search(pattern, line)
+                    if match:
+                        groups = match.groups()
+                        
+                        # Handle different pattern formats safely
+                        try:
+                            if i == 0:  # Pattern 1: simple numbered (most reliable)
+                                if len(groups) >= 3:
+                                    course_code = groups[1].strip()
+                                    course_title = groups[2].strip()
+                                    credits = ""
+                                else:
+                                    continue
+                            elif i == 1:  # Pattern 2: numbered with optional credits
+                                if len(groups) >= 3:
+                                    course_code = groups[1].strip()
+                                    course_title = groups[2].strip()
+                                    credits = groups[3].strip() if len(groups) > 3 and groups[3] else ""
+                                else:
+                                    continue
+                            elif i == 2:  # Pattern 3: fallback without numbers
+                                if len(groups) >= 2:
+                                    course_code = groups[0].strip()
+                                    course_title = groups[1].strip()
+                                    credits = ""
+                                else:
+                                    continue
+                        except IndexError as e:
+                            print(f"⚠️ Group index error for pattern {i+1} with {len(groups)} groups: {e}")
+                            continue
+                        
+                        # Clean up course title
+                        course_title = re.sub(r'\s+', ' ', course_title).strip()
+                        
+                        # Skip lines that are not actual courses (like credit unit lines)
+                        if 'pay units' in course_title.lower() or 'credit units' in course_title.lower():
+                            continue
+                        
+                        course_entry = {
+                            'code': course_code,
+                            'title': course_title,
+                            'credits': credits
+                        }
+                        
+                        curriculum_structure[current_year][current_semester].append(course_entry)
+                        print(f"📝 Extracted course: {course_code} - {course_title}")
+                        break
+        
+        # Log parsing results
+        total_courses = sum(
+            len(courses) 
+            for year_data in curriculum_structure.values() 
+            for courses in year_data.values()
+        )
+        
+        print(f"📊 Parsed curriculum structure:")
+        for year, semesters in curriculum_structure.items():
+            for semester, courses in semesters.items():
+                print(f"   Year {year} - {semester.title()}: {len(courses)} courses")
+        
+        print(f"📈 Total courses parsed: {total_courses}")
+        
+        return curriculum_structure
+    
+    def _extract_year_from_curriculum(self, curriculum_content: str, target_year: int) -> dict:
+        """
+        Extract specific year content from curriculum using regex patterns.
+        
+        Args:
+            curriculum_content: Raw curriculum text
+            target_year: Year level to extract (1, 2, 3, 4)
+            
+        Returns:
+            dict: {semester: [courses]} for the target year
+        """
+        full_structure = self._parse_curriculum_by_years(curriculum_content)
+        return full_structure.get(target_year, {})
+    
+    def _detect_curriculum_query_type(self, query: str) -> dict:
+        """
+        Detect the type of curriculum query and extract relevant information.
+        
+        Returns:
+            dict: {
+                'type': 'initial_curriculum|year_specific|year_followup',
+                'year': int or None,
+                'program': str or None,
+                'confidence': float
+            }
+        """
+        import re
+        
+        query_lower = query.lower()
+        
+        classification = {
+            'type': 'initial_curriculum',
+            'year': None,
+            'program': None,
+            'confidence': 0.0,
+            'matched_patterns': []
+        }
+        
+        # Follow-up patterns with year (check these FIRST to distinguish from year_specific)
+        followup_year_patterns = [
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?year\s+(\d+)\b',
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+        ]
+        
+        # Year-specific patterns (initial queries with explicit years)
+        year_specific_patterns = [
+            # Initial query patterns with explicit years (case insensitive program names)
+            r'\bcurriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bcurriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            
+            # General year patterns
+            r'\b(\d+)(?:st|nd|rd|th)\s+year\s+(?:curriculum|subjects?|courses?)\b',
+            r'\byear\s+(\d+)\s+(?:curriculum|subjects?|courses?)\b'
+        ]
+        
+        # Follow-up patterns (without year)
+        followup_patterns = [
+            r'\bcan\s+you\s+proceed\s+with\s+(?:the\s+)?remaining\b',
+            r'\bwhat\s+(?:are\s+)?(?:the\s+)?(?:next|remaining)\b',
+            r'\bcontinue\s+with\s+(?:the\s+)?(?:curriculum|subjects?|courses?)\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?(?:next|remaining)\s+(?:year|subjects?|courses?)\b',
+            r'\bwhat\s+(?:comes\s+)?next\b',
+            r'\bproceed\b',
+            r'\bwhat\'?s\s+next\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?remaining\s+years?\b'
+        ]
+        
+        # Initial curriculum patterns
+        initial_patterns = [
+            r'\bcurriculum\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?curriculum\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bwhat\s+(?:are\s+the\s+)?(?:subjects?|courses?)\s+(?:in|for|of)\s+([A-Z\s]+)\b'
+        ]
+        
+        # Check for follow-up queries with year FIRST (to distinguish from year_specific)
+        for pattern in followup_year_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'year_followup'
+                classification['confidence'] = 0.9
+                classification['matched_patterns'].append(f"Follow-up with year: {pattern}")
+                
+                # Extract year number
+                year_str = match.group(1)
+                if year_str in ['second', '2nd']:
+                    classification['year'] = 2
+                elif year_str in ['third', '3rd']:
+                    classification['year'] = 3
+                elif year_str in ['fourth', '4th']:
+                    classification['year'] = 4
+                else:
+                    try:
+                        classification['year'] = int(year_str)
+                    except ValueError:
+                        classification['year'] = 1
+                
+                print(f"🔄 Detected follow-up query with year: Year {classification['year']}")
+                return classification
+        
+        # Check for year-specific queries (initial queries with explicit years)
+        for pattern in year_specific_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'year_specific'
+                classification['confidence'] = 0.9
+                classification['matched_patterns'].append(f"Year-specific: {pattern}")
+                
+                # Extract year number
+                year_str = match.group(1)
+                if year_str in ['second', '2nd']:
+                    classification['year'] = 2
+                elif year_str in ['third', '3rd']:
+                    classification['year'] = 3
+                elif year_str in ['fourth', '4th']:
+                    classification['year'] = 4
+                else:
+                    try:
+                        classification['year'] = int(year_str)
+                    except ValueError:
+                        classification['year'] = 1
+                
+                print(f"📅 Detected year-specific query: Year {classification['year']}")
+                return classification
+        
+        # Check for follow-up queries (without year)
+        for pattern in followup_patterns:
+            if re.search(pattern, query_lower):
+                classification['type'] = 'year_followup'
+                classification['confidence'] = 0.85
+                classification['matched_patterns'].append(f"Follow-up: {pattern}")
+                print(f"🔄 Detected follow-up query")
+                return classification
+        
+        # Check for initial curriculum queries with program extraction
+        for pattern in initial_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'initial_curriculum'
+                classification['confidence'] = 0.8
+                classification['matched_patterns'].append(f"Initial: {pattern}")
+                
+                # Extract program name
+                program_str = match.group(1).strip()
+                classification['program'] = program_str
+                
+                print(f"📚 Detected initial curriculum query for: {program_str}")
+                return classification
+        
+        # Default to initial curriculum
+        classification['confidence'] = 0.7
+        print(f"📋 Default classification: initial curriculum")
+        
+        return classification
+    
+    def _get_next_year_level(self, curriculum_query_type: dict) -> int:
+        """
+        Determine the next year level to show based on conversation history and query type.
+        
+        Args:
+            curriculum_query_type: Result from _detect_curriculum_query_type
+            
+        Returns:
+            int: Year level to display (1, 2, 3, 4)
+        """
+        # Get curriculum state from session
+        curriculum_state = self.session_state.get('curriculum_state', {})
+        last_displayed_year = curriculum_state.get('last_displayed_year')
+        available_years = curriculum_state.get('available_years', [1, 2, 3, 4])
+        
+        # If specific year requested, return that year
+        if curriculum_query_type.get('year'):
+            return curriculum_query_type['year']
+        
+        # For initial curriculum queries, always start with year 1
+        if curriculum_query_type['type'] == 'initial_curriculum':
+            return 1
+        
+        # For follow-up queries, determine next year
+        if curriculum_query_type['type'] == 'year_followup':
+            if last_displayed_year is None:
+                return 1  # Start with first year if no previous display
+            
+            # Find next available year
+            next_year = last_displayed_year + 1
+            if next_year in available_years and next_year <= 4:
+                return next_year
+            else:
+                # If no next year available, cycle back or show message
+                return 1  # Could also return None to indicate no more years
+        
+        # Default to year 1
+        return 1
+    
+    def _update_curriculum_session_state(self, program: str, displayed_year: int, parsed_curriculum: dict = None):
+        """
+        Update session state with curriculum information.
+        
+        Args:
+            program: Program acronym/name
+            displayed_year: Year level that was displayed
+            parsed_curriculum: Optional parsed curriculum structure
+        """
+        if 'curriculum_state' not in self.session_state:
+            self.session_state['curriculum_state'] = {}
+        
+        curriculum_state = self.session_state['curriculum_state']
+        curriculum_state['current_program'] = program
+        curriculum_state['last_displayed_year'] = displayed_year
+        
+        if parsed_curriculum:
+            curriculum_state['parsed_curriculum'] = parsed_curriculum
+            curriculum_state['available_years'] = list(parsed_curriculum.keys())
+        
+        print(f"📚 Updated curriculum session state: program={program}, last_year={displayed_year}")
+    
+    def _build_curriculum_response(self, program_info: dict, curriculum_content: str, target_year: int) -> str:
+        """
+        Build curriculum response with program details and year-specific courses.
+        
+        Args:
+            program_info: Program information from extraction
+            curriculum_content: Raw curriculum document content
+            target_year: Year level to display (1, 2, 3, 4)
+            
+        Returns:
+            str: Formatted curriculum response
+        """
+        print(f"🏗️ Building curriculum response for {program_info.get('program_name', 'Unknown')} Year {target_year}")
+        
+        # Parse curriculum by years
+        parsed_curriculum = self._parse_curriculum_by_years(curriculum_content)
+        
+        # Get program details from JSON config
+        program_acronym = program_info.get('program_name', '')
+        full_name = self._get_program_full_name_from_config(program_acronym)
+        school = self._get_program_school_from_config(program_acronym)
+        cluster = self._get_program_cluster_from_config(program_acronym)
+        
+        # Extract total credits and duration from curriculum content
+        import re
+        try:
+            total_credits_match = re.search(r'Total\s+Program\s+Credits:\s*(\d+(?:\.\d+)?)\s*CU', curriculum_content, re.IGNORECASE)
+            total_credits = total_credits_match.group(1) if total_credits_match else "N/A"
+        except (AttributeError, IndexError) as e:
+            print(f"⚠️ Error extracting total credits: {e}")
+            total_credits = "N/A"
+        
+        # Build response header
+        response = f"**{program_acronym}**"
+        if full_name and full_name != program_acronym:
+            response += f" - **{full_name}**"
+        response += "\n\n"
+        
+        # Program details section
+        response += "**Program Details:**\n"
+        if school:
+            response += f"- School: {school}\n"
+        if cluster:
+            response += f"- Cluster: {cluster}\n"
+        response += f"- Total Credits: {total_credits} CU\n"
+        response += f"- Duration: 4 years\n\n"
+        
+        # Year curriculum section
+        year_data = parsed_curriculum.get(target_year, {})
+        if not year_data:
+            response += f"**Year {target_year} Curriculum:**\n\n"
+            response += f"No curriculum information available for Year {target_year}.\n\n"
+        else:
+            response += f"**Year {target_year} Curriculum:**\n\n"
+            response += self._format_year_curriculum(year_data, target_year)
+        
+        # Extract and add link if present
+        try:
+            # Strategy 1: Look for complete URLs in the content
+            link_match = re.search(r'https?://[^\s\)]+\.pdf', curriculum_content)
+            
+            if link_match:
+                link_url = link_match.group(0)
+                # Clean up any trailing punctuation that might have been captured
+                link_url = re.sub(r'[,;.!?]+$', '', link_url)
+                response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
+                print(f"🔗 Extracted curriculum link: {link_url}")
+            else:
+                # Strategy 2: Handle URLs that might be split across lines or have spaces
+                # First, normalize whitespace and try again
+                normalized_content = re.sub(r'\s+', ' ', curriculum_content)
+                link_match = re.search(r'https?://[^\s\)]+\.pdf', normalized_content)
+                
+                if link_match:
+                    link_url = link_match.group(0)
+                    link_url = re.sub(r'[,;.!?]+$', '', link_url)
+                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
+                    print(f"🔗 Extracted normalized curriculum link: {link_url}")
+                else:
+                    # Strategy 3: Look for URL patterns that might be broken across lines
+                    # Find anything that starts with http and try to reconstruct it
+                    url_start_match = re.search(r'https?://[^\s]*', curriculum_content)
+                    
+                    if url_start_match:
+                        # Get the partial URL
+                        partial_url = url_start_match.group(0)
+                        
+                        # Look for the rest of the URL in the following text
+                        # This handles cases where the URL is split like "https://...Bachelor-of-Science-\nin-Environmental-Science.pdf"
+                        start_pos = url_start_match.end()
+                        remaining_content = curriculum_content[start_pos:start_pos+200]  # Look ahead 200 chars
+                        
+                        # Look for text that could complete the URL - handle both same line and next line
+                        # Pattern 1: Immediate continuation (same line)
+                        completion_match = re.search(r'^[^\s]*\.pdf', remaining_content)
+                        
+                        if completion_match:
+                            completion = completion_match.group(0)
+                            # Remove any line breaks or spaces from the completion
+                            completion = re.sub(r'\s+', '', completion)
+                            link_url = partial_url + completion
+                            response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
+                            print(f"🔗 Extracted reconstructed curriculum link: {link_url}")
+                        else:
+                            # Pattern 2: Look for continuation on next line(s) - more flexible
+                            # Split remaining content by lines and look for PDF completion
+                            lines = remaining_content.split('\n')
+                            for line in lines[:3]:  # Check first 3 lines
+                                line = line.strip()
+                                if line and '.pdf' in line:
+                                    # Found potential completion
+                                    completion = re.sub(r'\s+', '', line)  # Remove all whitespace
+                                    link_url = partial_url + completion
+                                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
+                                    print(f"🔗 Extracted multi-line reconstructed curriculum link: {link_url}")
+                                    break
+                            else:
+                                # Strategy 4: Try to find PDF filename and construct URL
+                                pdf_match = re.search(r'Bachelor[^\n]*\.pdf', curriculum_content, re.IGNORECASE)
+                                if pdf_match:
+                                    pdf_filename = pdf_match.group(0)
+                                    # Clean up the filename (remove spaces, normalize)
+                                    pdf_filename = re.sub(r'\s+', '-', pdf_filename.strip())
+                                    # Construct likely URL
+                                    link_url = f"https://www.addu.edu.ph/wp-content/uploads/2020/06/{pdf_filename}"
+                                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
+                                    print(f"🔗 Constructed curriculum link from filename: {link_url}")
+                                else:
+                                    response += "\nFor more detailed information, please contact the admissions office."
+                                    print(f"⚠️ No curriculum link found in document")
+                    else:
+                        response += "\nFor more detailed information, please contact the admissions office."
+                        print(f"⚠️ No URL pattern found in document")
+        except (AttributeError, IndexError) as e:
+            print(f"⚠️ Error extracting link: {e}")
+            response += "\nFor more detailed information, please contact the admissions office."
+        
+        # Update session state
+        self._update_curriculum_session_state(program_acronym, target_year, parsed_curriculum)
+        
+        return response
+    
+    def _format_year_curriculum(self, year_data: dict, year_number: int) -> str:
+        """
+        Format single year curriculum with proper semester organization.
+        
+        Args:
+            year_data: Dictionary with semester data {semester: [courses]}
+            year_number: Year number for display
+            
+        Returns:
+            str: Formatted year curriculum
+        """
+        formatted = ""
+        
+        # Define semester order
+        semester_order = ['first', 'second', 'summer']
+        semester_titles = {
+            'first': 'First Semester',
+            'second': 'Second Semester', 
+            'summer': 'Summer'
+        }
+        
+        for semester in semester_order:
+            if semester in year_data and year_data[semester]:
+                courses = year_data[semester]
+                formatted += f"**{semester_titles[semester]}:**\n"
+                
+                for i, course in enumerate(courses, 1):
+                    course_code = course.get('code', '')
+                    course_title = course.get('title', '')
+                    credits = course.get('credits', '')
+                    
+                    formatted += f"{i}. {course_code} - {course_title}"
+                    if credits:
+                        formatted += f" ({credits})"
+                    formatted += "\n"
+                
+                formatted += "\n"
+        
+        # If no courses found, add a message
+        if not formatted.strip():
+            formatted = f"No course information available for Year {year_number}.\n\n"
+        
+        return formatted
+    
+    def _build_general_subject_response(self, matching_programs: dict, subject_info: dict, is_negative: bool) -> str:
+        """
+        Build response for general positive/negative queries (e.g., "what programs offer math")
+        Returns simple program list with full names from JSON config
+        """
+        print(f"🏗️ Building general subject response for {len(matching_programs)} programs")
+        
+        # Extract program acronyms and get full names from JSON config
+        program_full_names = []
+        for program_acronym in matching_programs.keys():
+            full_name = self._get_program_full_name_from_config(program_acronym)
+            if full_name:
+                program_full_names.append(full_name)
+                print(f"   ✅ {program_acronym} → {full_name}")
+            else:
+                print(f"   ❌ {program_acronym} → No full name found in config")
+        
+        # Sort programs alphabetically
+        program_full_names.sort()
+        
+        # Build response
+        subject = subject_info['subject']
+        if is_negative:
+            response = f"Here are the programs that DO NOT offer {subject}:\n\n"
+        else:
+            response = f"Here are the programs that offer {subject}:\n\n"
+        
+        # Add each program on its own line
+        for program_name in program_full_names:
+            response += f"• **{program_name}**\n"
+        
+        response += "\nFor more detailed information, please contact the admissions office."
+        
+        print(f"📝 Generated response with {len(program_full_names)} programs")
+        return response
+    
+    def _build_detailed_subject_response(self, matching_programs: dict, subject_info: dict, is_negative: bool, cluster_filter: str = None) -> str:
+        """
+        Build response for program-specific and count queries (e.g., "how many math subjects in BS CS")
+        Returns detailed subject information with course codes
+        """
+        print(f"🔍 Building detailed subject response for query type: {subject_info.get('query_type', 'unknown')}")
+        
+        # Use the existing _format_subject_mapping_response method for detailed queries
+        formatted_response = self._format_subject_mapping_response(
+            matching_programs, subject_info, is_negative, cluster_filter
+        )
+        
+        if formatted_response and len(formatted_response) > 0:
+            response = formatted_response[0]['content']
+            print(f"📋 Generated detailed response: {len(response)} characters")
+            return response
+        else:
+            subject = subject_info['subject']
+            program = subject_info.get('program', 'the specified program')
+            response = f"I couldn't find any {subject} courses in {program}. This subject may not be offered in this program."
+            print(f"❌ No detailed results found, returning fallback response")
+            return response
+    
     def _process_topic_query(self, query: str, topic_id: str):
         """Process a query within a specific topic context with conversation history awareness"""
         try:
@@ -3969,48 +5807,14 @@ If you want to see the list of programs, click on the buttons below per school, 
             if program_info.get('context_source') == 'pronoun_resolution_failed':
                 return "I notice you're using a pronoun like 'it' or 'that', but I don't have enough context to understand which program you're referring to. Could you please specify the program name? For example: 'What is the curriculum for BS IT?' or 'What is the curriculum for BS CS?'", []
             
-            # CRITICAL: Preprocess pronouns if we have program context
-            preprocessed_query = query
-            if program_info.get('program_name') and program_info.get('context_source'):
-                preprocessed_query = self._preprocess_pronoun_query(query, program_info['program_name'])
-            
-            # Normalize program acronyms (e.g., 'bsa' -> 'BS A')
-            normalized_query = self._normalize_program_acronyms(preprocessed_query)
+            # Normalize program acronyms first (e.g., 'bsa' -> 'BS A')
+            normalized_query = self._normalize_program_acronyms(query)
             
             # First check for general conversation context enhancement (for follow-up questions)
             conversation_enhanced_query = self._enhance_query_with_conversation_context(normalized_query, topic_id)
             
-            # Then check for program context enhancement
+            # Initialize enhanced query (will be modified based on intent)
             enhanced_query = conversation_enhanced_query
-            if program_info.get('program_name') and program_info.get('context_source'):
-                # For programs topic, only add program context if the current query doesn't already contain a program
-                if topic_id == 'programs_courses':
-                    # Check if the current query already contains a program name
-                    current_program_info = self._extract_program_info(preprocessed_query)
-                    if not current_program_info.get('program_name'):
-                        # Only add program context if it's different from what's already in the conversation
-                        # Check if the program from history is already mentioned in the current query
-                        program_name_lower = program_info['program_name'].lower()
-                        if program_name_lower not in preprocessed_query.lower():
-                            # Combine both conversation and program context for programs topic
-                            if conversation_enhanced_query != normalized_query:
-                                enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
-                            else:
-                                enhanced_query = f"{program_info['program_name']} {normalized_query}"
-                            print(f"🎯 Enhanced query with program + conversation context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
-                        else:
-                            print(f"📝 Program from history already mentioned in current query, using conversation-enhanced query: '{enhanced_query}'")
-                    else:
-                        print(f"📝 Current query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
-                else:
-                    # For non-programs topics, do NOT add program context
-                    # These topics deal with general university information that applies to all programs
-                    print(f"📝 Non-programs topic ({topic_id}), skipping program context enhancement")
-            else:
-                if conversation_enhanced_query != normalized_query:
-                    print(f"🎯 Enhanced query with conversation context: '{query}' → '{enhanced_query}'")
-                else:
-                    print(f"📝 No program or conversation context found, using normalized query: '{enhanced_query}'")
             
             # Check if query is nonsensical or unclear (use original query for this check)
             if self._is_nonsensical_query(query):
@@ -4080,15 +5884,236 @@ This will ensure you get the most relevant and up-to-date information for your q
 
                 return response_text, []
             
-            # For programs topic, validate program availability first
+            # For programs topic, check for subject mapping first, then validate program availability
             if topic_id == 'programs_courses':
-                # First classify the query intent to distinguish overview vs specific queries
-                intent = self._classify_query_intent(query)
+                # First classify the query intent to distinguish different types of queries
+                intent = self._classify_programs_query_intent(query)
                 
-                # Only check program availability for specific program queries, not overview queries
+                # INTENT-AWARE PROGRAM CONTEXT EXTRACTION: Only extract program context for relevant intents
+                if intent == "subject_mapping":
+                    # For subject mapping queries, ONLY use program context if explicitly mentioned in current query
+                    current_program_info = self._extract_program_info(query)
+                    if current_program_info.get('program_name'):
+                        program_info = current_program_info
+                        print(f"📝 Subject mapping query explicitly mentions program: {program_info['program_name']}")
+                    else:
+                        # Clear any program context from history for subject mapping queries
+                        program_info = {
+                            'program_name': None,
+                            'degree_level': None,
+                            'year_level': None,
+                            'course_code': None,
+                            'context_source': None
+                        }
+                        print(f"🚫 Subject mapping query - cleared program context from history")
+                
+                # INTENT-AWARE CONTEXT APPLICATION: Apply program context based on query intent
+                if program_info.get('program_name') and program_info.get('context_source'):
+                    # For curriculum queries, apply program context (for follow-ups like "what about 2nd year")
+                    if intent == "curriculum":
+                        preprocessed_query = self._preprocess_pronoun_query(query, program_info['program_name'])
+                        # Re-normalize after pronoun preprocessing
+                        normalized_query = self._normalize_program_acronyms(preprocessed_query)
+                        conversation_enhanced_query = self._enhance_query_with_conversation_context(normalized_query, topic_id)
+                        
+                        # Check if the current query already contains a program name
+                        current_program_info = self._extract_program_info(preprocessed_query)
+                        if not current_program_info.get('program_name'):
+                            # Check if the program from history is already mentioned in the current query
+                            program_name_lower = program_info['program_name'].lower()
+                            if program_name_lower not in preprocessed_query.lower():
+                                # Add program context for curriculum queries
+                                if conversation_enhanced_query != normalized_query:
+                                    enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
+                                else:
+                                    enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                                print(f"🎯 Enhanced curriculum query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                            else:
+                                enhanced_query = conversation_enhanced_query
+                                print(f"📝 Program from history already mentioned in curriculum query, using conversation-enhanced query: '{enhanced_query}'")
+                        else:
+                            enhanced_query = conversation_enhanced_query
+                            print(f"📝 Curriculum query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
+                    
+                    # For subject mapping queries, DO NOT apply program context unless explicitly mentioned
+                    elif intent == "subject_mapping":
+                        # Check if the current query explicitly mentions a program
+                        current_program_info = self._extract_program_info(query)
+                        if current_program_info.get('program_name'):
+                            # Program explicitly mentioned, use it
+                            enhanced_query = conversation_enhanced_query
+                            print(f"📝 Subject mapping query explicitly mentions program, using conversation-enhanced query: '{enhanced_query}'")
+                        else:
+                            # No program mentioned, don't apply program context from history
+                            enhanced_query = conversation_enhanced_query
+                            print(f"🚫 Subject mapping query without explicit program - not applying program context from history")
+                    
+                    # For other intents (overview, specific, mixed), apply program context normally
+                    else:
+                        preprocessed_query = self._preprocess_pronoun_query(query, program_info['program_name'])
+                        # Re-normalize after pronoun preprocessing
+                        normalized_query = self._normalize_program_acronyms(preprocessed_query)
+                        conversation_enhanced_query = self._enhance_query_with_conversation_context(normalized_query, topic_id)
+                        
+                        # Check if the current query already contains a program name
+                        current_program_info = self._extract_program_info(preprocessed_query)
+                        if not current_program_info.get('program_name'):
+                            # Check if the program from history is already mentioned in the current query
+                            program_name_lower = program_info['program_name'].lower()
+                            if program_name_lower not in preprocessed_query.lower():
+                                # Add program context for other query types
+                                if conversation_enhanced_query != normalized_query:
+                                    enhanced_query = f"{program_info['program_name']} {conversation_enhanced_query}"
+                                else:
+                                    enhanced_query = f"{program_info['program_name']} {normalized_query}"
+                                print(f"🎯 Enhanced {intent} query with program context from {program_info['context_source']}: '{query}' → '{enhanced_query}'")
+                            else:
+                                enhanced_query = conversation_enhanced_query
+                                print(f"📝 Program from history already mentioned in {intent} query, using conversation-enhanced query: '{enhanced_query}'")
+                        else:
+                            enhanced_query = conversation_enhanced_query
+                            print(f"📝 {intent} query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
+                else:
+                    print(f"📝 No program context available for {intent} query, using conversation-enhanced query: '{enhanced_query}'")
+                
+                # PRIORITY 0: Check for curriculum intent (e.g., "BS CS curriculum", "what about 2nd year")
+                if intent == "curriculum":
+                    print("📚 Using curriculum year-based display system")
+                    try:
+                        # Detect curriculum query type (use original query to avoid pattern interference)
+                        curriculum_query_type = self._detect_curriculum_query_type(query)
+                        
+                        # Determine target year
+                        target_year = self._get_next_year_level(curriculum_query_type)
+                        
+                        print(f"📅 Target year: {target_year}")
+                        print(f"📊 Query type: {curriculum_query_type['type']}")
+                        
+                        # For follow-up queries, prioritize conversation history over session state
+                        if curriculum_query_type['type'] in ['year_specific', 'year_followup']:
+                            # PRIORITY 1: Try to extract from conversation history/pronoun resolution first
+                            program_info_from_query = self._extract_program_info_with_history(enhanced_query)
+                            session_program = program_info_from_query.get('program_name')
+                            
+                            if session_program:
+                                print(f"🔄 Using program from conversation history: {session_program}")
+                                # Update session state with the conversation-resolved program
+                                self.set_session_state(current_program=session_program)
+                            else:
+                                # PRIORITY 2: Fall back to session state only if no conversation context
+                                session_program = self.session_state.get('current_program')
+                                if session_program:
+                                    print(f"🔄 Using program from session state (fallback): {session_program}")
+                                else:
+                                    print(f"❌ No program context found in conversation or session")
+                            
+                            if session_program:
+                                print(f"🔄 Using program: {session_program}")
+                                # Retrieve curriculum document for the program
+                                curriculum_docs = self.retrieve_programs_documents(session_program, top_k=1)
+                                if curriculum_docs:
+                                    curriculum_content = curriculum_docs[0]['content']
+                                    program_info = {'program_name': session_program}
+                                    
+                                    response = self._build_curriculum_response(
+                                        program_info, curriculum_content, target_year
+                                    )
+                                    
+                                    self.add_to_history(query, response)
+                                    return response, curriculum_docs
+                                else:
+                                    response = f"I don't have curriculum information for {session_program}. Please try asking about a specific program's curriculum."
+                                    return response, []
+                            else:
+                                response = "I need to know which program you're asking about. Please specify a program name, for example: 'BS CS curriculum' or 'what is the curriculum for BS IT'."
+                                return response, []
+                        
+                        # For initial curriculum queries, extract program and retrieve documents
+                        else:
+                            # Use enhanced query to get program documents
+                            relevant_docs = self.retrieve_programs_documents(enhanced_query, top_k=3)
+                            
+                            if relevant_docs:
+                                # Use the first (most relevant) document
+                                curriculum_content = relevant_docs[0]['content']
+                                
+                                # Extract program info from the query and document
+                                program_info = self._extract_program_info_with_history(enhanced_query)
+                                
+                                response = self._build_curriculum_response(
+                                    program_info, curriculum_content, target_year
+                                )
+                                
+                                self.add_to_history(query, response)
+                                return response, relevant_docs
+                            else:
+                                response = "I couldn't find curriculum information for that program. Please check the program name and try again."
+                                return response, []
+                                
+                    except Exception as e:
+                        print(f"❌ Curriculum processing failed: {e}")
+                        response = f"I encountered an error while retrieving the curriculum information. Please try rephrasing your question or contact support if the issue persists."
+                        return response, []
+
+                # PRIORITY 1: Check for subject mapping intent (e.g., "what programs have calculus")
+                if intent == "subject_mapping":
+                    print("🎯 Using subject-to-program mapping retrieval")
+                    try:
+                        # Detect query subtype for conditional response handling
+                        query_classification = self._detect_query_subtype(enhanced_query)
+                        
+                        # Use the subject mapping retrieval method with more results
+                        subject_mapping_result = self.retrieve_programs_by_subject(enhanced_query, top_k=30)
+                        
+                        # Generate response using the subject mapping results
+                        if subject_mapping_result and subject_mapping_result[0].get('matching_programs'):
+                            # Extract the raw matching programs data
+                            raw_data = subject_mapping_result[0]
+                            matching_programs = raw_data['matching_programs']
+                            subject_info = raw_data['subject_info']
+                            is_negative = raw_data['is_negative']
+                            cluster_filter = raw_data.get('cluster_filter')
+                            
+                            print(f"🎯 Processing {len(matching_programs)} matching programs")
+                            print(f"📊 Query subtype: {query_classification['subtype']}")
+                            
+                            # Conditional response generation based on query type
+                            query_type = subject_info.get('query_type', 'general')
+                            
+                            if query_type in ['count', 'program_specific', 'negative_program_specific']:
+                                # Use detailed response for program-specific and count queries
+                                print("🔍 Using detailed response builder for program-specific/count query")
+                                response = self._build_detailed_subject_response(
+                                    matching_programs, subject_info, is_negative, cluster_filter
+                                )
+                            else:
+                                # Use general response for positive/negative general queries
+                                print("🏗️ Using general response builder for general query")
+                                response = self._build_general_subject_response(
+                                    matching_programs, subject_info, is_negative
+                                )
+                            
+                            self.add_to_history(query, response)
+                            return response, subject_mapping_result
+                        else:
+                            # No results found for subject mapping
+                            subject_info = self._extract_subject_from_query(enhanced_query)
+                            subject = subject_info.get('subject', 'the requested subject')
+                            response = f"I couldn't find any programs that match your query about '{subject}'. Please try a different subject or check the spelling."
+                            return response, []
+                            
+                    except Exception as e:
+                        print(f"❌ Subject mapping retrieval failed: {e}")
+                        print("🔄 Subject mapping failed, providing error response...")
+                        # Don't fall back to standard retrieval for subject mapping queries
+                        # as it will give wrong results - provide a clear error message instead
+                        response = f"I encountered an error while searching for programs with that subject. Please try rephrasing your question or contact support if the issue persists. Error: {str(e)}"
+                        return response, []
+                
+                # PRIORITY 2: Check program availability for specific program queries (not overview queries)
                 availability_indicators = ['is there', 'do you have', 'available', 'offer', 'does addu have']
                 
-                if intent != 'overview' and any(indicator in query.lower() for indicator in availability_indicators):
+                if intent != 'overview' and intent != 'subject_mapping' and any(indicator in query.lower() for indicator in availability_indicators):
                     print(f"🔍 Detected specific program availability query: '{query}'")
                     
                     # First check our program mappings for quick validation
@@ -5485,17 +7510,300 @@ RULES:
         
         return query
 
+    def _classify_programs_query_intent(self, query: str) -> str:
+        """
+        Classify programs query intent using semantic similarity (TF-IDF + Word2Vec).
+        Handles typos naturally by leveraging existing hybrid infrastructure.
+        
+        Returns: 'subject_mapping', 'curriculum', 'overview', or 'mixed'
+        
+        Note: 'curriculum' intent includes all program-specific queries (curriculum, subjects, program details)
+        and always starts with 1st year curriculum display.
+        """
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        print(f"🧠 Classifying programs query intent using semantic similarity: '{query}'")
+        
+        # Training examples for each intent type (including typo variations)
+        training_examples = {
+            'subject_mapping': [
+                "what programs have math",
+                "which programs offer calculus", 
+                "programs with programming",
+                "what programs teach statistics",
+                "programs that don't offer OJT",
+                "what programs do not have thesis",
+                "what math subjects are in BS CS",
+                "how many programming courses in BS IT",
+                # Additional variations for better matching
+                "what are the programs that offer OJT",
+                "what are the programs that have math",
+                "what are the programs that teach programming",
+                "which are the programs that offer calculus",
+                "programs that offer thesis",
+                "programs that provide internship",
+                "what programs offer practicum",
+                # Typo variations
+                "waht programs hav math",
+                "wich programs ofer calculus",
+                "programs with programing",
+                "waht programs dont offer ojt",
+                "wat are the programs that ofer ojt"
+            ],
+            'curriculum': [
+                # Original curriculum queries
+                "what is the curriculum for BS CS",
+                "show me the curriculum of BS IT", 
+                "what subjects are in BS Math",
+                "curriculum for computer science",
+                "what about 2nd year",
+                "can you proceed with remaining",
+                
+                # Former "specific" queries - now part of curriculum
+                "tell me about BS CS program",
+                "what do you study in computer science",
+                "program requirements for BS IT",
+                "what is BS CS",
+                "BS IT program details",
+                "information about nursing program",
+                "describe computer science program",
+                "what courses are in BS Math",
+                "show me BS IT subjects",
+                "program structure for engineering",
+                
+                # Typo variations for all above
+                "waht is the curriculun for BS CS",
+                "shwo me the curriculum",
+                "what subjets are in BS Math",
+                "tel me about BS CS program",
+                "waht do you study in compter science",
+                "program requirments for BS IT",
+                "waht is BS CS",
+                "informaton about nursing program"
+            ],
+            'overview': [
+                "what programs are available",
+                "list all programs",
+                "show me all courses",
+                "what can I study here",
+                "programs offered by ADDU",
+                "available degrees",
+                # Typo variations
+                "waht programs ar available",
+                "lst all programs",
+                "shwo me all courses"
+            ]
+        }
+        
+        # Flatten training data
+        all_examples = []
+        labels = []
+        for intent, examples in training_examples.items():
+            all_examples.extend(examples)
+            labels.extend([intent] * len(examples))
+        
+        try:
+            # Vectorize all examples using existing hybrid infrastructure
+            query_vector = self._vectorize_query(query)
+            example_vectors = []
+            
+            for example in all_examples:
+                try:
+                    example_vector = self._vectorize_query(example)
+                    example_vectors.append(example_vector)
+                except Exception as e:
+                    print(f"⚠️ Error vectorizing example '{example}': {e}")
+                    # Create zero vector as fallback
+                    example_vectors.append(np.zeros_like(query_vector))
+            
+            if not example_vectors:
+                print("❌ No example vectors created, falling back to mixed intent")
+                return "mixed"
+            
+            # Calculate similarities using cosine similarity
+            similarities = []
+            for example_vector in example_vectors:
+                try:
+                    similarity = cosine_similarity(
+                        query_vector.reshape(1, -1), 
+                        example_vector.reshape(1, -1)
+                    )[0][0]
+                    similarities.append(similarity)
+                except Exception as e:
+                    print(f"⚠️ Error calculating similarity: {e}")
+                    similarities.append(0.0)
+            
+            # Find best match
+            if similarities:
+                best_match_idx = np.argmax(similarities)
+                best_similarity = similarities[best_match_idx]
+                best_intent = labels[best_match_idx]
+                
+                print(f"🎯 Best match: '{all_examples[best_match_idx]}' (similarity: {best_similarity:.3f}) → {best_intent}")
+                
+                # Confidence threshold for classification
+                similarity_threshold = 0.4  # Configurable threshold
+                if best_similarity > similarity_threshold:
+                    print(f"✅ Intent classified as '{best_intent}' with confidence {best_similarity:.3f}")
+                    return best_intent
+                else:
+                    print(f"⚠️ Low confidence ({best_similarity:.3f} < {similarity_threshold}), defaulting to mixed")
+                    return "mixed"
+            else:
+                print("❌ No similarities calculated, falling back to mixed intent")
+                return "mixed"
+                
+        except Exception as e:
+            print(f"❌ Error in semantic intent classification: {e}")
+            # Fallback to simple keyword matching
+            return self._classify_query_intent_fallback(query)
+    
+    def _classify_query_intent_fallback(self, query: str) -> str:
+        """
+        Fallback intent classification using simple keyword matching.
+        Used when semantic similarity fails.
+        """
+        query_lower = query.lower()
+        
+        # Simple keyword-based classification as fallback
+        subject_mapping_keywords = ['programs', 'have', 'offer', 'teach', 'with', 'without', 'subjects', 'courses']
+        # Expanded curriculum keywords to include former "specific" patterns
+        curriculum_keywords = ['curriculum', 'subjects', 'study', 'learn', 'program', 'year', 'about', 'details', 'requirements', 'structure', 'describe', 'information']
+        overview_keywords = ['available', 'list', 'all', 'show', 'what programs']
+        
+        subject_score = sum(1 for keyword in subject_mapping_keywords if keyword in query_lower)
+        curriculum_score = sum(1 for keyword in curriculum_keywords if keyword in query_lower)
+        overview_score = sum(1 for keyword in overview_keywords if keyword in query_lower)
+        
+        if subject_score > curriculum_score and subject_score > overview_score:
+            return "subject_mapping"
+        elif curriculum_score > overview_score:
+            return "curriculum"
+        elif overview_score > 0:
+            return "overview"
+        else:
+            return "mixed"
+
     def _classify_query_intent(self, query: str) -> str:
         """
-        Classify query intent as 'overview', 'specific', or 'mixed'
+        Classify query intent as 'overview', 'specific', 'mixed', or 'subject_mapping'
         
         Overview queries: Ask for program lists, available programs, school overviews
         Specific queries: Ask for curriculum, subjects, program details
+        Subject mapping queries: Ask which programs have/offer specific subjects
         Mixed queries: Ambiguous or contain both types of indicators
         """
         import re
         
         query_lower = query.lower()
+        
+        # Subject mapping indicators - queries asking which programs have specific subjects
+        # or what subjects are in specific programs
+        subject_mapping_patterns = [
+            # General subject mapping patterns (which programs have X)
+            r'\bwhat\s+programs?\s+(have|offer|include|contain|teach)\s+',
+            r'\bwhich\s+programs?\s+(have|offer|include|contain|teach)\s+',
+            r'\bprograms?\s+(with|that\s+have|that\s+offer|that\s+include)\s+',
+            r'\bunder\s+.+cluster.+what\s+programs?\s+(have|offer)\s+',
+            
+            # Enhanced negative subject mapping patterns (which programs don't have X)
+            r'\bwhat\s+programs?\s+(do\s+not|don\'t|doesn\'t|doesnt)\s+(have|offer|include|provide)\s+',
+            r'\bwhich\s+programs?\s+(do\s+not|don\'t|doesn\'t|doesnt)\s+(have|offer|include|provide)\s+',
+            r'\bprograms?\s+(without|that\s+do\s+not|that\s+don\'t|that\s+doesn\'t|that\s+doesnt)\s+',
+            r'\bprograms?\s+that\s+(do\s+not|don\'t|doesn\'t|doesnt)\s+(offer|have|include|provide)\s+',
+            r'\bwhat\s+are\s+the\s+programs?\s+that\s+(do\s+not|don\'t|doesn\'t|doesnt)\s+(offer|have)\s+',
+            r'\bprograms?\s+that\s+(doesn\'t|doesnt)\s+(offer|have|include|provide)\s+',
+            
+            # Program-specific subject queries (what X subjects are in program Y)
+            r'\bwhat\s+are\s+the\s+.+(?:subjects?|courses?)\s+(in|under|for)\s+',
+            r'\blist\s+.+(?:subjects?|courses?)\s+(in|under|for)\s+',
+            r'\bwhat\s+(?:subjects?|courses?)\s+(?:are\s+)?(in|does|offered\s+in|offered\s+by)\s+',
+            r'\bwhat\s+(?:subjects?|courses?)\s+(?:are\s+)?(taught|available|included)\s+in\s+',
+            r'\bwhat\s+\w+\s+(?:subjects?|courses?)\s+(?:are\s+)?(?:in|offered\s+in|taught\s+in)\s+',
+            r'\bwhat\s+\w+\s+(?:courses?)\s+(?:does)\s+\w+\s+(?:offer|have)\s*',
+            r'\bwhat\s+\w+\s+(?:subjects?|courses?)\s+are\s+in\s+',
+            r'\bwhat\s+\w+\s+(?:courses?)\s+does\s+\w+\s+\w+\s+offer\b',
+            
+            # Count queries (how many X subjects in program Y)
+            r'\bhow\s+many\s+.+(?:subjects?|courses?)\s+(?:in|does)\s+',
+            
+            # Direct program-specific subject queries
+            r'\b(?:subjects?|courses?)\s+(?:in|offered\s+in|offered\s+by)\s+',
+            r'\b(?:programming|math|science|engineering|business|research)\s+(?:subjects?|courses?)\s+(?:in|offered\s+in)\s+'
+        ]
+        
+        # Check for subject mapping patterns first (highest priority)
+        has_subject_mapping = False
+        matched_pattern = None
+        for i, pattern in enumerate(subject_mapping_patterns):
+            if re.search(pattern, query_lower):
+                has_subject_mapping = True
+                matched_pattern = f"Pattern {i+1}: {pattern}"
+                print(f"🎯 Subject mapping pattern matched: {matched_pattern}")
+                break
+        
+        # Additional check for common subject mapping queries that might be missed
+        if not has_subject_mapping:
+            # Check for "what are the programs that [verb] [subject]" pattern
+            additional_subject_mapping = re.search(r'\bwhat\s+are\s+the\s+programs?\s+that\s+(offer|have|teach|include|contain|provide)\s+\w+', query_lower)
+            if additional_subject_mapping:
+                has_subject_mapping = True
+                matched_pattern = f"Additional pattern: what are the programs that [verb] [subject]"
+                print(f"🎯 Subject mapping pattern matched: {matched_pattern}")
+        
+        # Special check for program-specific subject queries that might not match the patterns
+        # For example: "what are the programming courses offered in BS CS"
+        if not has_subject_mapping:
+            # Check for program-specific subject queries with program name
+            program_subject_pattern = r'\b(?:what|which|show|list)\s+(?:are\s+)?(?:the\s+)?([a-z]+)\s+(?:subjects?|courses?)\s+(?:offered|available|taught|included)\s+(?:in|by|at|under)\s+([a-z0-9\s]+)'
+            program_match = re.search(program_subject_pattern, query_lower)
+            if program_match:
+                subject_type = program_match.group(1)  # e.g., "programming"
+                program_name = program_match.group(2)  # e.g., "BS CS"
+                
+                # Check if subject_type is a valid subject category
+                subject_categories = ['programming', 'math', 'science', 'research', 'business', 
+                                     'engineering', 'language', 'english', 'communication', 'thesis',
+                                     'capstone', 'project', 'practicum', 'internship', 'ojt']
+                
+                if subject_type in subject_categories or 'program' in query_lower:
+                    print(f"🎯 Detected program-specific subject query: '{subject_type}' in '{program_name}'")
+                    has_subject_mapping = True
+        
+        if has_subject_mapping:
+            return "subject_mapping"
+        
+        # Curriculum-specific intent detection patterns
+        curriculum_patterns = [
+            r'\bcurriculum\b',
+            r'\bwhat\s+(?:are\s+the\s+)?(?:subjects?|courses?)\s+(?:in|for|of)\s+',
+            r'\bwhat\s+(?:about|is)\s+(?:the\s+)?(?:curriculum|subjects?|courses?)\s+(?:of|for|in)\s+',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?(?:curriculum|subjects?|courses?)\s+(?:of|for|in)\s+',
+            r'\blist\s+(?:the\s+)?(?:curriculum|subjects?|courses?)\s+(?:of|for|in)\s+',
+            r'\btell\s+me\s+about\s+(?:the\s+)?(?:curriculum|subjects?|courses?)\s+(?:of|for|in)\s+',
+            # Follow-up patterns
+            r'\bwhat\s+about\s+(?:the\s+)?(?:\d+(?:st|nd|rd|th)\s+year|year\s+\d+)\b',
+            r'\bwhat\s+about\s+(?:second|third|fourth|2nd|3rd|4th)\s+year\b',
+            r'\bcan\s+you\s+proceed\s+with\s+(?:the\s+)?remaining\b',
+            r'\bwhat\s+(?:are\s+)?(?:the\s+)?(?:next|remaining)\b',
+            r'\bcontinue\s+with\s+(?:the\s+)?(?:curriculum|subjects?|courses?)\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?(?:next|remaining)\s+(?:year|subjects?|courses?)\b',
+            r'\bwhat\'?s\s+next\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?remaining\s+years?\b'
+        ]
+        
+        # Check for curriculum patterns
+        has_curriculum = False
+        matched_curriculum_pattern = None
+        for i, pattern in enumerate(curriculum_patterns):
+            if re.search(pattern, query_lower):
+                has_curriculum = True
+                matched_curriculum_pattern = f"Curriculum Pattern {i+1}: {pattern}"
+                print(f"📚 Curriculum pattern matched: {matched_curriculum_pattern}")
+                break
+        
+        if has_curriculum:
+            return "curriculum"
         
         # Overview indicators - queries asking for program lists or availability
         overview_patterns = [
@@ -5637,7 +7945,7 @@ RULES:
             query = school_normalized_query
         
         # Step 2: Classify query intent
-        intent = self._classify_query_intent(query)
+        intent = self._classify_programs_query_intent(query)
         print(f"🎯 Query intent classified as: '{intent}'")
         
         # Step 3: Detect cluster query and apply cluster filtering

@@ -40,16 +40,23 @@ WORD_PREDICTION_CONFIG = {
 print("[AI] Initializing Together AI client with Llama-4-Scout model...")
 start_time = time.time()
 
+# Check if Together AI should be skipped (for testing)
+skip_together_ai = os.getenv("SKIP_TOGETHER_AI") == "1"
+
 try:
-    # Initialize Together AI client
-    api_key = os.getenv("TOGETHER_API_KEY")
-    if not api_key:
-        raise ValueError("TOGETHER_API_KEY environment variable not set")
-    
-    client = Together(api_key=api_key)
-    init_time = time.time() - start_time
-    print(f"[OK] Together AI client initialized with Llama-4-Scout-17B-16E-Instruct in {init_time:.2f} seconds")
-    print("[INFO] Model upgraded to Llama-4-Scout for significantly reduced hallucinations and better context retrieval")
+    if skip_together_ai:
+        print("[INFO] Skipping Together AI initialization (SKIP_TOGETHER_AI=1)")
+        client = None
+    else:
+        # Initialize Together AI client
+        api_key = os.getenv("TOGETHER_API_KEY")
+        if not api_key:
+            raise ValueError("TOGETHER_API_KEY environment variable not set")
+        
+        client = Together(api_key=api_key)
+        init_time = time.time() - start_time
+        print(f"[OK] Together AI client initialized with Llama-4-Scout-17B-16E-Instruct in {init_time:.2f} seconds")
+        print("[INFO] Model upgraded to Llama-4-Scout for significantly reduced hallucinations and better context retrieval")
 except Exception as e:
     print(f"[ERROR] Together AI initialization failed: {e}")
     raise

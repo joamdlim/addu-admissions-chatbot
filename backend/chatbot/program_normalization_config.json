@@ -3,20 +3,20 @@
     "_comment": "All 59 official ADDU programs with priority levels: safe (always normalize), context_aware (with program keywords), context_required (strong context only)",
 
     "School of Arts & Sciences - Humanities & Letters": {
-      "abeng": {
-        "full_name": "AB ENG",
+      "abel": {
+        "full_name": "AB EL",
         "priority": "safe",
         "description": "Bachelor of Arts in English Language",
         "school": "School of Arts & Sciences",
         "cluster": "Humanities & Letters"
       },
       "eng": {
-        "full_name": "AB ENG",
+        "full_name": "AB EL",
         "priority": "context_aware",
         "description": "English Language abbreviation"
       },
       "english": {
-        "full_name": "AB ENG",
+        "full_name": "AB EL",
         "priority": "context_aware",
         "description": "English Language field name"
       },
@@ -166,19 +166,19 @@
       },
 
       "bsenvisci": {
-        "full_name": "BS ENVI SCI",
+        "full_name": "BS ENVISCI",
         "priority": "safe",
         "description": "Bachelor of Science in Environmental Science",
         "school": "School of Arts & Sciences",
         "cluster": "Natural Sciences & Mathematics"
       },
       "envisci": {
-        "full_name": "BS ENVI SCI",
+        "full_name": "BS ENVISCI",
         "priority": "context_aware",
         "description": "Environmental Science abbreviation"
       },
       "environmental science": {
-        "full_name": "BS ENVI SCI",
+        "full_name": "BS ENVISCI",
         "priority": "context_aware",
         "description": "Environmental Science field name"
       }
@@ -513,12 +513,12 @@
       },
 
       "bsentrep-a": {
-        "full_name": "BS ENTREP-A",
+        "full_name": "BS ENTREP - A",
         "priority": "safe",
         "description": "Bachelor of Science in Entrepreneurship Major in Agri-Business"
       },
       "agri-business": {
-        "full_name": "BS ENTREP-A",
+        "full_name": "BS ENTREP - A",
         "priority": "context_aware",
         "description": "Agri-Business field name"
       },
