@@ -2746,12 +2746,13 @@ class FastHybridChatbotTogether:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
             
             # STAGE 1: Topic-based filtering with document type filtering
-            topic_keywords = get_topic_keywords(topic_id)
+            # Use JSON-based keywords for programs, regular topic keywords for others
+            topic_keywords = self._extract_keywords_from_json(topic_id)
             if not topic_keywords:
                 print(f"⚠️ No keywords found for topic: {topic_id}, falling back to simple retrieval")
                 return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
             
-            print(f"📝 Topic keywords for filtering: {topic_keywords}")
+            print(f"📝 Keywords for filtering: {len(topic_keywords)} keywords ({'JSON-based' if topic_id == 'programs_courses' else 'topic-based'})")
             
             # Get topic-specific document types for filtering
             # Map topic_id to strategy name
@@ -2833,6 +2834,61 @@ class FastHybridChatbotTogether:
             
             print(f"🎯 Found {len(topic_filtered_docs)} documents matching topic keywords")
             
+            # STAGE 1.2: Add keyword fallback for programs topic (similar to fees retrieval)
+            if topic_id == 'programs_courses' and len(topic_filtered_docs) < 5:  # If few results found
+                print(f"🔄 Few documents found ({len(topic_filtered_docs)}), applying keyword fallback for programs")
+                
+                # Expand search to ALL documents
+                all_docs_expanded = collection.get(
+                    where={"source": "pdf_scrape"},
+                    include=["documents", "metadatas"]
+                )
+                
+                expanded_ids = all_docs_expanded.get('ids', [])
+                expanded_contents = all_docs_expanded.get('documents', [])
+                expanded_metadatas = all_docs_expanded.get('metadatas', [])
+                
+                print(f"📚 Expanded search to {len(expanded_ids)} total documents")
+                
+                # Filter by JSON keywords in metadata/filename
+                fallback_docs = []
+                for i, (doc_id, content, metadata) in enumerate(zip(expanded_ids, expanded_contents, expanded_metadatas)):
+                    # Skip if already included
+                    if any(existing_doc['id'] == doc_id for existing_doc in topic_filtered_docs):
+                        continue
+                    
+                    doc_keywords = metadata.get('keywords', '').lower()
+                    filename = metadata.get('filename', '').lower()
+                    
+                    # Check if document has program-related keywords
+                    has_program_keywords = False
+                    matched_keywords = []
+                    
+                    for keyword in topic_keywords:
+                        keyword_lower = keyword.lower()
+                        if keyword_lower in doc_keywords or keyword_lower in filename:
+                            has_program_keywords = True
+                            matched_keywords.append(f"{keyword}(fallback)")
+                            break
+                    
+                    # Include if it has program keywords
+                    if has_program_keywords:
+                        # Calculate basic topic score for fallback docs
+                        topic_score = len(matched_keywords) / len(topic_keywords) if topic_keywords else 0.0
+                        
+                        fallback_docs.append({
+                            'id': doc_id,
+                            'content': content,
+                            'metadata': metadata,
+                            'topic_score': topic_score,
+                            'matched_keywords': matched_keywords
+                        })
+                        print(f"✅ Including fallback document: {metadata.get('filename', 'N/A')}")
+                
+                # Add fallback docs to topic_filtered_docs
+                topic_filtered_docs.extend(fallback_docs)
+                print(f"✅ After keyword fallback: {len(topic_filtered_docs)} documents total")
+            
             # STAGE 1.5: Apply cluster filtering if specified
             if cluster_filter:
                 print(f"🎯 Applying cluster filtering for: '{cluster_filter}'")
@@ -2886,9 +2942,25 @@ class FastHybridChatbotTogether:
             specialized_scored_docs = []
             
             if topic_id == 'programs_courses':
-                # Apply programs-specific logic
+                # Apply programs-specific logic with JSON-based enhancements
                 program_info = self._extract_program_info(normalized_query)
                 print(f"📚 Extracted program info: {program_info}")
+                
+                # Detect cluster/school/general query type using JSON
+                query_context = self._detect_cluster_or_school_in_query(normalized_query)
+                print(f"🎯 Query context: {query_context}")
+                
+                # Get relevant programs from JSON based on query context
+                relevant_programs = []
+                if query_context['type'] == 'cluster':
+                    relevant_programs = self._get_programs_by_cluster_from_json(query_context['value'])
+                elif query_context['type'] == 'school':
+                    relevant_programs = self._get_programs_by_school_from_json(query_context['value'])
+                elif query_context['type'] == 'general':
+                    all_programs = self._get_all_programs_from_json()
+                    relevant_programs = list(all_programs.values())
+                
+                print(f"📋 Relevant programs for scoring: {len(relevant_programs)}")
                 
                 # Get strategy configuration for programs
                 strategy_config = get_retrieval_strategy_config('programs_specialized')
@@ -2909,17 +2981,36 @@ class FastHybridChatbotTogether:
                     keyword_score = self._calculate_keyword_score(doc_keywords, query_lower)
                     content_score = self._calculate_programs_content_score(content_lower, query_lower, program_info)
                     
-                    # Apply strategy priorities
+                    # JSON-based program matching boost
+                    json_program_boost = 0.0
+                    if relevant_programs:
+                        for prog in relevant_programs:
+                            prog_name = prog.get('full_name', '') if isinstance(prog, dict) else str(prog)
+                            prog_abbrev = prog.get('abbrev', '') if isinstance(prog, dict) else ''
+                            
+                            # Check if document matches this program
+                            if (prog_name.lower() in filename or 
+                                prog_abbrev.lower() in filename or
+                                prog_name.lower() in doc_keywords or
+                                prog_abbrev.lower() in doc_keywords):
+                                json_program_boost = 0.3  # Boost for JSON program match
+                                print(f"🎯 JSON program boost for {prog_name}: {metadata.get('filename', 'N/A')}")
+                                break
+                    
+                    # Apply strategy priorities with JSON boost
                     specialized_score = (
                         filename_score * priorities.get('filename', 0.5) +
                         keyword_score * priorities.get('keywords', 0.3) +
-                        content_score * priorities.get('content', 0.2)
+                        content_score * priorities.get('content', 0.2) +
+                        json_program_boost
                     )
                     
                     specialized_scored_docs.append({
                         'doc_data': doc_data,
                         'specialized_score': specialized_score,
-                        'program_info': program_info
+                        'program_info': program_info,
+                        'query_context': query_context,
+                        'json_program_boost': json_program_boost
                     })
                     
             elif topic_id == 'fees':
@@ -3001,11 +3092,12 @@ class FastHybridChatbotTogether:
                 # QUERY-DOCUMENT SPECIFICITY BOOST
                 specificity_boost = self._calculate_query_document_specificity(normalized_query, doc_data['metadata'])
                 
-                # TRUE HYBRID SCORE: 50% specialized logic + 30% semantic similarity + 20% topic + specificity boost
-                specialized_component = specialized_score * 0.5
-                semantic_component = semantic_similarity * 0.3
-                topic_component = doc_data['topic_score'] * 0.2
-                final_score = specialized_component + semantic_component + topic_component + specificity_boost
+                # TRUE HYBRID SCORE: 55% semantic similarity + 25% specialized logic + 20% topic + specificity boost
+                # MAKE SEMANTIC RETRIEVAL BIG - semantic similarity is now the primary ranking mechanism
+                semantic_component = semantic_similarity * 0.55
+                specialized_component = specialized_score * 0.25
+                topic_component = doc_data['topic_score'] * 0.20
+                final_score = semantic_component + specialized_component + topic_component + specificity_boost
                 
                 hybrid_scored_results.append({
                     'id': doc_data['id'],
@@ -3027,9 +3119,9 @@ class FastHybridChatbotTogether:
                         'specificity_boost': specificity_boost,
                         'final_score': final_score,
                         'matched_keywords': doc_data['matched_keywords'],
-                        'specialized_weight': 0.5,
-                        'semantic_weight': 0.3,
-                        'topic_weight': 0.2,
+                        'semantic_weight': 0.55,
+                        'specialized_weight': 0.25,
+                        'topic_weight': 0.20,
                         'tfidf_word2vec_used': True,
                         'specialized_logic_used': True,
                         'program_info': spec_doc['program_info']
@@ -3045,8 +3137,8 @@ class FastHybridChatbotTogether:
                 debug = doc['_debug']
                 print(f"   {i+1}. {doc['filename'][:50]}")
                 print(f"       Final Score: {debug['final_score']:.3f}")
-                print(f"       Specialized (50%): {debug['specialized_component']:.3f} (raw: {debug['specialized_score']:.3f})")
-                print(f"       Semantic (30%): {debug['semantic_component']:.3f} (raw: {debug['semantic_similarity']:.3f})")
+                print(f"       Semantic (55%): {debug['semantic_component']:.3f} (raw: {debug['semantic_similarity']:.3f})")
+                print(f"       Specialized (25%): {debug['specialized_component']:.3f} (raw: {debug['specialized_score']:.3f})")
                 print(f"       Topic (20%): {debug['topic_component']:.3f} (raw: {debug['topic_score']:.3f})")
                 if debug['specificity_boost'] > 0:
                     print(f"       🎯 Specificity Boost: +{debug['specificity_boost']:.3f}")
@@ -3144,22 +3236,24 @@ class FastHybridChatbotTogether:
         """
         print(f"🎯 Dispatching specialized retrieval for topic: {topic_id}")
         
-        # Check if hybrid retrieval is enabled
-        if hasattr(self, 'use_hybrid_topic_retrieval') and self.use_hybrid_topic_retrieval:
-            print("✅ Using intent-enhanced hybrid retrieval (TF-IDF + Word2Vec + Intent Classification)")
-            try:
-                return self.retrieve_documents_with_intent_classification(query, topic_id, top_k)
-            except Exception as e:
-                print(f"❌ Intent-enhanced retrieval failed: {e}")
-                print("🔄 Falling back to standard hybrid retrieval...")
-                try:
-                    return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
-                except Exception as e2:
-                    print(f"❌ Standard hybrid retrieval also failed: {e2}")
-                print("🔄 Falling back to specialized retrievers...")
-        
-        # Check for subject mapping intent for programs_courses topic
+        # Check for special query types for programs_courses topic
         if topic_id == 'programs_courses':
+            # Check for year/semester queries first
+            year_semester_info = self._detect_year_semester_query(query)
+            if year_semester_info['is_year_semester_query']:
+                print("🎓 Using year/semester-based program retrieval")
+                try:
+                    return self.retrieve_programs_by_year_semester(query, top_k)
+                except Exception as e:
+                    print(f"❌ Year/semester retrieval failed: {e}")
+                    print("🔄 Falling back to hybrid retrieval...")
+                    try:
+                        return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+                    except Exception as e2:
+                        print(f"❌ Hybrid retrieval also failed: {e2}")
+                        print("🔄 Falling back to specialized retrievers...")
+            
+            # Check for subject mapping intent (second priority)
             intent = self._classify_programs_query_intent(query)
             if intent == "subject_mapping":
                 print("🎯 Using subject-to-program mapping retrieval")
@@ -3167,7 +3261,21 @@ class FastHybridChatbotTogether:
                     return self.retrieve_programs_by_subject(query, top_k)
                 except Exception as e:
                     print(f"❌ Subject mapping retrieval failed: {e}")
-                    print("🔄 Falling back to standard programs retrieval...")
+                    print("🔄 Falling back to hybrid retrieval...")
+                    try:
+                        return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+                    except Exception as e2:
+                        print(f"❌ Hybrid retrieval also failed: {e2}")
+                        print("🔄 Falling back to specialized retrievers...")
+        
+        # For all other queries (curriculum, overview, general), use unified hybrid retrieval
+        if hasattr(self, 'use_hybrid_topic_retrieval') and self.use_hybrid_topic_retrieval:
+            print("✅ Using unified hybrid retrieval (JSON-enhanced TF-IDF + Word2Vec)")
+            try:
+                return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
+            except Exception as e:
+                print(f"❌ Hybrid retrieval failed: {e}")
+                print("🔄 Falling back to specialized retrievers...")
         
         # Original specialized retriever logic
         TOPIC_RETRIEVERS = {
@@ -4628,6 +4736,680 @@ If you want to see the list of programs, click on the buttons below per school, 
         config = self._load_normalization_config()
         return config.get("context_patterns", {})
     
+    def _extract_keywords_from_json(self, topic_id: str) -> list:
+        """Extract all relevant keywords from JSON config for programs topic"""
+        if topic_id != 'programs_courses':
+            # For other topics, use existing topic keywords
+            from .topics import get_topic_keywords
+            return get_topic_keywords(topic_id) or []
+        
+        print(f"📝 Extracting keywords from JSON config for {topic_id}")
+        
+        try:
+            config = self._load_normalization_config()
+            keywords = set()
+            
+            # Extract all program-related keywords
+            program_abbrevs = config.get('program_abbreviations', {})
+            for school_section, programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in programs.items():
+                    if isinstance(abbrev_data, dict):
+                        # Add abbreviation key
+                        keywords.add(abbrev_key.lower())
+                        
+                        # Add full name
+                        full_name = abbrev_data.get('full_name', '')
+                        if full_name:
+                            keywords.add(full_name.lower())
+                            # Add individual words from full name
+                            keywords.update(word.lower() for word in full_name.split() if len(word) > 1)
+                        
+                        # Add description terms
+                        description = abbrev_data.get('description', '')
+                        if description:
+                            # Extract key terms from description
+                            desc_words = description.lower().split()
+                            for word in desc_words:
+                                if len(word) > 3 and word not in ['bachelor', 'science', 'arts', 'major', 'minor']:
+                                    keywords.add(word)
+            
+            # Add cluster keywords
+            cluster_keywords = config.get('cluster_keywords', {})
+            for keyword, cluster_name in cluster_keywords.items():
+                keywords.add(keyword.lower())
+                keywords.add(cluster_name.lower())
+            
+            # Add school keywords and abbreviations
+            school_keywords = config.get('school_keywords', {})
+            for keyword, school_name in school_keywords.items():
+                keywords.add(keyword.lower())
+                keywords.add(school_name.lower())
+            
+            school_abbreviations = config.get('school_abbreviations', {})
+            for abbrev, school_name in school_abbreviations.items():
+                keywords.add(abbrev.lower())
+                keywords.add(school_name.lower())
+            
+            # Add common program-related terms
+            program_terms = ['program', 'course', 'curriculum', 'degree', 'bachelor', 'undergraduate', 'graduate']
+            keywords.update(program_terms)
+            
+            result = list(keywords)
+            print(f"📝 Extracted {len(result)} keywords from JSON config")
+            return result
+            
+        except Exception as e:
+            print(f"❌ Error extracting keywords from JSON: {e}")
+            # Fallback to topic keywords
+            from .topics import get_topic_keywords
+            return get_topic_keywords(topic_id) or []
+    
+    def _get_all_programs_from_json(self) -> dict:
+        """Extract all programs from JSON (all schools, all clusters)"""
+        try:
+            config = self._load_normalization_config()
+            programs = {}
+            
+            program_abbrevs = config.get('program_abbreviations', {})
+            for school_section, school_programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in school_programs.items():
+                    if isinstance(abbrev_data, dict):
+                        full_name = abbrev_data.get('full_name', abbrev_key.upper())
+                        
+                        # Use full_name as the key for consistency
+                        if full_name not in programs:
+                            programs[full_name] = {
+                                'abbrev': abbrev_key,
+                                'full_name': full_name,
+                                'school': abbrev_data.get('school', ''),
+                                'cluster': abbrev_data.get('cluster', ''),
+                                'description': abbrev_data.get('description', ''),
+                                'variations': [abbrev_key.lower(), full_name.lower()]
+                            }
+                            
+                            # Add description terms as variations
+                            description = abbrev_data.get('description', '')
+                            if description and 'bachelor of' in description.lower():
+                                # Extract field name from description
+                                field_name = description.lower()
+                                for prefix in ['bachelor of science in ', 'bachelor of arts in ', 'bachelor of ']:
+                                    if prefix in field_name:
+                                        field_name = field_name.replace(prefix, '').strip()
+                                        if field_name:
+                                            programs[full_name]['variations'].append(field_name)
+                                        break
+            
+            print(f"📚 Extracted {len(programs)} programs from JSON config")
+            return programs
+            
+        except Exception as e:
+            print(f"❌ Error extracting programs from JSON: {e}")
+            return {}
+    
+    def _get_programs_by_cluster_from_json(self, cluster_name: str) -> list:
+        """Look up cluster and extract all programs with matching cluster field"""
+        try:
+            config = self._load_normalization_config()
+            
+            # First, normalize cluster name using cluster_keywords
+            cluster_keywords = config.get('cluster_keywords', {})
+            normalized_cluster = None
+            
+            # Check if cluster_name matches any keyword
+            for keyword, official_cluster in cluster_keywords.items():
+                if keyword.lower() == cluster_name.lower():
+                    normalized_cluster = official_cluster
+                    break
+            
+            # If not found in keywords, use as-is
+            if not normalized_cluster:
+                normalized_cluster = cluster_name
+            
+            print(f"🎯 Looking for programs in cluster: '{normalized_cluster}'")
+            
+            # Extract programs with matching cluster
+            programs = []
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            for school_section, school_programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in school_programs.items():
+                    if isinstance(abbrev_data, dict):
+                        program_cluster = abbrev_data.get('cluster', '')
+                        if program_cluster.lower() == normalized_cluster.lower():
+                            full_name = abbrev_data.get('full_name', abbrev_key.upper())
+                            programs.append({
+                                'abbrev': abbrev_key,
+                                'full_name': full_name,
+                                'school': abbrev_data.get('school', ''),
+                                'cluster': program_cluster,
+                                'description': abbrev_data.get('description', '')
+                            })
+            
+            print(f"📚 Found {len(programs)} programs in cluster '{normalized_cluster}'")
+            return programs
+            
+        except Exception as e:
+            print(f"❌ Error getting programs by cluster: {e}")
+            return []
+    
+    def _get_programs_by_school_from_json(self, school_name_or_abbrev: str) -> list:
+        """Check school_keywords and school_abbreviations to map to full school name, then extract programs"""
+        try:
+            config = self._load_normalization_config()
+            
+            # Normalize school name
+            school_keywords = config.get('school_keywords', {})
+            school_abbreviations = config.get('school_abbreviations', {})
+            
+            normalized_school = None
+            
+            # Check school_keywords first
+            for keyword, official_school in school_keywords.items():
+                if keyword.lower() == school_name_or_abbrev.lower():
+                    normalized_school = official_school
+                    break
+            
+            # Check school_abbreviations if not found
+            if not normalized_school:
+                for abbrev, official_school in school_abbreviations.items():
+                    if abbrev.lower() == school_name_or_abbrev.lower():
+                        normalized_school = official_school
+                        break
+            
+            # If still not found, use as-is
+            if not normalized_school:
+                normalized_school = school_name_or_abbrev
+            
+            print(f"🏫 Looking for programs in school: '{normalized_school}'")
+            
+            # Extract programs with matching school
+            programs = []
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            for school_section, school_programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in school_programs.items():
+                    if isinstance(abbrev_data, dict):
+                        program_school = abbrev_data.get('school', '')
+                        if program_school.lower() == normalized_school.lower():
+                            full_name = abbrev_data.get('full_name', abbrev_key.upper())
+                            programs.append({
+                                'abbrev': abbrev_key,
+                                'full_name': full_name,
+                                'school': program_school,
+                                'cluster': abbrev_data.get('cluster', ''),
+                                'description': abbrev_data.get('description', '')
+                            })
+            
+            print(f"📚 Found {len(programs)} programs in school '{normalized_school}'")
+            return programs
+            
+        except Exception as e:
+            print(f"❌ Error getting programs by school: {e}")
+            return []
+    
+    def _detect_cluster_or_school_in_query(self, query: str) -> dict:
+        """Detect if query mentions cluster, school, or is general"""
+        try:
+            config = self._load_normalization_config()
+            query_lower = query.lower()
+            
+            # Check for cluster keywords
+            cluster_keywords = config.get('cluster_keywords', {})
+            for keyword, cluster_name in cluster_keywords.items():
+                if keyword.lower() in query_lower:
+                    return {'type': 'cluster', 'value': cluster_name}
+            
+            # Check for school keywords
+            school_keywords = config.get('school_keywords', {})
+            for keyword, school_name in school_keywords.items():
+                if keyword.lower() in query_lower:
+                    return {'type': 'school', 'value': school_name}
+            
+            # Check for school abbreviations
+            school_abbreviations = config.get('school_abbreviations', {})
+            for abbrev, school_name in school_abbreviations.items():
+                if abbrev.lower() in query_lower:
+                    return {'type': 'school', 'value': school_name}
+            
+            # Check for general query patterns
+            general_patterns = [
+                r'\ball\s+programs?\b',
+                r'\blist\s+programs?\b',
+                r'\bprograms?\s+in\s+addu\b',
+                r'\bprograms?\s+offered\b',
+                r'\bwhat\s+programs?\s+does\s+addu\s+offer\b',
+                r'\bavailable\s+programs?\b'
+            ]
+            
+            import re
+            for pattern in general_patterns:
+                if re.search(pattern, query_lower):
+                    return {'type': 'general', 'value': None}
+            
+            # Default to general if no specific cluster/school detected
+            return {'type': 'general', 'value': None}
+            
+        except Exception as e:
+            print(f"❌ Error detecting cluster/school in query: {e}")
+            return {'type': 'general', 'value': None}
+
+    def _detect_year_semester_query(self, query: str) -> dict:
+        """Detect if query is asking about program years/semesters"""
+        import re
+        
+        query_lower = query.lower()
+        
+        # Year range patterns (e.g., "3-4 years", "3 to 4 years")
+        year_range_patterns = [
+            r'(\d+)\s*[-–—]\s*(\d+)\s+years?',
+            r'(\d+)\s+to\s+(\d+)\s+years?',
+            r'(\d+)\s*[-–—]\s*(\d+)\s*year',
+            r'between\s+(\d+)\s+and\s+(\d+)\s+years?'
+        ]
+        
+        # Single year patterns (e.g., "4 years", "4-year program")
+        single_year_patterns = [
+            r'(\d+)\s+years?',
+            r'(\d+)[-–—]year',
+            r'are\s+(\d+)\s+years?',
+            r'have\s+(\d+)\s+years?',
+            r'that\s+are\s+(\d+)\s+years?'
+        ]
+        
+        # Semester patterns (flexible matching for various phrasings)
+        semester_patterns = [
+            r'no\s+(summer|first|second)\s+semester',           # "no summer semester"
+            r'has\s+no\s+(summer|first|second)\s+semester',     # "has no summer semester"
+            r'have\s+no\s+(summer|first|second)\s+semester',    # "have no summer semester"
+            r'that\s+has\s+no\s+(summer|first|second)\s+semester',  # "that has no summer semester"
+            r'have\s+(summer|first|second)\s+semester',         # "have summer semester"
+            r'has\s+(summer|first|second)\s+semester',          # "has summer semester"
+            r'with\s+(summer|first|second)\s+semester',         # "with summer semester"
+            r'without\s+(summer|first|second)\s+semester',      # "without summer semester"
+            r'(summer|first|second)\s+semester\s+is\s+not',     # "summer semester is not"
+            r'don\'?t\s+have\s+(summer|first|second)\s+semester', # "don't have summer semester"
+        ]
+        
+        result = {
+            'is_year_semester_query': False,
+            'query_type': None,
+            'min_years': None,
+            'max_years': None,
+            'exact_years': None,
+            'semester_requirement': None,
+            'semester_type': None,
+            'is_negative': False
+        }
+        
+        # Check for year range queries
+        for pattern in year_range_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                result['is_year_semester_query'] = True
+                result['query_type'] = 'year_range'
+                result['min_years'] = int(match.group(1))
+                result['max_years'] = int(match.group(2))
+                print(f"🎯 Detected year range query: {result['min_years']}-{result['max_years']} years")
+                return result
+        
+        # Check for single year queries
+        for pattern in single_year_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                result['is_year_semester_query'] = True
+                result['query_type'] = 'exact_years'
+                result['exact_years'] = int(match.group(1))
+                print(f"🎯 Detected exact year query: {result['exact_years']} years")
+                return result
+        
+        # Check for semester queries
+        for pattern in semester_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                result['is_year_semester_query'] = True
+                result['query_type'] = 'semester'
+                result['semester_type'] = match.group(1)
+                # More accurate negative detection
+                result['is_negative'] = ('no' in pattern or 'without' in pattern or "don't" in pattern or 
+                                       'no ' in query_lower or 'without ' in query_lower or "don't " in query_lower)
+                result['semester_requirement'] = 'exclude' if result['is_negative'] else 'include'
+                print(f"🎯 Detected semester query: {result['semester_requirement']} {result['semester_type']} semester")
+                return result
+        
+        return result
+
+    def _detect_duration_query(self, query: str) -> dict:
+        """Detect if query is asking about program duration only"""
+        import re
+        
+        query_lower = query.lower()
+        
+        # Duration query patterns
+        duration_patterns = [
+            r'how many years (?:for|is) ([A-Za-z\s]+)',          # "how many years for BS CS"
+            r'how many years (?:does|is) ([A-Za-z\s]+)',        # "how many years does BS CS have"
+            r'how long is (?:the )?([A-Za-z\s]+) program',      # "how long is the BS CS program"
+            r'duration of (?:the )?([A-Za-z\s]+)',              # "duration of BS CS"
+            r'what is the duration of ([A-Za-z\s]+)',           # "what is the duration of BS CS"
+            r'how many years to complete ([A-Za-z\s]+)',        # "how many years to complete BS CS"
+            r'length of (?:the )?([A-Za-z\s]+) program',        # "length of the BS CS program"
+        ]
+        
+        result = {
+            'is_duration_query': False,
+            'program': None
+        }
+        
+        for pattern in duration_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                result['is_duration_query'] = True
+                result['program'] = match.group(1).strip()
+                print(f"🎯 Detected duration query for program: '{result['program']}'")
+                return result
+        
+        return result
+
+    def _count_years_and_semesters_from_curriculum(self, curriculum_content: str) -> dict:
+        """Count total years and semester types from curriculum content"""
+        try:
+            # Parse curriculum using existing method
+            curriculum_structure = self._parse_curriculum_by_years(curriculum_content)
+            
+            if not curriculum_structure:
+                return {'total_years': 0, 'semesters': [], 'has_summer': False}
+            
+            # Count years
+            total_years = max(curriculum_structure.keys()) if curriculum_structure else 0
+            
+            # Collect all semester types across all years
+            all_semesters = set()
+            for year_data in curriculum_structure.values():
+                all_semesters.update(year_data.keys())
+            
+            # Check for summer semester
+            has_summer = 'summer' in all_semesters
+            
+            result = {
+                'total_years': total_years,
+                'semesters': sorted(list(all_semesters)),
+                'has_summer': has_summer,
+                'curriculum_structure': curriculum_structure  # Include for detailed analysis
+            }
+            
+            print(f"📊 Program duration: {total_years} years, semesters: {result['semesters']}")
+            return result
+            
+        except Exception as e:
+            print(f"❌ Error counting years/semesters: {e}")
+            return {'total_years': 0, 'semesters': [], 'has_summer': False}
+
+    def _get_all_programs_with_year_semester_data(self) -> dict:
+        """Get all programs with their year/semester information"""
+        try:
+            # Get all curriculum documents
+            all_curriculum_docs = self._get_all_curriculum_documents()
+            
+            programs_data = {}
+            
+            for doc in all_curriculum_docs:
+                # Extract program acronym
+                program_acronym = self._extract_program_acronym_from_curriculum(doc['content'])
+                
+                if program_acronym:
+                    # Count years and semesters
+                    year_semester_data = self._count_years_and_semesters_from_curriculum(doc['content'])
+                    
+                    # Get program details from JSON
+                    program_details = self._get_program_details_from_json(program_acronym)
+                    
+                    programs_data[program_acronym] = {
+                        'acronym': program_acronym,
+                        'full_name': program_details.get('full_name', program_acronym),
+                        'school': program_details.get('school', ''),
+                        'cluster': program_details.get('cluster', ''),
+                        'total_years': year_semester_data['total_years'],
+                        'semesters': year_semester_data['semesters'],
+                        'has_summer': year_semester_data['has_summer'],
+                        'document_id': doc['id']
+                    }
+            
+            print(f"📚 Analyzed {len(programs_data)} programs for year/semester data")
+            return programs_data
+            
+        except Exception as e:
+            print(f"❌ Error getting programs with year/semester data: {e}")
+            return {}
+
+    def _get_program_details_from_json(self, program_acronym: str) -> dict:
+        """Get program details from JSON config by acronym"""
+        try:
+            config = self._load_normalization_config()
+            program_abbrevs = config.get('program_abbreviations', {})
+            
+            # Search through all schools for the program
+            for school_section, school_programs in program_abbrevs.items():
+                if school_section.startswith('_'):  # Skip metadata
+                    continue
+                    
+                for abbrev_key, abbrev_data in school_programs.items():
+                    if isinstance(abbrev_data, dict) and abbrev_key.upper() == program_acronym.upper():
+                        return {
+                            'full_name': abbrev_data.get('full_name', program_acronym),
+                            'school': abbrev_data.get('school', ''),
+                            'cluster': abbrev_data.get('cluster', ''),
+                            'description': abbrev_data.get('description', '')
+                        }
+            
+            # If not found, return basic info
+            return {
+                'full_name': program_acronym,
+                'school': '',
+                'cluster': '',
+                'description': ''
+            }
+            
+        except Exception as e:
+            print(f"❌ Error getting program details from JSON: {e}")
+            return {'full_name': program_acronym, 'school': '', 'cluster': '', 'description': ''}
+
+    def retrieve_programs_by_year_semester(self, query: str, top_k: int = 10) -> List[Dict]:
+        """
+        Retrieve programs based on year/semester requirements
+        Handles queries like:
+        - "what programs have 4 years"
+        - "programs that are 3-4 years"
+        - "programs that have no summer semester"
+        """
+        print(f"🎓 Year/semester-based program retrieval for: '{query}'")
+        
+        # Detect year/semester query details
+        query_info = self._detect_year_semester_query(query)
+        
+        if not query_info['is_year_semester_query']:
+            print("❌ Not a year/semester query")
+            return []
+        
+        # Get all programs with their year/semester data
+        all_programs_data = self._get_all_programs_with_year_semester_data()
+        
+        if not all_programs_data:
+            print("❌ No program data available")
+            return []
+        
+        # Apply cluster/school filtering if specified in query
+        cluster_school_info = self._detect_cluster_or_school_in_query(query)
+        if cluster_school_info['type'] in ['cluster', 'school']:
+            print(f"🎯 Applying {cluster_school_info['type']} filter: {cluster_school_info['value']}")
+            filtered_programs = {}
+            for program_key, program_data in all_programs_data.items():
+                if cluster_school_info['type'] == 'cluster':
+                    if program_data['cluster'].lower() == cluster_school_info['value'].lower():
+                        filtered_programs[program_key] = program_data
+                elif cluster_school_info['type'] == 'school':
+                    if program_data['school'].lower() == cluster_school_info['value'].lower():
+                        filtered_programs[program_key] = program_data
+            all_programs_data = filtered_programs
+            print(f"📚 Filtered to {len(all_programs_data)} programs")
+        
+        # Filter programs based on year/semester requirements
+        matching_programs = {}
+        
+        for program_key, program_data in all_programs_data.items():
+            matches = False
+            
+            if query_info['query_type'] == 'exact_years':
+                # Exact year match
+                if program_data['total_years'] == query_info['exact_years']:
+                    matches = True
+                    print(f"✅ {program_key}: {program_data['total_years']} years (exact match)")
+                
+            elif query_info['query_type'] == 'year_range':
+                # Year range match
+                total_years = program_data['total_years']
+                if query_info['min_years'] <= total_years <= query_info['max_years']:
+                    matches = True
+                    print(f"✅ {program_key}: {total_years} years (within range {query_info['min_years']}-{query_info['max_years']})")
+                
+            elif query_info['query_type'] == 'semester':
+                # Semester requirement match
+                semester_type = query_info['semester_type']
+                has_semester = semester_type in program_data['semesters']
+                
+                if query_info['semester_requirement'] == 'include':
+                    # Must have the semester
+                    if has_semester:
+                        matches = True
+                        print(f"✅ {program_key}: has {semester_type} semester")
+                elif query_info['semester_requirement'] == 'exclude':
+                    # Must NOT have the semester
+                    if not has_semester:
+                        matches = True
+                        print(f"✅ {program_key}: no {semester_type} semester")
+            
+            if matches:
+                matching_programs[program_key] = program_data
+        
+        print(f"🎯 Found {len(matching_programs)} matching programs")
+        
+        # Convert to the expected format for the chatbot response
+        result_data = {
+            'matching_programs': matching_programs,
+            'query_info': query_info,
+            'cluster_school_filter': cluster_school_info,
+            'total_programs': len(matching_programs)
+        }
+        
+        # Return in the expected format
+        return [{
+            'id': 'year_semester_query_raw_data',
+            'matching_programs': matching_programs,
+            'query_info': query_info,
+            'cluster_school_filter': cluster_school_info,
+            'total_programs': len(matching_programs)
+        }]
+
+    def _format_year_semester_response(self, matching_programs: dict, query_info: dict) -> str:
+        """Format response for year/semester queries"""
+        try:
+            if not matching_programs:
+                return "I couldn't find any programs matching your year/semester criteria."
+            
+            query_type = query_info.get('query_type', 'unknown')
+            total_programs = len(matching_programs)
+            
+            # Build response header based on query type
+            if query_type == 'exact_years':
+                years = query_info.get('exact_years', 'unknown')
+                header = f"**Programs with {years} years duration:**\n\n"
+            elif query_type == 'year_range':
+                min_years = query_info.get('min_years', 'unknown')
+                max_years = query_info.get('max_years', 'unknown')
+                header = f"**Programs with {min_years}-{max_years} years duration:**\n\n"
+            elif query_type == 'semester':
+                semester_type = query_info.get('semester_type', 'unknown')
+                semester_req = query_info.get('semester_requirement', 'include')
+                if semester_req == 'exclude':
+                    header = f"**Programs without {semester_type} semester:**\n\n"
+                else:
+                    header = f"**Programs with {semester_type} semester:**\n\n"
+            else:
+                header = "**Matching programs:**\n\n"
+            
+            # Group programs by school for better organization
+            programs_by_school = {}
+            for program_key, program_data in matching_programs.items():
+                school = program_data.get('school', 'Unknown School')
+                if school not in programs_by_school:
+                    programs_by_school[school] = []
+                programs_by_school[school].append(program_data)
+            
+            # Build response content
+            response_parts = [header]
+            
+            for school, programs in programs_by_school.items():
+                if len(programs_by_school) > 1:  # Only show school headers if multiple schools
+                    response_parts.append(f"**{school}:**\n")
+                
+                for program_data in programs:
+                    acronym = program_data.get('acronym', 'Unknown')
+                    full_name = program_data.get('full_name', acronym)
+                    cluster = program_data.get('cluster', '')
+                    years = program_data.get('total_years', 'Unknown')
+                    semesters = program_data.get('semesters', [])
+                    
+                    # Format program entry
+                    program_line = f"• **{acronym}** - {full_name}"
+                    if cluster:
+                        program_line += f" ({cluster})"
+                    program_line += f"\n  - Duration: {years} years"
+                    if semesters:
+                        semester_list = ', '.join([s.title() for s in semesters])
+                        program_line += f"\n  - Semesters: {semester_list}"
+                    program_line += "\n\n"
+                    
+                    response_parts.append(program_line)
+            
+            # Add summary
+            response_parts.append(f"**Total:** {total_programs} program{'s' if total_programs != 1 else ''} found.\n\n")
+            response_parts.append("*Need more details about any program? Just ask about the specific program name!*")
+            
+            return ''.join(response_parts)
+            
+        except Exception as e:
+            print(f"❌ Error formatting year/semester response: {e}")
+            return f"Found {len(matching_programs)} matching programs, but encountered an error formatting the response."
+
+    def _format_duration_response(self, program_acronym: str, full_name: str, actual_years: int) -> str:
+        """Format simple duration response for duration-only queries"""
+        try:
+            if actual_years <= 0:
+                return f"I couldn't determine the duration for the {program_acronym} program. Please try asking about the curriculum for more details."
+            
+            # Build the response
+            if full_name and full_name != program_acronym:
+                response = f"The {full_name} ({program_acronym}) program at Ateneo de Davao University is a {actual_years}-year undergraduate degree program."
+            else:
+                response = f"The {program_acronym} program at Ateneo de Davao University is a {actual_years}-year undergraduate degree program."
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error formatting duration response: {e}")
+            return f"I encountered an error while retrieving the duration for {program_acronym}. Please try again."
+    
     def _get_school_keywords(self):
         """Retrieve school keywords from the loaded configuration"""
         config = self._load_normalization_config()
@@ -5819,7 +6601,14 @@ If you want to see the list of programs, click on the buttons below per school, 
         if cluster:
             response += f"- Cluster: {cluster}\n"
         response += f"- Total Credits: {total_credits} CU\n"
-        response += f"- Duration: 4 years\n\n"
+        
+        # Calculate actual duration from curriculum instead of hardcoded 4 years
+        year_semester_data = self._count_years_and_semesters_from_curriculum(curriculum_content)
+        actual_years = year_semester_data.get('total_years', 0)
+        if actual_years > 0:
+            response += f"- Duration: {actual_years} years\n\n"
+        else:
+            response += f"- Duration: N/A\n\n"
         
         # Year curriculum section
         year_data = parsed_curriculum.get(target_year, {})
@@ -6106,13 +6895,47 @@ This will ensure you get the most relevant and up-to-date information for your q
 
                 return response_text, []
             
-            # For programs topic, check for subject mapping first, then validate program availability
+            # For programs topic, check for special query types first, then validate program availability
             if topic_id == 'programs_courses':
-                # First classify the query intent to distinguish different types of queries
-                intent = self._classify_programs_query_intent(query)
+                # FIRST: Check for year/semester queries BEFORE intent classification
+                year_semester_info = self._detect_year_semester_query(query)
+                if year_semester_info['is_year_semester_query']:
+                    print("🎓 Detected year/semester query - using flexible retrieval (bypassing strict intent classification)")
+                    # Skip intent classification and go directly to retrieval
+                    # This will be handled by retrieve_documents_by_topic_specialized()
+                    intent = "year_semester"  # Special marker to bypass subject mapping logic
+                else:
+                    # SECOND: Check for duration-only queries BEFORE intent classification
+                    duration_info = self._detect_duration_query(query)
+                    if duration_info['is_duration_query']:
+                        print("⏱️ Detected duration query - using simple duration response (bypassing curriculum logic)")
+                        intent = "duration"  # Special marker to bypass curriculum logic
+                    else:
+                        # Only classify intent if NOT a year/semester or duration query
+                        intent = self._classify_programs_query_intent(query)
                 
                 # INTENT-AWARE PROGRAM CONTEXT EXTRACTION: Only extract program context for relevant intents
-                if intent == "subject_mapping":
+                if intent == "year_semester":
+                    # For year/semester queries, clear program context to ensure flexible retrieval
+                    program_info = {
+                        'program_name': None,
+                        'degree_level': None,
+                        'year_level': None,
+                        'course_code': None,
+                        'context_source': None
+                    }
+                    print(f"🎓 Year/semester query - cleared program context for flexible retrieval")
+                elif intent == "duration":
+                    # For duration queries, clear program context to ensure simple response
+                    program_info = {
+                        'program_name': None,
+                        'degree_level': None,
+                        'year_level': None,
+                        'course_code': None,
+                        'context_source': None
+                    }
+                    print(f"⏱️ Duration query - cleared program context for simple response")
+                elif intent == "subject_mapping":
                     # For subject mapping queries, ONLY use program context if explicitly mentioned in current query
                     current_program_info = self._extract_program_info(query)
                     if current_program_info.get('program_name'):
@@ -6197,6 +7020,76 @@ This will ensure you get the most relevant and up-to-date information for your q
                             print(f"📝 {intent} query already contains program info, using conversation-enhanced query: '{enhanced_query}'")
                 else:
                     print(f"📝 No program context available for {intent} query, using conversation-enhanced query: '{enhanced_query}'")
+                
+                # PRIORITY -1: Handle year/semester queries (bypass all other intent processing)
+                if intent == "year_semester":
+                    print("🎓 Processing year/semester query - bypassing curriculum and subject mapping logic")
+                    try:
+                        # Use the original query for year/semester retrieval (no program context needed)
+                        results = self.retrieve_documents_by_topic_specialized(query, topic_id, top_k=10)
+                        
+                        if results and len(results) > 0:
+                            # Check if it's year/semester data
+                            first_result = results[0]
+                            if 'matching_programs' in first_result:
+                                # Format year/semester response
+                                matching_programs = first_result['matching_programs']
+                                query_info = first_result.get('query_info', {})
+                                
+                                if len(matching_programs) > 0:
+                                    response = self._format_year_semester_response(matching_programs, query_info)
+                                    return response, results
+                                else:
+                                    return "I couldn't find any programs matching your year/semester criteria. Please try rephrasing your question or check if the criteria are correct.", []
+                            else:
+                                # Fallback to regular document response
+                                response = self._format_document_response(results, query, topic_id)
+                                return response, results
+                        else:
+                            return "I couldn't find any programs matching your year/semester criteria. Please try a different query.", []
+                    
+                    except Exception as e:
+                        print(f"❌ Year/semester query processing failed: {e}")
+                        return "I encountered an error while processing your year/semester query. Please try again.", []
+                
+                # PRIORITY -0.5: Handle duration queries (simple program duration response)
+                if intent == "duration":
+                    print("⏱️ Processing duration query - providing simple duration response")
+                    try:
+                        # Extract program from the duration query
+                        program_name = duration_info.get('program')
+                        if not program_name:
+                            return "I couldn't identify the program you're asking about. Please specify a program name.", []
+                        
+                        # Normalize program name using existing method
+                        normalized_program = self._normalize_program_acronyms(program_name)
+                        
+                        # Retrieve curriculum document for the program
+                        curriculum_docs = self.retrieve_programs_documents(normalized_program, top_k=1)
+                        
+                        if not curriculum_docs:
+                            return f"I couldn't find information for the {program_name} program. Please check the program name and try again.", []
+                        
+                        # Calculate actual duration from curriculum
+                        curriculum_content = curriculum_docs[0]['content']
+                        year_semester_data = self._count_years_and_semesters_from_curriculum(curriculum_content)
+                        actual_years = year_semester_data.get('total_years', 0)
+                        
+                        # Get program details from JSON config
+                        program_acronym = self._extract_program_acronym_from_curriculum(curriculum_content)
+                        if not program_acronym:
+                            program_acronym = normalized_program.upper()
+                        
+                        full_name = self._get_program_full_name_from_config(program_acronym)
+                        
+                        # Format simple duration response
+                        response = self._format_duration_response(program_acronym, full_name, actual_years)
+                        
+                        return response, curriculum_docs
+                        
+                    except Exception as e:
+                        print(f"❌ Duration query processing failed: {e}")
+                        return "I encountered an error while retrieving the program duration. Please try again.", []
                 
                 # PRIORITY 0: Check for curriculum intent (e.g., "BS CS curriculum", "what about 2nd year")
                 if intent == "curriculum":
