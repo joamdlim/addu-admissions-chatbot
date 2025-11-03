@@ -1301,12 +1301,12 @@ class FastHybridChatbotTogether:
 
     def retrieve_programs_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
-        Specialized retrieval for programs, courses, and curriculum.
-        Optimized for program name extraction and curriculum document matching.
+        Simplified retrieval for programs, courses, and curriculum.
+        Uses the same flexible approach as fees: get all documents, then filter by keywords OR document_type.
         """
         import re
         
-        print(f"📚 Programs-specialized retrieval for: '{query}'")
+        print(f"📚 Programs-simplified retrieval for: '{query}'")
         
         try:
             collection = ChromaService.get_client().get_or_create_collection(name=self.chroma_collection_name)
@@ -1320,7 +1320,7 @@ class FastHybridChatbotTogether:
             program_info = self._extract_program_info(query)
             print(f"🎯 Extracted program info: {program_info}")
             
-            # Get documents with programs-specific filtering
+            # Step 1: Get documents with programs-specific document_type filtering
             where_clause = {
                 "$and": [
                     {"source": "pdf_scrape"},
@@ -1337,13 +1337,64 @@ class FastHybridChatbotTogether:
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
             
-            print(f"📚 Found {len(all_ids)} program-related documents")
+            # Step 2: Also get ALL documents that might have program keywords but not the right document_type
+            # This is to catch documents that might not have been stored with correct document_type
+            all_docs_by_keywords = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            # Step 3: Combine and deduplicate documents
+            all_combined_ids = list(set(all_ids + all_docs_by_keywords.get('ids', [])))
+            
+            # Get full data for combined documents
+            if len(all_combined_ids) > len(all_ids):
+                print(f"📚 Expanded search to {len(all_combined_ids)} total documents")
+                combined_docs = collection.get(
+                    ids=all_combined_ids,
+                    include=["documents", "metadatas"]
+                )
+                all_ids = combined_docs.get('ids', [])
+                all_contents = combined_docs.get('documents', [])
+                all_metadatas = combined_docs.get('metadatas', [])
+            
+            # Get topic keywords for additional filtering
+            from .topics import get_topic_keywords
+            topic_keywords = get_topic_keywords('programs_courses')
+            print(f"📝 Using topic keywords for additional filtering: {topic_keywords}")
+            
+            # Step 4: Filter documents: must have program keywords OR correct document_type
+            filtered_docs = []
+            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
+                
+                # Check if document has program-related keywords
+                has_program_keywords = False
+                if topic_keywords:
+                    for keyword in topic_keywords:
+                        if keyword.lower() in doc_keywords or keyword.lower() in filename:
+                            has_program_keywords = True
+                            break
+                
+                # Include if it has programs document_type OR program keywords
+                doc_type = metadata.get('document_type', '')
+                if doc_type in document_types or has_program_keywords:
+                    filtered_docs.append((doc_id, content, metadata))
+                    if has_program_keywords and doc_type not in document_types:
+                        print(f"✅ Including document with program keywords: {metadata.get('filename', 'N/A')}")
+            
+            print(f"✅ After filtering: {len(filtered_docs)} documents")
+            
+            if not filtered_docs:
+                print(f"❌ No program documents found after filtering")
+                return []
             
             # Score documents with programs-specific logic
             scored_results = []
             query_lower = query.lower()
             
-            for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
+            for i, (doc_id, content, metadata) in enumerate(filtered_docs):
                 filename = metadata.get('filename', '').lower()
                 doc_keywords = metadata.get('keywords', '').lower()
                 content_lower = content.lower()
@@ -2834,45 +2885,95 @@ class FastHybridChatbotTogether:
             
             print(f"🎯 Found {len(topic_filtered_docs)} documents matching topic keywords")
             
-            # STAGE 1.2: Add keyword fallback for programs topic (similar to fees retrieval)
-            if topic_id == 'programs_courses' and len(topic_filtered_docs) < 5:  # If few results found
-                print(f"🔄 Few documents found ({len(topic_filtered_docs)}), applying keyword fallback for programs")
+            # STAGE 1.2: Apply keyword fallback for all topics with topic-specific exclusions
+            print(f"🔄 Applying keyword fallback for {topic_id} (found {len(topic_filtered_docs)} topic-filtered documents)")
+            
+            # Expand search to ALL documents
+            all_docs_expanded = collection.get(
+                where={"source": "pdf_scrape"},
+                include=["documents", "metadatas"]
+            )
+            
+            expanded_ids = all_docs_expanded.get('ids', [])
+            expanded_contents = all_docs_expanded.get('documents', [])
+            expanded_metadatas = all_docs_expanded.get('metadatas', [])
+            
+            print(f"📚 Expanded search to {len(expanded_ids)} total documents")
+            
+            # Filter by topic keywords in metadata/filename with topic-specific exclusions
+            fallback_docs = []
+            for i, (doc_id, content, metadata) in enumerate(zip(expanded_ids, expanded_contents, expanded_metadatas)):
+                # Skip if already included
+                if any(existing_doc['id'] == doc_id for existing_doc in topic_filtered_docs):
+                    continue
                 
-                # Expand search to ALL documents
-                all_docs_expanded = collection.get(
-                    where={"source": "pdf_scrape"},
-                    include=["documents", "metadatas"]
-                )
+                doc_keywords = metadata.get('keywords', '').lower()
+                filename = metadata.get('filename', '').lower()
                 
-                expanded_ids = all_docs_expanded.get('ids', [])
-                expanded_contents = all_docs_expanded.get('documents', [])
-                expanded_metadatas = all_docs_expanded.get('metadatas', [])
+                # Check if document has topic-related keywords
+                has_topic_keywords = False
+                matched_keywords = []
                 
-                print(f"📚 Expanded search to {len(expanded_ids)} total documents")
-                
-                # Filter by JSON keywords in metadata/filename
-                fallback_docs = []
-                for i, (doc_id, content, metadata) in enumerate(zip(expanded_ids, expanded_contents, expanded_metadatas)):
-                    # Skip if already included
-                    if any(existing_doc['id'] == doc_id for existing_doc in topic_filtered_docs):
+                for keyword in topic_keywords:
+                    keyword_lower = keyword.lower()
+                    if keyword_lower in doc_keywords or keyword_lower in filename:
+                        has_topic_keywords = True
+                        matched_keywords.append(f"{keyword}(fallback)")
+                        break
+                    
+                # Include if it has topic keywords AND passes topic-specific exclusion rules
+                if has_topic_keywords:
+                    doc_type = metadata.get('document_type', '').lower()
+                    
+                    # Topic-specific exclusion rules
+                    should_exclude = False
+                    exclusion_reason = None
+                    
+                    if topic_id == 'programs_courses':
+                        # Programs: Exclude fees, admissions, enrollment, etc.
+                        # Only allow: academic, curriculum (or empty for legacy docs)
+                        excluded_types = ['fees', 'financial', 'admission', 'enrollment', 'scholarship', 'policy', 'contact', 'other']
+                        if doc_type and doc_type in excluded_types:
+                            should_exclude = True
+                            exclusion_reason = f"{doc_type} document type not for programs"
+                    
+                    elif topic_id == 'admissions_enrollment':
+                        # Admissions: Exclude programs, but ALLOW fees regulations/policies
+                        # Exclude: academic, curriculum
+                        # Allow: admission, enrollment, scholarship, policy, contact, fees (if regulation/policy)
+                        excluded_types = ['academic', 'curriculum']
+                        
+                        if doc_type in excluded_types:
+                            should_exclude = True
+                            exclusion_reason = f"{doc_type} document type not for admissions"
+                        elif doc_type in ['fees', 'financial']:
+                            # For fees documents in admissions: only allow if they're about regulations/policies
+                            # Check if it's a regulation/policy document (not program fees CSV)
+                            is_regulation = (
+                                'regulation' in doc_keywords or 
+                                'regulation' in filename or
+                                'policy' in doc_keywords or
+                                'policy' in filename or
+                                filename.endswith('.pdf')  # PDFs are likely policies, CSVs are program fees
+                            )
+                            if not is_regulation:
+                                # This is likely a program fees CSV (e.g., SAS-FEES-1.csv)
+                                should_exclude = True
+                                exclusion_reason = "program fees document (only fees regulations allowed in admissions)"
+                    
+                    elif topic_id == 'fees':
+                        # Fees: Exclude programs, admissions, but allow ALL fees documents
+                        # Exclude: academic, curriculum, admission, enrollment, scholarship, contact
+                        excluded_types = ['academic', 'curriculum', 'admission', 'enrollment', 'scholarship', 'contact', 'other']
+                        if doc_type in excluded_types:
+                            should_exclude = True
+                            exclusion_reason = f"{doc_type} document type not for fees"
+                        # Allow: fees, financial (both regulations AND program fees)
+                    
+                    if should_exclude:
+                        print(f"🚫 Excluding from {topic_id}: {metadata.get('filename', 'N/A')} ({exclusion_reason})")
                         continue
                     
-                    doc_keywords = metadata.get('keywords', '').lower()
-                    filename = metadata.get('filename', '').lower()
-                    
-                    # Check if document has program-related keywords
-                    has_program_keywords = False
-                    matched_keywords = []
-                    
-                    for keyword in topic_keywords:
-                        keyword_lower = keyword.lower()
-                        if keyword_lower in doc_keywords or keyword_lower in filename:
-                            has_program_keywords = True
-                            matched_keywords.append(f"{keyword}(fallback)")
-                            break
-                    
-                    # Include if it has program keywords
-                    if has_program_keywords:
                         # Calculate basic topic score for fallback docs
                         topic_score = len(matched_keywords) / len(topic_keywords) if topic_keywords else 0.0
                         
@@ -2943,12 +3044,73 @@ class FastHybridChatbotTogether:
             
             if topic_id == 'programs_courses':
                 # Apply programs-specific logic with JSON-based enhancements
-                program_info = self._extract_program_info(normalized_query)
-                print(f"📚 Extracted program info: {program_info}")
                 
-                # Detect cluster/school/general query type using JSON
+                # Detect cluster/school/general query type using JSON first
                 query_context = self._detect_cluster_or_school_in_query(normalized_query)
                 print(f"🎯 Query context: {query_context}")
+                
+                # Check if this is an overview query (don't extract specific program)
+                overview_keywords = ['available', 'list', 'show', 'all programs', 'what are the programs', 'what programs']
+                normalized_lower = normalized_query.lower()
+                has_overview_keyword = any(word in normalized_lower for word in overview_keywords)
+                is_general_query = query_context['type'] == 'general'
+                
+                # Additional check: if query contains overview keywords AND doesn't mention a specific program, it's overview
+                # Extract a test program_info to see if it would match anything
+                # But only do this as a last check - overview keywords should be sufficient
+                is_overview_query = is_general_query and has_overview_keyword
+                
+                # If it looks like overview, verify it's not actually asking about a specific program
+                # by checking if it would extract a program with high confidence
+                if is_overview_query:
+                    # Quick check: if overview keywords are present, assume it's overview
+                    # unless there's a very explicit program mention (like "BS CS" or full program name)
+                    test_extraction = self._extract_program_info(normalized_query)
+                    if test_extraction.get('program_name'):
+                        # If a program was extracted, check if it's a false positive
+                        # Overview queries shouldn't extract programs unless explicitly mentioned
+                        # Check if the query has explicit program mentions (abbreviations, full names)
+                        explicit_program_patterns = [
+                            r'\bbs\s+\w+',  # "BS CS", "BS IT"
+                            r'\bab\s+\w+',  # "AB IS", "AB ENG"
+                            r'bachelor\s+of',  # "Bachelor of Science"
+                            r'\b\w+\s+program\b',  # "computer science program"
+                        ]
+                        has_explicit_program = any(
+                            re.search(pattern, normalized_lower, re.IGNORECASE) 
+                            for pattern in explicit_program_patterns
+                        )
+                        
+                        if not has_explicit_program:
+                            # This is likely a false positive match - treat as overview
+                            print(f"⚠️ Program extraction found '{test_extraction.get('program_name')}' but no explicit program mention - treating as overview")
+                            is_overview_query = True
+                        else:
+                            # Has explicit program mention - not an overview query
+                            print(f"ℹ️ Has explicit program mention - not treating as overview")
+                            is_overview_query = False
+                
+                print(f"🔍 Overview detection:")
+                print(f"  - normalized_query: '{normalized_query}'")
+                print(f"  - query_context['type']: '{query_context['type']}'")
+                print(f"  - has_overview_keyword: {has_overview_keyword}")
+                print(f"  - is_overview_query (final): {is_overview_query}")
+                
+                if is_overview_query:
+                    # Don't extract a specific program for overview queries
+                    program_info = {
+                        'program_name': None,
+                        'degree_level': None,
+                        'year_level': None,
+                        'course_code': None,
+                        'context_source': None
+                    }
+                    print(f"📋 Overview query detected - skipping program extraction")
+                else:
+                    # Extract program info for specific program queries
+                    program_info = self._extract_program_info(normalized_query)
+                
+                print(f"📚 Extracted program info: {program_info}")
                 
                 # Get relevant programs from JSON based on query context
                 relevant_programs = []
@@ -3229,75 +3391,100 @@ class FastHybridChatbotTogether:
             
         return min(specificity_boost, 0.3)  # Cap the boost to prevent over-boosting
 
+    def _calculate_dynamic_top_k(self, topic_id: str, intent: str = None) -> int:
+        """
+        Dynamically calculate top_k based on intent and document count.
+        
+        Args:
+            topic_id: The topic identifier (e.g., 'programs_courses', 'fees', 'admissions_enrollment')
+            intent: Query intent ('overview', 'curriculum', 'subject_mapping', etc.) - optional
+        
+        Returns:
+            int: Calculated top_k value
+        """
+        try:
+            # For overview queries in programs_courses, get all program documents
+            if topic_id == 'programs_courses' and intent == 'overview':
+                from .chroma_connection import ChromaService
+                collection = ChromaService.get_client().get_or_create_collection(
+                    name=self.chroma_collection_name
+                )
+                
+                # Get all program-related documents (academic/curriculum type)
+                all_docs = collection.get(
+                    where={
+                        "$and": [
+                            {"source": "pdf_scrape"},
+                            {"$or": [
+                                {"document_type": "academic"},
+                                {"document_type": "curriculum"}
+                            ]}
+                        ]
+                    },
+                    include=["metadatas"]
+                )
+                
+                total_program_docs = len(all_docs.get('ids', []))
+                # Add 50% buffer for future document additions
+                safe_top_k = int(total_program_docs * 1.5) if total_program_docs > 0 else 100
+                
+                print(f"📊 Overview query - detected {total_program_docs} program documents, using dynamic top_k={safe_top_k}")
+                return safe_top_k
+            
+            # For subject_mapping queries, also use higher top_k to find all programs with subject
+            elif topic_id == 'programs_courses' and intent == 'subject_mapping':
+                # Use similar logic as overview for subject mapping
+                from .chroma_connection import ChromaService
+                collection = ChromaService.get_client().get_or_create_collection(
+                    name=self.chroma_collection_name
+                )
+                
+                all_docs = collection.get(
+                    where={
+                        "$and": [
+                            {"source": "pdf_scrape"},
+                            {"$or": [
+                                {"document_type": "academic"},
+                                {"document_type": "curriculum"}
+                            ]}
+                        ]
+                    },
+                    include=["metadatas"]
+                )
+                
+                total_program_docs = len(all_docs.get('ids', []))
+                safe_top_k = int(total_program_docs * 1.5) if total_program_docs > 0 else 100
+                
+                print(f"📊 Subject mapping query - detected {total_program_docs} program documents, using dynamic top_k={safe_top_k}")
+                return safe_top_k
+            
+            # Default for specific queries (curriculum, duration, etc.)
+            else:
+                print(f"📊 Specific query (intent: {intent}) - using default top_k=3")
+                return 3
+                
+        except Exception as e:
+            print(f"⚠️ Error calculating dynamic top_k: {e}, falling back to default top_k=3")
+            return 3
+
     def retrieve_documents_by_topic_specialized(self, query: str, topic_id: str, top_k: int = 2) -> List[Dict]:
         """
-        Main dispatcher for topic-specialized retrieval.
-        Routes to appropriate specialized function based on topic.
+        Simplified dispatcher that uses hybrid retrieval only.
+        Specialized handlers have been removed to rely on hybrid retrieval + LLM formatting.
         """
-        print(f"🎯 Dispatching specialized retrieval for topic: {topic_id}")
+        print(f"🎯 Using hybrid-only retrieval for topic: {topic_id}")
         
-        # Check for special query types for programs_courses topic
-        if topic_id == 'programs_courses':
-            # Check for year/semester queries first
-            year_semester_info = self._detect_year_semester_query(query)
-            if year_semester_info['is_year_semester_query']:
-                print("🎓 Using year/semester-based program retrieval")
-                try:
-                    return self.retrieve_programs_by_year_semester(query, top_k)
-                except Exception as e:
-                    print(f"❌ Year/semester retrieval failed: {e}")
-                    print("🔄 Falling back to hybrid retrieval...")
-                    try:
-                        return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
-                    except Exception as e2:
-                        print(f"❌ Hybrid retrieval also failed: {e2}")
-                        print("🔄 Falling back to specialized retrievers...")
-            
-            # Check for subject mapping intent (second priority)
-            intent = self._classify_programs_query_intent(query)
-            if intent == "subject_mapping":
-                print("🎯 Using subject-to-program mapping retrieval")
-                try:
-                    return self.retrieve_programs_by_subject(query, top_k)
-                except Exception as e:
-                    print(f"❌ Subject mapping retrieval failed: {e}")
-                    print("🔄 Falling back to hybrid retrieval...")
-                    try:
-                        return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
-                    except Exception as e2:
-                        print(f"❌ Hybrid retrieval also failed: {e2}")
-                        print("🔄 Falling back to specialized retrievers...")
-        
-        # For all other queries (curriculum, overview, general), use unified hybrid retrieval
+        # Always use hybrid retrieval (no specialized handler routing)
         if hasattr(self, 'use_hybrid_topic_retrieval') and self.use_hybrid_topic_retrieval:
             print("✅ Using unified hybrid retrieval (JSON-enhanced TF-IDF + Word2Vec)")
             try:
                 return self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k)
             except Exception as e:
                 print(f"❌ Hybrid retrieval failed: {e}")
-                print("🔄 Falling back to specialized retrievers...")
-        
-        # Original specialized retriever logic
-        TOPIC_RETRIEVERS = {
-            'admissions_enrollment': self.retrieve_admissions_documents,
-            'programs_courses': self.retrieve_programs_documents,
-            'fees': self.retrieve_fees_documents
-        }
-        
-        # Get the appropriate retriever function
-        retriever = TOPIC_RETRIEVERS.get(topic_id)
-        
-        if retriever:
-            print(f"✅ Using specialized retriever for {topic_id}")
-            try:
-                return retriever(query, top_k)
-            except Exception as e:
-                print(f"❌ Specialized retrieval failed for {topic_id}: {e}")
-                # Fallback to simple method
                 print("🔄 Falling back to simple topic filtering...")
                 return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
         else:
-            print(f"⚠️ No specialized retriever for {topic_id}, using simple method")
+            print(f"⚠️ Hybrid retrieval disabled, using simple method for {topic_id}")
             return self.retrieve_documents_by_topic_keywords_simple(query, topic_id, top_k)
 
     def retrieve_documents_hybrid(self, query: str, top_k: int = 2) -> List[Dict]:
@@ -4608,13 +4795,18 @@ If you want to see the list of programs, click on the buttons below per school, 
 - **STRUCTURE**: School of [Name] → [Cluster] (Cluster) → Programs with codes and full names
 
 === CURRICULUM QUERIES ===
-- **YEAR-BASED DISPLAY**: For curriculum queries, ALWAYS show only ONE YEAR at a time
-- **INITIAL QUERIES**: For first-time curriculum requests (e.g., "BS CS curriculum"), show ONLY FIRST YEAR courses (1st semester, 2nd semester, summer if exists)
-- **FOLLOW-UP QUERIES**: For requests like "what about 2nd year", "can you proceed with remaining", show ONLY the requested year
-- **FORMAT REQUIREMENTS**:
-  * Include program title and details (school, cluster, total credits)
-  * Show year-specific curriculum with proper semester organization
-  * Always end with link footer: "For more information about the curriculum of the program, head to this link: [URL]"
+- **YEAR-BASED DISPLAY**: Curriculum queries show subjects for the requested year level
+- **DEFAULT YEAR**: If no year is specified, default to Year 1 curriculum
+- **FOLLOW-UP SUPPORT**: Users can ask "what about 2nd year" or "show me 3rd year" to navigate through different years
+- **MULTI-PROGRAM QUERIES**: If multiple programs are mentioned (e.g., "compare CS and IT curriculum" or "CS and IT 3rd year"), format as a comparison showing both curricula side-by-side with clear separation between programs
+- **FORMAT**: 
+  * Show program name/acronym
+  * Show year level
+  * List subjects organized by semester (First Semester, Second Semester, Summer if applicable)
+  * **Semester headers**: Format semester names in bold with total Credit Units (e.g., **First Semester (21.0 CU)**, **Second Semester (21.0 CU)**)
+  * **Empty semesters**: If a semester has no courses, DO NOT show that semester header at all - omit it completely (no "No courses" message)
+  * Include course codes, titles, and credits for each course
+  * Include curriculum PDF link if available in the document
 - **SESSION CONTINUITY**: Remember which program and year was last displayed for follow-up queries
 
 === RESPONSE FORMAT ===
@@ -4672,6 +4864,15 @@ If you want to see the list of programs, click on the buttons below per school, 
 - **INCLUDE**: Tuition fees, miscellaneous fees, payment schedules, installment options for that specific program
 - **DIFFERENTIATE**: Different programs may have different fee structures
 - **SCOPE**: Undergraduate program fees only
+
+=== YEAR-BASED DISPLAY RULES ===
+- **INITIAL QUERIES**: For first-time fee queries (e.g., "BS CS fees"), show ONLY Year 1 fees by default
+- **YEAR-SPECIFIC**: If user asks for specific year (e.g., "3rd year fees"), show only that year
+- **FOLLOW-UP CONTEXT**: For follow-up questions (e.g., "what about 2nd year?"), show the next year in sequence
+- **PROGRESSIVE DISPLAY**: Don't overwhelm with all 4 years unless explicitly requested
+- **YEAR STRUCTURE**: Present fees by year and semester (1st Semester, 2nd Semester, Summer if applicable)
+- **CLEAR LABELING**: Always label which year you're showing (e.g., "Year 1 Fees for BS CS:")
+- **FOLLOW-UP PROMPT**: End with suggestion for next year (e.g., "Would you like to see Year 2 fees?")
 
 === LINK HANDLING FOR FEES ===
 - **NO LINKS RULE**: Do NOT mention, suggest, or provide ANY links or URLs
@@ -6495,6 +6696,153 @@ If you want to see the list of programs, click on the buttons below per school, 
         
         return classification
     
+    def _detect_fees_query_type(self, query: str) -> dict:
+        """
+        Detect the type of fees query and extract relevant information.
+        
+        Returns:
+            dict: {
+                'type': 'initial_fees|year_specific|year_followup',
+                'year': int or None,
+                'program': str or None,
+                'confidence': float
+            }
+        """
+        import re
+        
+        query_lower = query.lower()
+        
+        classification = {
+            'type': 'initial_fees',
+            'year': None,
+            'program': None,
+            'confidence': 0.0,
+            'matched_patterns': []
+        }
+        
+        # Follow-up patterns with year (check these FIRST to distinguish from year_specific)
+        followup_year_patterns = [
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?(\d+)(?:st|nd|rd|th)\s+year\s+(?:fees?|tuition|cost)\b',
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?year\s+(\d+)\s+(?:fees?|tuition|cost)\b',
+            r'\bwhat\s+about\s+(?:the\s+|its\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\s+(?:fees?|tuition|cost)\b',
+            r'\bhow\s+much\s+(?:for\s+)?(?:the\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bhow\s+much\s+(?:for\s+)?(?:the\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+        ]
+        
+        # Year-specific patterns (initial queries with explicit years)
+        year_specific_patterns = [
+            # Initial query patterns with explicit years (case insensitive program names)
+            r'\b(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\b(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            r'\bhow\s+much\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(\d+)(?:st|nd|rd|th)\s+year\b',
+            r'\bhow\s+much\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+[A-Za-z\s]+\s+(?:for\s+)?(second|third|fourth|2nd|3rd|4th)\s+year\b',
+            
+            # General year patterns
+            r'\b(\d+)(?:st|nd|rd|th)\s+year\s+(?:fees?|tuition|cost)\b',
+            r'\byear\s+(\d+)\s+(?:fees?|tuition|cost)\b'
+        ]
+        
+        # Follow-up patterns (without year)
+        followup_patterns = [
+            r'\bwhat\s+about\s+(?:the\s+)?(?:next|remaining)\s+(?:year|years?)\b',
+            r'\bhow\s+much\s+(?:for\s+)?(?:the\s+)?(?:next|remaining)\s+(?:year|years?)\b',
+            r'\bwhat\s+(?:comes\s+)?next\b',
+            r'\bproceed\b',
+            r'\bwhat\'?s\s+next\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?remaining\s+years?\b',
+            r'\bcontinue\s+with\s+(?:the\s+)?(?:fees?|tuition|cost)\b'
+        ]
+        
+        # Initial fees patterns
+        initial_patterns = [
+            r'\b(?:fees?|tuition|cost)\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bwhat\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bhow\s+much\s+(?:is\s+)?(?:the\s+)?(?:fees?|tuition|cost)\s+(?:of|for)\s+([A-Z\s]+)\b',
+            r'\bhow\s+much\s+(?:does|do)\s+([A-Z\s]+)\s+cost\b'
+        ]
+        
+        # Check for follow-up queries with year FIRST (to distinguish from year_specific)
+        for pattern in followup_year_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'year_followup'
+                classification['confidence'] = 0.9
+                classification['matched_patterns'].append(f"Follow-up with year: {pattern}")
+                
+                # Extract year number
+                year_str = match.group(1)
+                if year_str in ['second', '2nd']:
+                    classification['year'] = 2
+                elif year_str in ['third', '3rd']:
+                    classification['year'] = 3
+                elif year_str in ['fourth', '4th']:
+                    classification['year'] = 4
+                else:
+                    try:
+                        classification['year'] = int(year_str)
+                    except ValueError:
+                        classification['year'] = 1
+                
+                print(f"🔄 Detected fees follow-up query with year: Year {classification['year']}")
+                return classification
+        
+        # Check for year-specific queries (initial queries with explicit years)
+        for pattern in year_specific_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'year_specific'
+                classification['confidence'] = 0.9
+                classification['matched_patterns'].append(f"Year-specific: {pattern}")
+                
+                # Extract year number
+                year_str = match.group(1)
+                if year_str in ['second', '2nd']:
+                    classification['year'] = 2
+                elif year_str in ['third', '3rd']:
+                    classification['year'] = 3
+                elif year_str in ['fourth', '4th']:
+                    classification['year'] = 4
+                else:
+                    try:
+                        classification['year'] = int(year_str)
+                    except ValueError:
+                        classification['year'] = 1
+                
+                print(f"📅 Detected year-specific fees query: Year {classification['year']}")
+                return classification
+        
+        # Check for follow-up queries (without year)
+        for pattern in followup_patterns:
+            if re.search(pattern, query_lower):
+                classification['type'] = 'year_followup'
+                classification['confidence'] = 0.85
+                classification['matched_patterns'].append(f"Follow-up: {pattern}")
+                print(f"🔄 Detected fees follow-up query")
+                return classification
+        
+        # Check for initial fees queries with program extraction
+        for pattern in initial_patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                classification['type'] = 'initial_fees'
+                classification['confidence'] = 0.8
+                classification['matched_patterns'].append(f"Initial: {pattern}")
+                
+                # Extract program name
+                program_str = match.group(1).strip()
+                classification['program'] = program_str
+                
+                print(f"💰 Detected initial fees query for: {program_str}")
+                return classification
+        
+        # Default to initial fees
+        classification['confidence'] = 0.7
+        print(f"💳 Default classification: initial fees")
+        
+        return classification
+    
     def _get_next_year_level(self, curriculum_query_type: dict) -> int:
         """
         Determine the next year level to show based on conversation history and query type.
@@ -6534,6 +6882,45 @@ If you want to see the list of programs, click on the buttons below per school, 
         # Default to year 1
         return 1
     
+    def _get_next_year_level_fees(self, fees_query_type: dict) -> int:
+        """
+        Determine the next year level to show for fees based on conversation history and query type.
+        
+        Args:
+            fees_query_type: Result from _detect_fees_query_type
+            
+        Returns:
+            int: Year level to display (1, 2, 3, 4)
+        """
+        # Get fees state from session
+        fees_state = self.session_state.get('fees_state', {})
+        last_displayed_year = fees_state.get('last_displayed_year')
+        available_years = fees_state.get('available_years', [1, 2, 3, 4])
+        
+        # If specific year requested, return that year
+        if fees_query_type.get('year'):
+            return fees_query_type['year']
+        
+        # For initial fees queries, always start with year 1
+        if fees_query_type['type'] == 'initial_fees':
+            return 1
+        
+        # For follow-up queries, determine next year
+        if fees_query_type['type'] == 'year_followup':
+            if last_displayed_year is None:
+                return 1  # Start with first year if no previous display
+            
+            # Find next available year
+            next_year = last_displayed_year + 1
+            if next_year in available_years and next_year <= 4:
+                return next_year
+            else:
+                # If no next year available, cycle back or show message
+                return 1  # Could also return None to indicate no more years
+        
+        # Default to year 1
+        return 1
+    
     def _update_curriculum_session_state(self, program: str, displayed_year: int, parsed_curriculum: dict = None):
         """
         Update session state with curriculum information.
@@ -6556,198 +6943,27 @@ If you want to see the list of programs, click on the buttons below per school, 
         
         print(f"📚 Updated curriculum session state: program={program}, last_year={displayed_year}")
     
-    def _build_curriculum_response(self, program_info: dict, curriculum_content: str, target_year: int) -> str:
+    def _update_fees_session_state(self, program: str, displayed_year: int, parsed_fees: dict = None):
         """
-        Build curriculum response with program details and year-specific courses.
+        Update session state with fees information.
         
         Args:
-            program_info: Program information from extraction
-            curriculum_content: Raw curriculum document content
-            target_year: Year level to display (1, 2, 3, 4)
-            
-        Returns:
-            str: Formatted curriculum response
+            program: Program acronym/name
+            displayed_year: Year level that was displayed
+            parsed_fees: Optional parsed fees structure
         """
-        print(f"🏗️ Building curriculum response for {program_info.get('program_name', 'Unknown')} Year {target_year}")
+        if 'fees_state' not in self.session_state:
+            self.session_state['fees_state'] = {}
         
-        # Parse curriculum by years
-        parsed_curriculum = self._parse_curriculum_by_years(curriculum_content)
+        fees_state = self.session_state['fees_state']
+        fees_state['current_program'] = program
+        fees_state['last_displayed_year'] = displayed_year
         
-        # Get program details from JSON config
-        program_acronym = program_info.get('program_name', '')
-        full_name = self._get_program_full_name_from_config(program_acronym)
-        school = self._get_program_school_from_config(program_acronym)
-        cluster = self._get_program_cluster_from_config(program_acronym)
+        if parsed_fees:
+            fees_state['parsed_fees'] = parsed_fees
+            fees_state['available_years'] = list(parsed_fees.keys())
         
-        # Extract total credits and duration from curriculum content
-        import re
-        try:
-            total_credits_match = re.search(r'Total\s+Program\s+Credits:\s*(\d+(?:\.\d+)?)\s*CU', curriculum_content, re.IGNORECASE)
-            total_credits = total_credits_match.group(1) if total_credits_match else "N/A"
-        except (AttributeError, IndexError) as e:
-            print(f"⚠️ Error extracting total credits: {e}")
-            total_credits = "N/A"
-        
-        # Build response header
-        response = f"**{program_acronym}**"
-        if full_name and full_name != program_acronym:
-            response += f" - **{full_name}**"
-        response += "\n\n"
-        
-        # Program details section
-        response += "**Program Details:**\n"
-        if school:
-            response += f"- School: {school}\n"
-        if cluster:
-            response += f"- Cluster: {cluster}\n"
-        response += f"- Total Credits: {total_credits} CU\n"
-        
-        # Calculate actual duration from curriculum instead of hardcoded 4 years
-        year_semester_data = self._count_years_and_semesters_from_curriculum(curriculum_content)
-        actual_years = year_semester_data.get('total_years', 0)
-        if actual_years > 0:
-            response += f"- Duration: {actual_years} years\n\n"
-        else:
-            response += f"- Duration: N/A\n\n"
-        
-        # Year curriculum section
-        year_data = parsed_curriculum.get(target_year, {})
-        if not year_data:
-            response += f"**Year {target_year} Curriculum:**\n\n"
-            response += f"No curriculum information available for Year {target_year}.\n\n"
-        else:
-            response += f"**Year {target_year} Curriculum:**\n\n"
-            response += self._format_year_curriculum(year_data, target_year)
-        
-        # Extract and add link if present
-        try:
-            # Strategy 1: Look for complete URLs in the content
-            link_match = re.search(r'https?://[^\s\)]+\.pdf', curriculum_content)
-            
-            if link_match:
-                link_url = link_match.group(0)
-                # Clean up any trailing punctuation that might have been captured
-                link_url = re.sub(r'[,;.!?]+$', '', link_url)
-                response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
-                print(f"🔗 Extracted curriculum link: {link_url}")
-            else:
-                # Strategy 2: Handle URLs that might be split across lines or have spaces
-                # First, normalize whitespace and try again
-                normalized_content = re.sub(r'\s+', ' ', curriculum_content)
-                link_match = re.search(r'https?://[^\s\)]+\.pdf', normalized_content)
-                
-                if link_match:
-                    link_url = link_match.group(0)
-                    link_url = re.sub(r'[,;.!?]+$', '', link_url)
-                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
-                    print(f"🔗 Extracted normalized curriculum link: {link_url}")
-                else:
-                    # Strategy 3: Look for URL patterns that might be broken across lines
-                    # Find anything that starts with http and try to reconstruct it
-                    url_start_match = re.search(r'https?://[^\s]*', curriculum_content)
-                    
-                    if url_start_match:
-                        # Get the partial URL
-                        partial_url = url_start_match.group(0)
-                        
-                        # Look for the rest of the URL in the following text
-                        # This handles cases where the URL is split like "https://...Bachelor-of-Science-\nin-Environmental-Science.pdf"
-                        start_pos = url_start_match.end()
-                        remaining_content = curriculum_content[start_pos:start_pos+200]  # Look ahead 200 chars
-                        
-                        # Look for text that could complete the URL - handle both same line and next line
-                        # Pattern 1: Immediate continuation (same line)
-                        completion_match = re.search(r'^[^\s]*\.pdf', remaining_content)
-                        
-                        if completion_match:
-                            completion = completion_match.group(0)
-                            # Remove any line breaks or spaces from the completion
-                            completion = re.sub(r'\s+', '', completion)
-                            link_url = partial_url + completion
-                            response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
-                            print(f"🔗 Extracted reconstructed curriculum link: {link_url}")
-                        else:
-                            # Pattern 2: Look for continuation on next line(s) - more flexible
-                            # Split remaining content by lines and look for PDF completion
-                            lines = remaining_content.split('\n')
-                            for line in lines[:3]:  # Check first 3 lines
-                                line = line.strip()
-                                if line and '.pdf' in line:
-                                    # Found potential completion
-                                    completion = re.sub(r'\s+', '', line)  # Remove all whitespace
-                                    link_url = partial_url + completion
-                                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
-                                    print(f"🔗 Extracted multi-line reconstructed curriculum link: {link_url}")
-                                    break
-                            else:
-                                # Strategy 4: Try to find PDF filename and construct URL
-                                pdf_match = re.search(r'Bachelor[^\n]*\.pdf', curriculum_content, re.IGNORECASE)
-                                if pdf_match:
-                                    pdf_filename = pdf_match.group(0)
-                                    # Clean up the filename (remove spaces, normalize)
-                                    pdf_filename = re.sub(r'\s+', '-', pdf_filename.strip())
-                                    # Construct likely URL
-                                    link_url = f"https://www.addu.edu.ph/wp-content/uploads/2020/06/{pdf_filename}"
-                                    response += f"\nFor more information about the curriculum of the program, head to this link: {link_url}"
-                                    print(f"🔗 Constructed curriculum link from filename: {link_url}")
-                                else:
-                                    response += "\nFor more detailed information, please contact the admissions office."
-                                    print(f"⚠️ No curriculum link found in document")
-                    else:
-                        response += "\nFor more detailed information, please contact the admissions office."
-                        print(f"⚠️ No URL pattern found in document")
-        except (AttributeError, IndexError) as e:
-            print(f"⚠️ Error extracting link: {e}")
-            response += "\nFor more detailed information, please contact the admissions office."
-        
-        # Update session state
-        self._update_curriculum_session_state(program_acronym, target_year, parsed_curriculum)
-        
-        return response
-    
-    def _format_year_curriculum(self, year_data: dict, year_number: int) -> str:
-        """
-        Format single year curriculum with proper semester organization.
-        
-        Args:
-            year_data: Dictionary with semester data {semester: [courses]}
-            year_number: Year number for display
-            
-        Returns:
-            str: Formatted year curriculum
-        """
-        formatted = ""
-        
-        # Define semester order
-        semester_order = ['first', 'second', 'summer']
-        semester_titles = {
-            'first': 'First Semester',
-            'second': 'Second Semester', 
-            'summer': 'Summer'
-        }
-        
-        for semester in semester_order:
-            if semester in year_data and year_data[semester]:
-                courses = year_data[semester]
-                formatted += f"**{semester_titles[semester]}:**\n"
-                
-                for i, course in enumerate(courses, 1):
-                    course_code = course.get('code', '')
-                    course_title = course.get('title', '')
-                    credits = course.get('credits', '')
-                    
-                    formatted += f"{i}. {course_code} - {course_title}"
-                    if credits:
-                        formatted += f" ({credits})"
-                    formatted += "\n"
-                
-                formatted += "\n"
-        
-        # If no courses found, add a message
-        if not formatted.strip():
-            formatted = f"No course information available for Year {year_number}.\n\n"
-        
-        return formatted
+        print(f"💰 Updated fees session state: program={program}, last_year={displayed_year}")
     
     def _build_general_subject_response(self, matching_programs: dict, subject_info: dict, is_negative: bool) -> str:
         """
@@ -6811,15 +7027,43 @@ If you want to see the list of programs, click on the buttons below per school, 
     def _process_topic_query(self, query: str, topic_id: str):
         """Process a query within a specific topic context with conversation history awareness"""
         try:
+            # Initialize programs_query_intent at the start (will be set later if needed)
+            programs_query_intent = None
+            
+            # Normalize program acronyms once at the start (before topic-specific logic)
+            normalized_query = self._normalize_program_acronyms(query)
+            
+            # Check if this is an overview query FIRST (before any program extraction)
+            if topic_id == 'programs_courses':
+                query_context = self._detect_cluster_or_school_in_query(normalized_query)
+                overview_keywords = ['available', 'list', 'show', 'all programs', 'what are the programs', 'what programs']
+                is_overview_query = (
+                    query_context['type'] == 'general' and 
+                    any(word in normalized_query.lower() for word in overview_keywords)
+                )
+                
+                if is_overview_query:
+                    print(f"📋 Overview query detected in _process_topic_query - skipping program extraction")
+                    # Set empty program_info for overview queries
+                    program_info = {
+                        'program_name': None,
+                        'degree_level': None,
+                        'year_level': None,
+                        'course_code': None,
+                        'context_source': None
+                    }
+                else:
             # Enhanced program extraction with conversation history awareness
-            program_info = self._extract_program_info_with_history(query)
+                    program_info = self._extract_program_info_with_history(query)
+            else:
+                # For other topics, extract program info normally
+                program_info = self._extract_program_info_with_history(query)
             
             # Handle failed pronoun resolution
             if program_info.get('context_source') == 'pronoun_resolution_failed':
                 return "I notice you're using a pronoun like 'it' or 'that', but I don't have enough context to understand which program you're referring to. Could you please specify the program name? For example: 'What is the curriculum for BS IT?' or 'What is the curriculum for BS CS?'", []
             
-            # Normalize program acronyms first (e.g., 'bsa' -> 'BS A')
-            normalized_query = self._normalize_program_acronyms(query)
+            # normalized_query already set at line 7218, reuse it
             
             # First check for general conversation context enhancement (for follow-up questions)
             conversation_enhanced_query = self._enhance_query_with_conversation_context(normalized_query, topic_id)
@@ -6936,13 +7180,18 @@ This will ensure you get the most relevant and up-to-date information for your q
                     }
                     print(f"⏱️ Duration query - cleared program context for simple response")
                 elif intent == "subject_mapping":
-                    # For subject mapping queries, ONLY use program context if explicitly mentioned in current query
-                    current_program_info = self._extract_program_info(query)
-                    if current_program_info.get('program_name'):
-                        program_info = current_program_info
-                        print(f"📝 Subject mapping query explicitly mentions program: {program_info['program_name']}")
-                    else:
-                        # Clear any program context from history for subject mapping queries
+                    # Check if this is actually an overview query misclassified as subject_mapping
+                    normalized_query_check = self._normalize_program_acronyms(query)
+                    query_context_check = self._detect_cluster_or_school_in_query(normalized_query_check)
+                    overview_keywords = ['available', 'list', 'show', 'all programs', 'what are the programs', 'what programs']
+                    is_actually_overview = (
+                        query_context_check['type'] == 'general' and 
+                        any(word in normalized_query_check.lower() for word in overview_keywords)
+                    )
+                    
+                    if is_actually_overview:
+                        # This was misclassified as subject_mapping, but it's actually an overview query
+                        print(f"⚠️ Query misclassified as subject_mapping but is actually overview - correcting")
                         program_info = {
                             'program_name': None,
                             'degree_level': None,
@@ -6950,7 +7199,23 @@ This will ensure you get the most relevant and up-to-date information for your q
                             'course_code': None,
                             'context_source': None
                         }
-                        print(f"🚫 Subject mapping query - cleared program context from history")
+                        intent = "overview"  # Correct the intent
+                    else:
+                        # For subject mapping queries, ONLY use program context if explicitly mentioned in current query
+                        current_program_info = self._extract_program_info(query)
+                        if current_program_info.get('program_name'):
+                            program_info = current_program_info
+                            print(f"📝 Subject mapping query explicitly mentions program: {program_info['program_name']}")
+                        else:
+                            # Clear any program context from history for subject mapping queries
+                            program_info = {
+                                'program_name': None,
+                                'degree_level': None,
+                                'year_level': None,
+                                'course_code': None,
+                                'context_source': None
+                            }
+                            print(f"🚫 Subject mapping query - cleared program context from history")
                 
                 # INTENT-AWARE CONTEXT APPLICATION: Apply program context based on query intent
                 if program_info.get('program_name') and program_info.get('context_source'):
@@ -7021,36 +7286,7 @@ This will ensure you get the most relevant and up-to-date information for your q
                 else:
                     print(f"📝 No program context available for {intent} query, using conversation-enhanced query: '{enhanced_query}'")
                 
-                # PRIORITY -1: Handle year/semester queries (bypass all other intent processing)
-                if intent == "year_semester":
-                    print("🎓 Processing year/semester query - bypassing curriculum and subject mapping logic")
-                    try:
-                        # Use the original query for year/semester retrieval (no program context needed)
-                        results = self.retrieve_documents_by_topic_specialized(query, topic_id, top_k=10)
-                        
-                        if results and len(results) > 0:
-                            # Check if it's year/semester data
-                            first_result = results[0]
-                            if 'matching_programs' in first_result:
-                                # Format year/semester response
-                                matching_programs = first_result['matching_programs']
-                                query_info = first_result.get('query_info', {})
-                                
-                                if len(matching_programs) > 0:
-                                    response = self._format_year_semester_response(matching_programs, query_info)
-                                    return response, results
-                                else:
-                                    return "I couldn't find any programs matching your year/semester criteria. Please try rephrasing your question or check if the criteria are correct.", []
-                            else:
-                                # Fallback to regular document response
-                                response = self._format_document_response(results, query, topic_id)
-                                return response, results
-                        else:
-                            return "I couldn't find any programs matching your year/semester criteria. Please try a different query.", []
-                    
-                    except Exception as e:
-                        print(f"❌ Year/semester query processing failed: {e}")
-                        return "I encountered an error while processing your year/semester query. Please try again.", []
+                # REMOVED: Year/semester specialized routing - now handled by hybrid retrieval + LLM
                 
                 # PRIORITY -0.5: Handle duration queries (simple program duration response)
                 if intent == "duration":
@@ -7093,137 +7329,58 @@ This will ensure you get the most relevant and up-to-date information for your q
                 
                 # PRIORITY 0: Check for curriculum intent (e.g., "BS CS curriculum", "what about 2nd year")
                 if intent == "curriculum":
-                    print("📚 Using curriculum year-based display system")
+                    print("📚 Processing curriculum query with context awareness")
                     try:
-                        # Detect curriculum query type (use original query to avoid pattern interference)
+                        # Detect curriculum query type and determine target year
                         curriculum_query_type = self._detect_curriculum_query_type(query)
-                        
-                        # Determine target year
                         target_year = self._get_next_year_level(curriculum_query_type)
                         
                         print(f"📅 Target year: {target_year}")
                         print(f"📊 Query type: {curriculum_query_type['type']}")
                         
-                        # For follow-up queries, prioritize conversation history over session state
+                        # For follow-up queries, enhance with program from session/conversation
                         if curriculum_query_type['type'] in ['year_specific', 'year_followup']:
-                            # PRIORITY 1: Try to extract from conversation history/pronoun resolution first
                             program_info_from_query = self._extract_program_info_with_history(enhanced_query)
                             session_program = program_info_from_query.get('program_name')
                             
-                            if session_program:
-                                print(f"🔄 Using program from conversation history: {session_program}")
-                                # Update session state with the conversation-resolved program
-                                self.set_session_state(current_program=session_program)
-                            else:
-                                # PRIORITY 2: Fall back to session state only if no conversation context
+                            if not session_program:
                                 session_program = self.session_state.get('current_program')
-                                if session_program:
-                                    print(f"🔄 Using program from session state (fallback): {session_program}")
-                                else:
-                                    print(f"❌ No program context found in conversation or session")
                             
                             if session_program:
-                                print(f"🔄 Using program: {session_program}")
-                                # Retrieve curriculum document for the program
-                                curriculum_docs = self.retrieve_programs_documents(session_program, top_k=1)
-                                if curriculum_docs:
-                                    curriculum_content = curriculum_docs[0]['content']
-                                    program_info = {'program_name': session_program}
-                                    
-                                    response = self._build_curriculum_response(
-                                        program_info, curriculum_content, target_year
-                                    )
-                                    
-                                    self.add_to_history(query, response)
-                                    return response, curriculum_docs
-                                else:
-                                    response = f"I don't have curriculum information for {session_program}. Please try asking about a specific program's curriculum."
-                                    return response, []
+                                # Enhance query with program context for curriculum
+                                if session_program.lower() not in enhanced_query.lower():
+                                    enhanced_query = f"{session_program} {enhanced_query}"
+                                    print(f"📚 Enhanced curriculum query with program context: '{query}' → '{enhanced_query}'")
+                                
+                                # Add year context to query if not already present
+                                if f"year {target_year}" not in enhanced_query.lower() and str(target_year) not in enhanced_query:
+                                    enhanced_query = f"{enhanced_query} year {target_year}"
+                                    print(f"📚 Enhanced curriculum query with year context: year {target_year}")
+                                
+                                    # Update session state
+                                    self._update_curriculum_session_state(session_program, target_year)
                             else:
-                                response = "I need to know which program you're asking about. Please specify a program name, for example: 'BS CS curriculum' or 'what is the curriculum for BS IT'."
-                                return response, []
-                        
-                        # For initial curriculum queries, extract program and retrieve documents
-                        else:
-                            # Use enhanced query to get program documents
-                            relevant_docs = self.retrieve_programs_documents(enhanced_query, top_k=3)
-                            
-                            if relevant_docs:
-                                # Use the first (most relevant) document
-                                curriculum_content = relevant_docs[0]['content']
+                                if curriculum_query_type['type'] == 'year_followup':
+                                    return "I need to know which program you're asking about. Please specify a program name.", []
+                        # For initial curriculum queries, enhance with program if extracted
+                        elif curriculum_query_type['type'] == 'initial_curriculum':
+                            program_info = self._extract_program_info_with_history(enhanced_query)
+                            if program_info.get('program_name'):
+                                program_name = program_info['program_name']
+                                # Add year context (default to year 1 if not specified)
+                                if f"year {target_year}" not in enhanced_query.lower():
+                                    enhanced_query = f"{enhanced_query} year {target_year}"
+                                    print(f"📚 Enhanced curriculum query with year context: year {target_year}")
                                 
-                                # Extract program info from the query and document
-                                program_info = self._extract_program_info_with_history(enhanced_query)
-                                
-                                response = self._build_curriculum_response(
-                                    program_info, curriculum_content, target_year
-                                )
-                                
-                                self.add_to_history(query, response)
-                                return response, relevant_docs
-                            else:
-                                response = "I couldn't find curriculum information for that program. Please check the program name and try again."
-                                return response, []
+                                # Update session state
+                                self._update_curriculum_session_state(program_name, target_year)
+                                print(f"📚 Updated curriculum session state for initial query: {program_name}")
                                 
                     except Exception as e:
-                        print(f"❌ Curriculum processing failed: {e}")
-                        response = f"I encountered an error while retrieving the curriculum information. Please try rephrasing your question or contact support if the issue persists."
-                        return response, []
+                        print(f"❌ Curriculum context processing failed: {e}")
+                        # Continue with normal processing if curriculum context fails
 
-                # PRIORITY 1: Check for subject mapping intent (e.g., "what programs have calculus")
-                if intent == "subject_mapping":
-                    print("🎯 Using subject-to-program mapping retrieval")
-                    try:
-                        # Detect query subtype for conditional response handling
-                        query_classification = self._detect_query_subtype(enhanced_query)
-                        
-                        # Use the subject mapping retrieval method with more results
-                        subject_mapping_result = self.retrieve_programs_by_subject(enhanced_query, top_k=30)
-                        
-                        # Generate response using the subject mapping results
-                        if subject_mapping_result and subject_mapping_result[0].get('matching_programs'):
-                            # Extract the raw matching programs data
-                            raw_data = subject_mapping_result[0]
-                            matching_programs = raw_data['matching_programs']
-                            subject_info = raw_data['subject_info']
-                            is_negative = raw_data['is_negative']
-                            cluster_filter = raw_data.get('cluster_filter')
-                            
-                            print(f"🎯 Processing {len(matching_programs)} matching programs")
-                            print(f"📊 Query subtype: {query_classification['subtype']}")
-                            
-                            # Conditional response generation based on query type
-                            query_type = subject_info.get('query_type', 'general')
-                            
-                            if query_type in ['count', 'program_specific', 'negative_program_specific']:
-                                # Use detailed response for program-specific and count queries
-                                print("🔍 Using detailed response builder for program-specific/count query")
-                                response = self._build_detailed_subject_response(
-                                    matching_programs, subject_info, is_negative, cluster_filter
-                                )
-                            else:
-                                # Use general response for positive/negative general queries
-                                print("🏗️ Using general response builder for general query")
-                                response = self._build_general_subject_response(
-                                    matching_programs, subject_info, is_negative
-                                )
-                            
-                            self.add_to_history(query, response)
-                            return response, subject_mapping_result
-                        else:
-                            # No results found for subject mapping
-                            subject_info = self._extract_subject_from_query(enhanced_query)
-                            subject = subject_info.get('subject', 'the requested subject')
-                            response = f"I couldn't find any programs that match your query about '{subject}'. Please try a different subject or check the spelling."
-                            return response, []
-                            
-                    except Exception as e:
-                        print(f"❌ Subject mapping retrieval failed: {e}")
-                        print("🔄 Subject mapping failed, providing error response...")
-                        # Don't fall back to standard retrieval for subject mapping queries
-                        # as it will give wrong results - provide a clear error message instead
-                        response = f"I encountered an error while searching for programs with that subject. Please try rephrasing your question or contact support if the issue persists. Error: {str(e)}"
-                        return response, []
+                # REMOVED: Subject mapping specialized routing - now handled by hybrid retrieval + LLM
                 
                 # PRIORITY 2: Check program availability for specific program queries (not overview queries)
                 availability_indicators = ['is there', 'do you have', 'available', 'offer', 'does addu have']
@@ -7281,13 +7438,87 @@ This will ensure you get the most relevant and up-to-date information for your q
                         else:
                             print("⚠️ Could not retrieve program list document")
             
+            # Save programs query intent before it gets overwritten by analyze_query_intent
+            # Note: For programs_courses, intent is set earlier as a STRING ('overview', 'curriculum', etc.)
+            # But analyze_query_intent() at line 7661 overwrites it with a DICT
+            if topic_id == 'programs_courses' and isinstance(intent, str):
+                programs_query_intent = intent
+                print(f"💾 Saved programs query intent: '{programs_query_intent}'")
+            
             # Use intent analysis combined with topic filtering for better accuracy
             intent = self.analyze_query_intent(enhanced_query)
             print(f"🎯 Intent analysis suggests document type: {intent.get('document_type', 'none')}")
             
+            # For fees topic, add year-based context awareness (similar to curriculum)
+            if topic_id == 'fees':
+                print("💰 Processing fees query with context awareness")
+                try:
+                    # Detect fees query type
+                    fees_query_type = self._detect_fees_query_type(query)
+                    
+                    # Determine target year
+                    target_year = self._get_next_year_level_fees(fees_query_type)
+                    
+                    print(f"💳 Target year: {target_year}")
+                    print(f"📊 Query type: {fees_query_type['type']}")
+                    
+                    # For follow-up queries, prioritize conversation history over session state
+                    if fees_query_type['type'] in ['year_specific', 'year_followup']:
+                        # PRIORITY 1: Try to extract from conversation history/pronoun resolution first
+                        program_info_from_query = self._extract_program_info_with_history(enhanced_query)
+                        session_program = program_info_from_query.get('program_name')
+                        
+                        if session_program:
+                            print(f"🔄 Using program from conversation history for fees: {session_program}")
+                            # Update session state with the conversation-resolved program
+                            self.set_session_state(current_program=session_program)
+                        else:
+                            # PRIORITY 2: Fall back to session state only if no conversation context
+                            session_program = self.session_state.get('current_program')
+                            if session_program:
+                                print(f"🔄 Using program from session state for fees (fallback): {session_program}")
+                            else:
+                                print(f"❌ No program context found in conversation or session for fees")
+                        
+                        if session_program:
+                            print(f"🔄 Using program for fees: {session_program}")
+                            # Enhance query with program context for fees
+                            if session_program.lower() not in enhanced_query.lower():
+                                enhanced_query = f"{session_program} {enhanced_query}"
+                                print(f"💰 Enhanced fees query with program context: '{query}' → '{enhanced_query}'")
+                            
+                            # Update fees session state
+                            self._update_fees_session_state(session_program, target_year)
+                        else:
+                            if fees_query_type['type'] == 'year_followup':
+                                response = "I need to know which program you're asking about fees for. Please specify a program name, for example: 'BS CS fees' or 'what are the fees for BS IT'."
+                                return response, []
+                    
+                    # For initial fees queries, extract program and enhance query
+                    elif fees_query_type['type'] == 'initial_fees':
+                        # Extract program info from the query
+                        program_info = self._extract_program_info_with_history(enhanced_query)
+                        if program_info.get('program_name'):
+                            # Update fees session state with the program
+                            self._update_fees_session_state(program_info['program_name'], target_year)
+                            print(f"💰 Updated fees session state for initial query: {program_info['program_name']}")
+                        
+                except Exception as e:
+                    print(f"❌ Fees context processing failed: {e}")
+                    # Continue with normal processing if fees context fails
+            
             # ALWAYS use the true hybrid retrieval for guided chatbot
             # This ensures we get the benefits of specialized logic + TF-IDF/Word2Vec scoring
-            relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=3)
+            # Calculate dynamic top_k based on intent and topic
+            # Use programs_query_intent if available (for programs_courses), otherwise use default
+            if topic_id == 'programs_courses' and programs_query_intent:
+                dynamic_top_k = self._calculate_dynamic_top_k(topic_id, programs_query_intent)
+            else:
+                # For non-programs topics or if programs intent not available, use default
+                dynamic_top_k = 3
+                
+            print(f"🎯 Using top_k={dynamic_top_k} for retrieval")
+            relevant_docs = self.retrieve_documents_by_topic_specialized(enhanced_query, topic_id, top_k=dynamic_top_k)
             
             if not relevant_docs:
                 topic_info = get_topic_info(topic_id)
@@ -8320,15 +8551,24 @@ RULES:
                         return score
         
         # 4. Partial program name match - Score: 0.4-0.6
+        # IMPORTANT: Use word boundaries to avoid substring matches (e.g., "science" matching "political science")
         if program_name:
             program_words = program_name.lower().split()
-            matched_words = sum(1 for word in program_words if word in query_lower)
+            # Count matches WITH word boundaries (avoid substring matches)
+            matched_words = sum(1 for word in program_words 
+                               if re.search(r'\b' + re.escape(word) + r'\b', query_lower))
             if matched_words > 0:
                 score = 0.4 + (matched_words / len(program_words)) * 0.2
+                # For multi-word programs, require at least 2 words or all words to match
+                if len(program_words) > 1 and matched_words < len(program_words):
+                    # Penalize partial matches for multi-word programs
+                    score *= 0.7  # Reduce score if not all words match
         
         # 5. Description keyword match - Score: 0.1-0.3 (lowest priority)
+        # IMPORTANT: Use word boundaries here too to avoid false matches
         description_words = [word.lower() for word in description.split() if len(word) > 4]
-        matched_desc_words = sum(1 for word in description_words if word in query_lower)
+        matched_desc_words = sum(1 for word in description_words 
+                                if re.search(r'\b' + re.escape(word) + r'\b', query_lower))
         if matched_desc_words > 0 and score < 0.3:
             score = max(score, 0.1 + (matched_desc_words / len(description_words)) * 0.2)
         
@@ -8724,10 +8964,25 @@ RULES:
                 "what can I study here",
                 "programs offered by ADDU",
                 "available degrees",
+                # More specific overview patterns (to prevent misclassification)
+                "what are the programs available in ateneo",
+                "what programs are in ateneo",
+                "what are the programs in ateneo de davao",
+                "show me all programs at ateneo",
+                "list programs at ateneo",
+                "what programs does ateneo offer",
+                "what programs are offered at ateneo",
+                "available programs at ateneo",
+                # General variations
+                "what are the available programs",
+                "what programs can I study",
+                "what are all the programs",
+                "show me all available programs",
                 # Typo variations
                 "waht programs ar available",
                 "lst all programs",
-                "shwo me all courses"
+                "shwo me all courses",
+                "wat are the programs in ateneo"
             ]
         }
         

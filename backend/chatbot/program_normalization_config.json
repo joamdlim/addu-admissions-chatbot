@@ -21,25 +21,20 @@
         "description": "English Language field name"
       },
 
-      "abmc": {
-        "full_name": "AB MC",
+      "abc": {
+        "full_name": "AB C",
         "priority": "safe",
-        "description": "Bachelor of Arts in Mass Communication",
+        "description": "Bachelor of Arts in Communication",
         "school": "School of Arts & Sciences",
         "cluster": "Humanities & Letters"
       },
-      "mc": {
-        "full_name": "AB MC",
+      "c": {
+        "full_name": "AB C",
         "priority": "context_aware",
-        "description": "Mass Communication abbreviation"
-      },
-      "mass communication": {
-        "full_name": "AB MC",
-        "priority": "context_aware",
-        "description": "Mass Communication field name"
+        "description": "Communication abbreviation"
       },
       "communication": {
-        "full_name": "AB MC",
+        "full_name": "AB C",
         "priority": "context_aware",
         "description": "Communication field name"
       },
@@ -314,7 +309,7 @@
       "abpolsci": {
         "full_name": "AB POLSCI",
         "priority": "safe",
-        "description": "Bachelor of Arts Major in Political Studies"
+        "description": "Bachelor of Arts Major in Political Science"
       },
       "polsci": {
         "full_name": "AB POLSCI",
