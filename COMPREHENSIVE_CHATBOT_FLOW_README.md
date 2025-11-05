@@ -19,7 +19,7 @@ The ADDU Admissions Chatbot is a sophisticated hybrid retrieval-augmented genera
 
 ### Key Features
 
-- **Guided Conversation Flow**: Topic-based conversation management
+- **Guided Conversation Flow**: Topic-based conversation management with structured interactions
 - **Hybrid Retrieval**: TF-IDF + Word2Vec + ChromaDB semantic search
 - **Intent Classification**: Semantic similarity-based query classification
 - **Admin Document Management**: Full CRUD operations for documents and folders
@@ -33,37 +33,41 @@ The ADDU Admissions Chatbot is a sophisticated hybrid retrieval-augmented genera
 │                         USER INTERFACE                               │
 │                       (React Frontend)                               │
 │                                                                       │
-│  ┌──────────────┐                           ┌──────────────┐        │
-│  │ Free Chat    │                           │ Guided Chat  │        │
-│  │ Mode Toggle  │◄──────────────────────────►│ Mode Toggle  │        │
-│  └──────────────┘                           └──────────────┘        │
-│         │                                            │                │
-│         │                                            │                │
-└─────────┼────────────────────────────────────────────┼───────────────┘
-          │                                            │
-          │ HTTP POST                                  │ HTTP POST
-          │ /chatbot/chat/                             │ /chatbot/chat/guided/
-          ▼                                            ▼
+│                     ┌──────────────────┐                            │
+│                     │  Guided Chat     │                            │
+│                     │  Interface       │                            │
+│                     │                  │                            │
+│                     │ + Topic Selection│                            │
+│                     │ + Conversation   │                            │
+│                     │ + History View   │                            │
+│                     └──────────────────┘                            │
+│                              │                                       │
+└──────────────────────────────┼───────────────────────────────────────┘
+                               │
+                               │ HTTP POST
+                               │ /chatbot/chat/guided/
+                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      DJANGO BACKEND                                  │
 │                                                                       │
-│  ┌─────────────────────┐            ┌─────────────────────────────┐ │
-│  │  FastHybridChatbot  │            │  Guided Conversation        │ │
-│  │  Together           │            │  System                     │ │
-│  │                     │            │                             │ │
-│  │ + TF-IDF Retrieval  │            │ + Topic Selection           │ │
-│  │ + Word2Vec Vectors  │            │ + Intent Classification     │ │
-│  │ + ChromaDB Search   │            │ + Document Filtering        │ │
-│  │ + Intent Analysis   │            │ + Context Management        │ │
-│  │                     │            │                             │ │
-│  └─────────────────────┘            └─────────────────────────────┘ │
-│              │                                        │              │
-└──────────────┼────────────────────────────────────────┼──────────────┘
-               │                                        │
-               │                                        │
-               └────────────────┬───────────────────────┘
-                                │
-                                ▼
+│                    ┌─────────────────────────────┐                  │
+│                    │  Guided Conversation        │                  │
+│                    │  System                     │                  │
+│                    │                             │                  │
+│                    │ + Topic Selection           │                  │
+│                    │ + Intent Classification     │                  │
+│                    │ + Document Filtering        │                  │
+│                    │ + Context Management        │                  │
+│                    │ + Dialogue History          │                  │
+│                    │                             │                  │
+│                    │ + TF-IDF Retrieval          │                  │
+│                    │ + Word2Vec Vectors          │                  │
+│                    │ + ChromaDB Search           │                  │
+│                    └─────────────────────────────┘                  │
+│                                 │                                    │
+└─────────────────────────────────┼────────────────────────────────────┘
+                                  │
+                                  ▼
                     ┌───────────────────────┐
                     │  TOGETHER AI LLM      │
                     │  (Cloud Service)      │
@@ -139,20 +143,18 @@ def admin_upload_view(request):
 
 ```mermaid
 graph TD
-    A[User Query] --> B{Mode?}
-    B -->|Free Chat| C[Direct Processing]
-    B -->|Guided| D[Topic Selection]
-    D --> E[Topic-based Filtering]
-    E --> F[Intent Classification]
-    F --> G[Hybrid Retrieval]
-    C --> G
-    G --> H[TF-IDF Scoring]
-    H --> I[Word2Vec Similarity]
-    I --> J[ChromaDB Search]
-    J --> K[Document Ranking]
-    K --> L[Context Building]
-    L --> M[LLM Generation]
-    M --> N[Streaming Response]
+    A[User Query] --> B[Topic Selection]
+    B --> C[Topic-based Filtering]
+    C --> D[Intent Classification]
+    D --> E[Hybrid Retrieval]
+    E --> F[TF-IDF Scoring]
+    F --> G[Word2Vec Similarity]
+    G --> H[ChromaDB Search]
+    H --> I[Document Ranking]
+    I --> J[Context Building]
+    J --> K[Dialogue History Integration]
+    K --> L[LLM Generation]
+    L --> M[Streaming Response]
 ```
 
 ## NLP Components
@@ -375,17 +377,15 @@ def generate_response(prompt: str, max_tokens: int = 1024) -> str:
         return ""
 ```
 
-### Response Generation Flow
+### Guided Chat Response Generation Flow
 
 ```python
-def process_query(self, query: str, correct_spelling: bool = True, max_tokens: int = 1024,
-                  stream: bool = True, use_history: bool = True,
-                  require_context: bool = True, min_relevance: float = 0.35) -> Tuple[str, List[Dict]]:
-    """Main query processing with context retrieval and LLM generation"""
+def _process_topic_query(self, query: str, topic_id: str) -> Dict:
+    """Process query within guided conversation context"""
 
-    # 1. Document Retrieval
+    # 1. Topic-based Document Retrieval
     start_time = time.time()
-    relevant_docs = self.retrieve_documents(query, top_k=3)
+    relevant_docs = self.retrieve_documents_by_topic_hybrid(query, topic_id, top_k=3)
     retrieval_time = time.time() - start_time
 
     # 2. Context Building
@@ -394,15 +394,19 @@ def process_query(self, query: str, correct_spelling: bool = True, max_tokens: i
         for doc in relevant_docs[:3]
     ])
 
-    # 3. History Context (if enabled)
+    # 3. Dialogue History Integration
     history_context = ""
-    if use_history and self.dialogue_history:
-        available_for_history = 3700 - len(doc_context.split())
-        history_context = self.build_smart_history_context(query, available_for_history)
+    if self.dialogue_history:
+        base_prompt_estimate = f"System instructions + Context: {doc_context} + Query: {query}"
+        base_tokens = len(base_prompt_estimate.split())
+        available_for_history = 3500 - base_tokens
 
-    # 4. Prompt Construction
+        history_context = self.build_smart_history_context(query, available_for_history)
+        print(f"📜 Built history context: {len(history_context)} chars")
+
+    # 4. Guided Prompt Construction
     prompt = f"""<|system|>
-You are an admissions assistant. Answer questions using ONLY the provided context.
+You are an ADDU admissions assistant. Answer questions using ONLY the provided context.
 
 RULES:
 - Be direct and concise
@@ -419,6 +423,8 @@ RULES:
 {doc_context}
 </|context|>
 
+{history_context}
+
 <|user|>
 {query}
 </|user|>
@@ -426,16 +432,18 @@ RULES:
 <|assistant|>
 """
 
-    # 5. LLM Generation
-    if stream:
-        response = stream_response(prompt, max_tokens=max_tokens)
-    else:
-        response = generate_response(prompt, max_tokens=max_tokens)
+    # 5. LLM Generation with Streaming
+    response = stream_response(prompt, max_tokens=1024)
 
-    # 6. Update History
+    # 6. Update Dialogue History
     self.add_to_history(query, response)
 
-    return response, relevant_docs
+    return {
+        'response': response,
+        'sources': relevant_docs,
+        'retrieval_time': retrieval_time,
+        'topic_id': topic_id
+    }
 ```
 
 ## Admin System
@@ -822,19 +830,21 @@ CREATE TABLE chatbot_documentmetadata (
 ### Chat Endpoints
 
 ```python
-# Free Chat
-POST /chatbot/chat/
-{
-    "user_input": "What are the admission requirements?",
-    "stream": true
-}
-
 # Guided Chat
 POST /chatbot/chat/guided/
 {
     "user_input": "Tell me about BS IT fees",
     "action_type": "message",
     "action_data": null,
+    "session_id": "uuid-string"
+}
+
+# Topic Selection
+POST /chatbot/chat/guided/
+{
+    "user_input": "",
+    "action_type": "topic_selection",
+    "action_data": {"topic_id": "programs_courses"},
     "session_id": "uuid-string"
 }
 
@@ -847,6 +857,18 @@ Response: {
             "label": "Admissions & Enrollment",
             "description": "Learn about admissions and enrollment",
             "keywords": ["admission", "requirements", "application"]
+        },
+        {
+            "id": "programs_courses",
+            "label": "Programs & Courses",
+            "description": "Information about academic programs and curriculum",
+            "keywords": ["program", "course", "curriculum", "degree"]
+        },
+        {
+            "id": "fees_payments",
+            "label": "Fees & Payments",
+            "description": "Tuition fees and payment information",
+            "keywords": ["fees", "tuition", "payment", "cost"]
         }
     ]
 }
@@ -892,9 +914,10 @@ GET /chatbot/admin/download/{filename}/
 
 ### 3. **Guided Conversation Flow**
 
-- Topic-based conversation management
-- Context-aware document filtering
-- Session state management
+- Topic-based conversation management with structured interactions
+- Context-aware document filtering by topic
+- Session state management with dialogue history tracking
+- Multi-turn conversation continuity
 
 ### 4. **Advanced Document Processing**
 
@@ -915,4 +938,4 @@ GET /chatbot/admin/download/{filename}/
 - Folder hierarchy management
 - Document metadata editing
 
-This system provides a robust, scalable solution for university admissions support with advanced NLP capabilities and comprehensive document management.
+This guided conversation system provides a robust, scalable solution for university admissions support with advanced NLP capabilities, dialogue history tracking, and comprehensive document management through structured topic-based interactions.
