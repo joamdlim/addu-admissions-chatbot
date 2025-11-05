@@ -907,7 +907,7 @@
   },
 
   "priority_rules": {
-    "safe": "Always normalize - no context check needed (e.g., bscs, bsit, abeng)",
+    "safe": "Always normalize - no context check needed (e.g., bscs, bsit, abel)",
     "context_aware": "Normalize if program keywords are present nearby (e.g., cs, bio, math)",
     "context_required": "Only normalize with strong explicit program context (e.g., is, it, me)"
   },
