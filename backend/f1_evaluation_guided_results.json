@@ -1,0 +1,357 @@
+{
+  "typo_correction": {
+    "total_samples": 15,
+    "correct_predictions": 15,
+    "accuracy": 1.0,
+    "results": [
+      {
+        "input": "admision requirements",
+        "expected": "admission requirements",
+        "corrected": "admission requirements",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "tution fees",
+        "expected": "tuition fees",
+        "corrected": "tuition fees",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "aplication deadline",
+        "expected": "application deadline",
+        "corrected": "application deadline",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "scholarhip information",
+        "expected": "scholarship information",
+        "corrected": "scholarship information",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "enrollmnt process",
+        "expected": "enrollment process",
+        "corrected": "enrollment process",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "comuter science progam",
+        "expected": "computer science program",
+        "corrected": "computer science program",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "enginerring cours",
+        "expected": "engineering course",
+        "corrected": "engineering course",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "nursng curriculum",
+        "expected": "nursing curriculum",
+        "corrected": "nursing curriculum",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "busines program",
+        "expected": "business program",
+        "corrected": "business program",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "informaton technology",
+        "expected": "information technology",
+        "corrected": "Information technology",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "paymet plans",
+        "expected": "payment plans",
+        "corrected": "payment plans",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "finacial aid",
+        "expected": "financial aid",
+        "corrected": "financial aid",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "semster fees",
+        "expected": "semester fees",
+        "corrected": "semester fees",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "anual cost",
+        "expected": "annual cost",
+        "corrected": "annual cost",
+        "similarity": 1.0,
+        "correct": true
+      },
+      {
+        "input": "installement options",
+        "expected": "installment options",
+        "corrected": "installation options",
+        "similarity": 0.8205128205128205,
+        "correct": true
+      }
+    ]
+  },
+  "word_prediction": {
+    "total_samples": 15,
+    "correct_predictions": 7,
+    "accuracy": 0.4666666666666667,
+    "results": [
+      {
+        "input": "admission",
+        "expected_words": [
+          "requirements",
+          "process",
+          "deadline",
+          "office",
+          "application"
+        ],
+        "predictions": [
+          "process application",
+          "process application"
+        ],
+        "correct": true
+      },
+      {
+        "input": "scholarship",
+        "expected_words": [
+          "information",
+          "requirements",
+          "application",
+          "eligibility",
+          "program"
+        ],
+        "predictions": [
+          "\"Merit",
+          "\"Merit"
+        ],
+        "correct": false
+      },
+      {
+        "input": "financial",
+        "expected_words": [
+          "aid",
+          "assistance",
+          "support",
+          "help",
+          "options"
+        ],
+        "predictions": [
+          "aid",
+          "aid package"
+        ],
+        "correct": true
+      },
+      {
+        "input": "transfer",
+        "expected_words": [
+          "student",
+          "credits",
+          "evaluation",
+          "requirements",
+          "process"
+        ],
+        "predictions": [
+          "credits",
+          "credits"
+        ],
+        "correct": true
+      },
+      {
+        "input": "international",
+        "expected_words": [
+          "student",
+          "requirements",
+          "admission",
+          "visa",
+          "documents"
+        ],
+        "predictions": [
+          "student",
+          "student"
+        ],
+        "correct": true
+      },
+      {
+        "input": "computer science",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "predictions": [
+          "major in",
+          "major in"
+        ],
+        "correct": false
+      },
+      {
+        "input": "engineering",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "predictions": [
+          "\"School of",
+          "\"School of"
+        ],
+        "correct": false
+      },
+      {
+        "input": "nursing",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "predictions": [
+          "\"Master of",
+          "\"Master of"
+        ],
+        "correct": false
+      },
+      {
+        "input": "business",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "predictions": [
+          "administration",
+          "administration"
+        ],
+        "correct": false
+      },
+      {
+        "input": "first year",
+        "expected_words": [
+          "courses",
+          "subjects",
+          "curriculum",
+          "program",
+          "schedule"
+        ],
+        "predictions": [
+          "students experience",
+          "students typically"
+        ],
+        "correct": false
+      },
+      {
+        "input": "tuition",
+        "expected_words": [
+          "fees",
+          "cost",
+          "payment",
+          "price",
+          "amount"
+        ],
+        "predictions": [
+          "costs fees",
+          "fees"
+        ],
+        "correct": true
+      },
+      {
+        "input": "payment",
+        "expected_words": [
+          "plan",
+          "method",
+          "schedule",
+          "options",
+          "deadline"
+        ],
+        "predictions": [
+          "tuition fee",
+          "tuition fee"
+        ],
+        "correct": false
+      },
+      {
+        "input": "semester",
+        "expected_words": [
+          "fees",
+          "cost",
+          "payment",
+          "tuition",
+          "breakdown"
+        ],
+        "predictions": [
+          "academic term",
+          "'fall semester"
+        ],
+        "correct": false
+      },
+      {
+        "input": "annual",
+        "expected_words": [
+          "cost",
+          "fees",
+          "tuition",
+          "payment",
+          "amount"
+        ],
+        "predictions": [
+          "tuition fee",
+          "tuition fee"
+        ],
+        "correct": true
+      },
+      {
+        "input": "installment",
+        "expected_words": [
+          "plan",
+          "payment",
+          "options",
+          "schedule",
+          "terms"
+        ],
+        "predictions": [
+          "Tuition payment",
+          "Tuition payment"
+        ],
+        "correct": true
+      }
+    ]
+  },
+  "f1_metrics": {
+    "precision": 1.0,
+    "recall": 0.7333333333333333,
+    "f1_score": 0.8461538461538461,
+    "total_samples": 30,
+    "correct_predictions": 22,
+    "typo_accuracy": 1.0,
+    "prediction_accuracy": 0.4666666666666667
+  },
+  "target_f1": 0.7,
+  "target_achieved": true
+}

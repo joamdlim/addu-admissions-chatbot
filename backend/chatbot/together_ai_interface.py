@@ -188,7 +188,7 @@ def stream_response(prompt: str, max_tokens: int = 1024) -> str:
 
 def correct_typos(text: str) -> str:
     """Correct typos in the input text using Together AI"""
-    prompt = f"Correct typos: \"{text}\"\nCorrected:"
+    prompt = f"Fix typos in this text and return ONLY the corrected version with no extra words or explanations: {text}"
     
     messages = [{"role": "user", "content": prompt}]
     
@@ -215,7 +215,7 @@ def predict_next_words(text: str, num_suggestions: int = 2) -> List[str]:
     
     try:
         for i in range(min(num_suggestions, 2)):
-            messages = [{"role": "user", "content": f"Complete this text: {text}"}]
+            messages = [{"role": "user", "content": f"Complete this university admissions phrase with ONLY 1-2 relevant words: '{text}'"}]
             
             response = client.chat.completions.create(
                 model=TOGETHER_CONFIG["model"],

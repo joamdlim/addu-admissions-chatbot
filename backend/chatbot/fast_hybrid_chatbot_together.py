@@ -7320,6 +7320,20 @@ This will ensure you get the most relevant and up-to-date information for your q
                 for doc in relevant_docs[:dynamic_top_k]
             ])
             
+            # Build history context for conversation continuity
+            history_context = ""
+            if self.dialogue_history:
+                # Calculate available token budget for history
+                base_prompt_estimate = f"System instructions + Context: {doc_context} + Query: {enhanced_query}"
+                base_tokens = len(base_prompt_estimate.split())
+                available_for_history = 3500 - base_tokens  # Conservative token limit
+                
+                # Use smart history building
+                history_context = self.build_smart_history_context(query, available_for_history)
+                print(f"📜 Built history context: {len(history_context)} chars (~{len(history_context.split())} tokens)")
+            else:
+                history_context = ""
+            
             # Build prompt with topic context and specialized instructions
             topic_info = get_topic_info(topic_id)
             topic_label = topic_info.get('label', topic_id) if topic_info else topic_id
@@ -7360,6 +7374,8 @@ CONTEXT MATCHING:
 <|context|>
 {doc_context}
 </|context|>
+
+{history_context}
 
 <|user|>
 {enhanced_query}

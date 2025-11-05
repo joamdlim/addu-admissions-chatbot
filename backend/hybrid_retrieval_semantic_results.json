@@ -1,0 +1,1418 @@
+{
+  "results": [
+    {
+      "query_id": 1,
+      "query": "What are the admission requirements for first-year students?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "admission_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6925545326496194,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.46277266324809646,
+        "avg_tfidf_score": 0.056862745098039215,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 5,
+        "semantic_category": "admission_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 10.564605474472046
+    },
+    {
+      "query_id": 2,
+      "query": "How do I apply for scholarships and financial aid?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "financial_assistance",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.703111640542808,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.5155582027140387,
+        "avg_tfidf_score": 0.029411764705882356,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 5,
+        "semantic_category": "financial_assistance",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 23.66395616531372
+    },
+    {
+      "query_id": 3,
+      "query": "What documents do transfer students need to submit?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "transfer_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6913148925292205,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.4565744626461024,
+        "avg_tfidf_score": 0.059150326797385626,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 5,
+        "semantic_category": "transfer_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 16.48725914955139
+    },
+    {
+      "query_id": 4,
+      "query": "When is the application deadline for international students?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "international_admission",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.68698916249899,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.43494581249494874,
+        "avg_tfidf_score": 0.056862745098039215,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "international_admission",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 14.184818506240845
+    },
+    {
+      "query_id": 5,
+      "query": "How do I enroll as a returning student?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "returning_student",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6961913382448512,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.4809566912242557,
+        "avg_tfidf_score": 0.0630718954248366,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "returning_student",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 17.413166761398315
+    },
+    {
+      "query_id": 6,
+      "query": "What are the eligibility criteria for merit scholarships?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "scholarship_eligibility",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.4822149560892321,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.41107478044616,
+        "avg_tfidf_score": 0.029411764705882356,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "scholarship_eligibility",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 21.714319229125977
+    },
+    {
+      "query_id": 7,
+      "query": "Can I get financial assistance for my studies?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "financial_assistance",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5764547061259349,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.38227353062967334,
+        "avg_tfidf_score": 0.046405228758169936,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "financial_assistance",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 11.762577533721924
+    },
+    {
+      "query_id": 8,
+      "query": "What is the process for graduate school admission?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "graduate_admission",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.680385620423704,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.4019281021185194,
+        "avg_tfidf_score": 0.048039215686274506,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "graduate_admission",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 14.720617294311523
+    },
+    {
+      "query_id": 9,
+      "query": "How do I submit my high school transcripts?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "document_submission",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6045692079876617,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.8,
+        "avg_semantic_score": 0.42284603993830716,
+        "avg_tfidf_score": 0.0630718954248366,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "document_submission",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 21.51776671409607
+    },
+    {
+      "query_id": 10,
+      "query": "What are the requirements for student visa application?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "visa_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.7127067041064818,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.5635335205324085,
+        "avg_tfidf_score": 0.0542483660130719,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 5,
+        "semantic_category": "visa_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 38.850629568099976
+    },
+    {
+      "query_id": 11,
+      "query": "Is there need-based financial aid available?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "financial_assistance",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.565433288258362,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.3271664412918082,
+        "avg_tfidf_score": 0.05032679738562091,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "financial_assistance",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 15.746372699737549
+    },
+    {
+      "query_id": 12,
+      "query": "How do I check my admission status?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "admission_status",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "admission_status",
+        "retrieved_count": 0
+      },
+      "retrieved_docs": 0,
+      "response_time": 0.4526069164276123
+    },
+    {
+      "query_id": 13,
+      "query": "What are the English proficiency requirements?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "language_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.464998045046959,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.3249902252347949,
+        "avg_tfidf_score": 0.06045751633986928,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "language_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 11.337049961090088
+    },
+    {
+      "query_id": 14,
+      "query": "Can I defer my admission to next semester?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "admission_deferral",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "admission_deferral",
+        "retrieved_count": 0
+      },
+      "retrieved_docs": 0,
+      "response_time": 3.42405104637146
+    },
+    {
+      "query_id": 15,
+      "query": "What is the minimum GPA requirement for admission?",
+      "expected_topics": [
+        "admissions_enrollment"
+      ],
+      "semantic_category": "academic_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.573945355797495,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.36972677898747414,
+        "avg_tfidf_score": 0.0542483660130719,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "academic_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 46.42235517501831
+    },
+    {
+      "query_id": 16,
+      "query": "What is the Computer Science curriculum?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_curriculum",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.693857762605559,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.4692888130277946,
+        "avg_tfidf_score": 0.5480555555555555,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "program_curriculum",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 37.43440079689026
+    },
+    {
+      "query_id": 17,
+      "query": "Tell me about the Engineering programs offered",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_information",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "program_information",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 27.884132385253906
+    },
+    {
+      "query_id": 18,
+      "query": "What subjects are taught in first year Nursing?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_curriculum",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "program_curriculum",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 23.147467374801636
+    },
+    {
+      "query_id": 19,
+      "query": "How many years is the Business Administration program?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_duration",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 0.64,
+        "topic_relevance": 1.0,
+        "keyword_relevance": 0.6,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 1,
+        "keyword_matches": 3,
+        "semantic_category": "program_duration",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 5.468330144882202
+    },
+    {
+      "query_id": 20,
+      "query": "What are the major subjects in Psychology?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_curriculum",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "program_curriculum",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 37.82558035850525
+    },
+    {
+      "query_id": 21,
+      "query": "Is there an Information Technology degree program?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_availability",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.3644045818282646,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.3220229091413232,
+        "avg_tfidf_score": 0.5222666666666667,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 3,
+        "semantic_category": "program_availability",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 55.61679768562317
+    },
+    {
+      "query_id": 22,
+      "query": "What are the clinical requirements for Nursing students?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.3587806569679597,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.25,
+        "avg_semantic_score": 0.2939032848397966,
+        "avg_tfidf_score": 0.31555555555555553,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 1,
+        "semantic_category": "program_requirements",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 69.47549939155579
+    },
+    {
+      "query_id": 23,
+      "query": "Which programs are available in the School of Medicine?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_information",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.2465676738535527,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.23283836926776297,
+        "avg_tfidf_score": 0.4262222222222222,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 2,
+        "semantic_category": "program_information",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 22.19279932975769
+    },
+    {
+      "query_id": 24,
+      "query": "What mathematics courses are required for Engineering?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.157488112156732,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 0.25,
+        "avg_semantic_score": 0.2874405607836614,
+        "avg_tfidf_score": 0.41622222222222227,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 1,
+        "semantic_category": "program_requirements",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 29.575846910476685
+    },
+    {
+      "query_id": 25,
+      "query": "How many units is the Computer Science program?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_details",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.7058233062422077,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.5291165312110385,
+        "avg_tfidf_score": 0.5453846153846155,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "program_details",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 48.57063817977905
+    },
+    {
+      "query_id": 26,
+      "query": "What are the internship requirements for Business students?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_requirements",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "program_requirements",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 24.71218490600586
+    },
+    {
+      "query_id": 27,
+      "query": "Are there online courses available?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "course_delivery",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.0536110429212973,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0.26805521460648574,
+        "avg_tfidf_score": 0.316,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 0,
+        "semantic_category": "course_delivery",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 17.858182668685913
+    },
+    {
+      "query_id": 28,
+      "query": "What is the curriculum for second year IT students?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_curriculum",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5818817588196232,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.8,
+        "avg_semantic_score": 0.3094087940981152,
+        "avg_tfidf_score": 0.5515384615384615,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "program_curriculum",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 33.70171928405762
+    },
+    {
+      "query_id": 29,
+      "query": "Which programs have the most laboratory work?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_characteristics",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.444526124842766,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.22263062421383153,
+        "avg_tfidf_score": 0.4008571428571429,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 3,
+        "semantic_category": "program_characteristics",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 40.460535764694214
+    },
+    {
+      "query_id": 30,
+      "query": "What are the thesis requirements for graduating students?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "graduation_requirements",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "graduation_requirements",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 25.91323947906494
+    },
+    {
+      "query_id": 31,
+      "query": "Are there summer classes for Engineering programs?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "course_scheduling",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.4610087519798127,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.30504375989906296,
+        "avg_tfidf_score": 0.31,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "course_scheduling",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 23.07761240005493
+    },
+    {
+      "query_id": 32,
+      "query": "What programming languages are taught in Computer Science?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_curriculum",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5821487608236986,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.8,
+        "avg_semantic_score": 0.31074380411849173,
+        "avg_tfidf_score": 0.5186666666666667,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "program_curriculum",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 31.085774421691895
+    },
+    {
+      "query_id": 33,
+      "query": "How many semesters is the Nursing program?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_duration",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.4723863332244227,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.361931666122113,
+        "avg_tfidf_score": 0.555,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "program_duration",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 52.52688717842102
+    },
+    {
+      "query_id": 34,
+      "query": "What are the prerequisites for advanced courses?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "course_requirements",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 2.3358016954816665,
+        "topic_relevance": 5.0,
+        "keyword_relevance": 0.6666666666666666,
+        "avg_semantic_score": 0.3456751440749987,
+        "avg_tfidf_score": 0.519090909090909,
+        "hybrid_used": true,
+        "topic_matches": 5,
+        "keyword_matches": 2,
+        "semantic_category": "course_requirements",
+        "retrieved_count": 5
+      },
+      "retrieved_docs": 5,
+      "response_time": 40.99528884887695
+    },
+    {
+      "query_id": 35,
+      "query": "Which degree programs offer double major options?",
+      "expected_topics": [
+        "programs_courses"
+      ],
+      "semantic_category": "program_options",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "program_options",
+        "retrieved_count": 1
+      },
+      "retrieved_docs": 1,
+      "response_time": 14.116905689239502
+    },
+    {
+      "query_id": 36,
+      "query": "What are the tuition fees for Engineering programs?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "program_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6414569945929935,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.7072849729649663,
+        "avg_tfidf_score": 0.3954166666666667,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "program_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 53.01834297180176
+    },
+    {
+      "query_id": 37,
+      "query": "How much does it cost to study Computer Science?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "program_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.642718726863113,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.8,
+        "avg_semantic_score": 0.6135936343155635,
+        "avg_tfidf_score": 0.4781818181818182,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "program_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 13.050323247909546
+    },
+    {
+      "query_id": 38,
+      "query": "Are there payment plans available for tuition?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "payment_options",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.4824738008556975,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.4123690042784869,
+        "avg_tfidf_score": 0.4940740740740741,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "payment_options",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 18.477340698242188
+    },
+    {
+      "query_id": 39,
+      "query": "What are the miscellaneous fees for students?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "additional_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.570933933615058,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.6666666666666666,
+        "avg_semantic_score": 0.5213363347419564,
+        "avg_tfidf_score": 0.36999999999999994,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "additional_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 19.220776557922363
+    },
+    {
+      "query_id": 40,
+      "query": "How much are the laboratory fees for Nursing?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "specific_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.602512743791986,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.6666666666666666,
+        "avg_semantic_score": 0.6792303856265954,
+        "avg_tfidf_score": 0.4854545454545455,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "specific_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 10.786686897277832
+    },
+    {
+      "query_id": 41,
+      "query": "What payment methods are accepted by the university?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "payment_methods",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6149026151842216,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.5745130759211067,
+        "avg_tfidf_score": 0.4876666666666667,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "payment_methods",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 14.687691688537598
+    },
+    {
+      "query_id": 42,
+      "query": "Is there a discount for early payment of fees?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "payment_discounts",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6809805446285602,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.40490272314279996,
+        "avg_tfidf_score": 0.3962962962962963,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "payment_discounts",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 7.859734535217285
+    },
+    {
+      "query_id": 43,
+      "query": "What is the total cost for a 4-year program?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "total_program_cost",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5665951998063397,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.33297599903169667,
+        "avg_tfidf_score": 0.5233333333333333,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "total_program_cost",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 67.96102905273438
+    },
+    {
+      "query_id": 44,
+      "query": "Are there additional fees for international students?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "international_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.4895353926085073,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.44767696304253596,
+        "avg_tfidf_score": 0.28259259259259256,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "international_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 11.367412567138672
+    },
+    {
+      "query_id": 45,
+      "query": "How much is the enrollment fee?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "enrollment_fees",
+      "evaluation": {
+        "is_relevant": false,
+        "overall_relevance": 0.0,
+        "topic_relevance": 0.0,
+        "keyword_relevance": 0.0,
+        "avg_semantic_score": 0,
+        "avg_tfidf_score": 0,
+        "hybrid_used": false,
+        "topic_matches": 0,
+        "keyword_matches": 0,
+        "semantic_category": "enrollment_fees",
+        "retrieved_count": 0
+      },
+      "retrieved_docs": 0,
+      "response_time": 0.7389051914215088
+    },
+    {
+      "query_id": 46,
+      "query": "What are the fees for summer classes?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "summer_fees",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6963270201566576,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 1.0,
+        "avg_semantic_score": 0.4816351007832877,
+        "avg_tfidf_score": 0.5028571428571428,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "summer_fees",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 48.92908334732056
+    },
+    {
+      "query_id": 47,
+      "query": "Can I pay my tuition in installments?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "payment_options",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6084675485714957,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.6666666666666666,
+        "avg_semantic_score": 0.7090044095241447,
+        "avg_tfidf_score": 0.49333333333333335,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "payment_options",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 17.806630849838257
+    },
+    {
+      "query_id": 48,
+      "query": "What is the refund policy for tuition fees?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "refund_policy",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5378423593842907,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.5,
+        "avg_semantic_score": 0.689211796921453,
+        "avg_tfidf_score": 0.5025185185185185,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 2,
+        "semantic_category": "refund_policy",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 47.746281147003174
+    },
+    {
+      "query_id": 49,
+      "query": "Are there any hidden costs in the program fees?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "fee_transparency",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.5872855634066634,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.75,
+        "avg_semantic_score": 0.43642781703331573,
+        "avg_tfidf_score": 0.27925925925925926,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 3,
+        "semantic_category": "fee_transparency",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 20.302830457687378
+    },
+    {
+      "query_id": 50,
+      "query": "What banks support online payment for fees?",
+      "expected_topics": [
+        "fees"
+      ],
+      "semantic_category": "payment_methods",
+      "evaluation": {
+        "is_relevant": true,
+        "overall_relevance": 1.6022901272436463,
+        "topic_relevance": 3.0,
+        "keyword_relevance": 0.8,
+        "avg_semantic_score": 0.4114506362182304,
+        "avg_tfidf_score": 0.5195238095238095,
+        "hybrid_used": true,
+        "topic_matches": 3,
+        "keyword_matches": 4,
+        "semantic_category": "payment_methods",
+        "retrieved_count": 3
+      },
+      "retrieved_docs": 3,
+      "response_time": 10.799072504043579
+    }
+  ],
+  "metrics": {
+    "precision": 1.0,
+    "recall": 0.82,
+    "f1_score": 0.9010989010989011,
+    "accuracy": 0.82,
+    "target_f1": 0.7,
+    "target_achieved": true
+  },
+  "category_results": {
+    "admission_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "financial_assistance": {
+      "correct": 3,
+      "total": 3
+    },
+    "transfer_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "international_admission": {
+      "correct": 1,
+      "total": 1
+    },
+    "returning_student": {
+      "correct": 1,
+      "total": 1
+    },
+    "scholarship_eligibility": {
+      "correct": 1,
+      "total": 1
+    },
+    "graduate_admission": {
+      "correct": 1,
+      "total": 1
+    },
+    "document_submission": {
+      "correct": 1,
+      "total": 1
+    },
+    "visa_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "admission_status": {
+      "correct": 0,
+      "total": 1
+    },
+    "language_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "admission_deferral": {
+      "correct": 0,
+      "total": 1
+    },
+    "academic_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "program_curriculum": {
+      "correct": 3,
+      "total": 5
+    },
+    "program_information": {
+      "correct": 1,
+      "total": 2
+    },
+    "program_duration": {
+      "correct": 2,
+      "total": 2
+    },
+    "program_availability": {
+      "correct": 1,
+      "total": 1
+    },
+    "program_requirements": {
+      "correct": 2,
+      "total": 3
+    },
+    "program_details": {
+      "correct": 1,
+      "total": 1
+    },
+    "course_delivery": {
+      "correct": 1,
+      "total": 1
+    },
+    "program_characteristics": {
+      "correct": 1,
+      "total": 1
+    },
+    "graduation_requirements": {
+      "correct": 0,
+      "total": 1
+    },
+    "course_scheduling": {
+      "correct": 1,
+      "total": 1
+    },
+    "course_requirements": {
+      "correct": 1,
+      "total": 1
+    },
+    "program_options": {
+      "correct": 0,
+      "total": 1
+    },
+    "program_fees": {
+      "correct": 2,
+      "total": 2
+    },
+    "payment_options": {
+      "correct": 2,
+      "total": 2
+    },
+    "additional_fees": {
+      "correct": 1,
+      "total": 1
+    },
+    "specific_fees": {
+      "correct": 1,
+      "total": 1
+    },
+    "payment_methods": {
+      "correct": 2,
+      "total": 2
+    },
+    "payment_discounts": {
+      "correct": 1,
+      "total": 1
+    },
+    "total_program_cost": {
+      "correct": 1,
+      "total": 1
+    },
+    "international_fees": {
+      "correct": 1,
+      "total": 1
+    },
+    "enrollment_fees": {
+      "correct": 0,
+      "total": 1
+    },
+    "summer_fees": {
+      "correct": 1,
+      "total": 1
+    },
+    "refund_policy": {
+      "correct": 1,
+      "total": 1
+    },
+    "fee_transparency": {
+      "correct": 1,
+      "total": 1
+    }
+  },
+  "total_queries": 50,
+  "relevant_predictions": 41,
+  "y_true": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "y_pred": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    0,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1
+  ]
+}

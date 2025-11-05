@@ -1,0 +1,1398 @@
+{
+  "test_results": [
+    {
+      "session_id": "history_test_1",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What is the Computer Science curriculum?",
+          "response": "## Bachelor of Science in Computer Science (BS CS)\n\n### Year 1 Curriculum\n\n#### First Semester (27.0 CU)\n\n* **ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 1** (3.0 CU)\n* **ASF 1000 - ARRUPE SOCIAL FORMATION 0** (2.0 CU)\n* **ASF 1101 - ARRUPE SOCIAL FORMATION 1** (2.0 CU)\n* **GE 1105 - UNDERSTANDING THE SELF** (3.0 CU)\n* **GE 1106 - PURPOSIVE COMMUNICATION** (3.0 CU)\n* **Philo 1000 - PHILOSOPHY** (3.0 CU)\n* **GE 1108 - MATHEMATICS IN THE MODERN WORLD** (3.0 CU)\n* **PE 1114 - PATH-FIT I** (2.0 CU)\n* **CS 1130 - INTRODUCTION TO COMPUTING** (3.0 CU)\n* **CS 1131 - COMPUTER PROGRAMMING 1** (3.0 CU)\n\n#### Second Semester (23.0 CU)\n\n* **GE 1210 - READINGS IN PHILIPPINE HISTORY** (3.0 CU)\n* **GE 1211 - THE CONTEMPORARY WORLD** (3.0 CU)\n* **Theo 1000 - THEOLOGY** (3.0 CU)\n* **ASF 1203 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 2** (3.0 CU)\n* **PE 1215 - PATH-FIT II** (2.0 CU)\n* **GE 1212 - SCIENCE, TECHNOLOGY AND SOCIETY** (3.0 CU)\n* **CS 1232 - DISCRETE STRUCTURES 1** (3.0 CU)\n* **CS 1233 - COMPUTER PROGRAMMING 2** (3.0 CU)\n\n#### Summer (6.0 CU)\n\n* **CS 1334 - DISCRETE STRUCTURES 2** (3.0 CU)\n* **MATH 1368 - COLLEGE TRIGONOMETRY** (3.0 CU)\n\nFor more information about the curriculum of the program, head to this link: [Bachelor of Science in Computer Science PDF](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Computer-Science.pdf)",
+          "context_keywords": [
+            "computer",
+            "science",
+            "curriculum",
+            "program"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What about first year?",
+          "response": "## Bachelor of Science in Computer Science (BS CS)\n\n### Year 1 Curriculum\n\n#### First Semester (27.0 CU)\n\n* **ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 1** (3.0 CU)\n* **ASF 1000 - ARRUPE SOCIAL FORMATION 0** (2.0 CU)\n* **ASF 1101 - ARRUPE SOCIAL FORMATION 1** (2.0 CU)\n* **GE 1105 - UNDERSTANDING THE SELF** (3.0 CU)\n* **GE 1106 - PURPOSIVE COMMUNICATION** (3.0 CU)\n* **Philo 1000 - PHILOSOPHY** (3.0 CU)\n* **GE 1108 - MATHEMATICS IN THE MODERN WORLD** (3.0 CU)\n* **PE 1114 - PATH-FIT I** (2.0 CU)\n* **CS 1130 - INTRODUCTION TO COMPUTING** (3.0 CU)\n* **CS 1131 - COMPUTER PROGRAMMING 1** (3.0 CU)\n\n#### Second Semester (23.0 CU)\n\n* **GE 1210 - READINGS IN PHILIPPINE HISTORY** (3.0 CU)\n* **GE 1211 - THE CONTEMPORARY WORLD** (3.0 CU)\n* **Theo 1000 - THEOLOGY** (3.0 CU)\n* **ASF 1203 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 2** (3.0 CU)\n* **PE 1215 - PATH-FIT II** (2.0 CU)\n* **GE 1212 - SCIENCE, TECHNOLOGY AND SOCIETY** (3.0 CU)\n* **CS 1232 - DISCRETE STRUCTURES 1** (3.0 CU)\n* **CS 1233 - COMPUTER PROGRAMMING 2** (3.0 CU)\n\n#### Summer (6.0 CU)\n\n* **CS 1334 - DISCRETE STRUCTURES 2** (3.0 CU)\n* **MATH 1368 - COLLEGE TRIGONOMETRY** (3.0 CU)\n\nFor more information about the curriculum of the program, head to this link: [Bachelor of Science in Computer Science PDF](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Computer-Science.pdf)",
+          "expected_context": [
+            "computer",
+            "science",
+            "first",
+            "year"
+          ],
+          "context_test": "Should understand 'first year' refers to Computer Science first year",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0011541044050774418,
+            "dialogue_history_score": 0.8002308208810155,
+            "context_matches": [
+              "computer",
+              "science",
+              "first",
+              "year"
+            ],
+            "previous_context_matches": [
+              "world",
+              "1101",
+              "link",
+              "theology",
+              "communication",
+              "purposive",
+              "1233",
+              "1215",
+              "programming",
+              "trigonometry",
+              "science",
+              "college",
+              "contemporary",
+              "program",
+              "2.0",
+              "1130",
+              "mathematics",
+              "this",
+              "arrupe",
+              "https",
+              "second",
+              "1210",
+              "training",
+              "computing",
+              "national",
+              "self",
+              "//www.addu.edu.ph/wp-content/uploads/2020/06/bachelor-of-science-in-computer-science.pdf",
+              "1212",
+              "1000",
+              "23.0",
+              "27.0",
+              "computer",
+              "philo",
+              "philippine",
+              "formation",
+              "summer",
+              "1105",
+              "philosophy",
+              "head",
+              "service",
+              "understanding",
+              "1211",
+              "math",
+              "1203",
+              "1368",
+              "1232",
+              "welfare",
+              "1131",
+              "1108",
+              "first",
+              "readings",
+              "pdf",
+              "theo",
+              "year",
+              "society",
+              "modern",
+              "about",
+              "curriculum",
+              "structures",
+              "civic",
+              "discrete",
+              "3.0",
+              "social",
+              "introduction",
+              "1106",
+              "technology",
+              "1334",
+              "history",
+              "information",
+              "semester",
+              "bachelor",
+              "1114",
+              "1102",
+              "path-fit",
+              "more",
+              "6.0",
+              "asf"
+            ],
+            "response_length": 389
+          },
+          "dialogue_history_score": 0.8002308208810155
+        },
+        {
+          "exchange": 3,
+          "query": "How many subjects are there?",
+          "response": "I don't have information about the BS CS curriculum courses in my knowledge base. For the most current and detailed curriculum information, please contact our admissions office or check our official program list.",
+          "expected_context": [
+            "computer",
+            "science",
+            "first",
+            "year",
+            "subjects"
+          ],
+          "context_test": "Should understand 'subjects' refers to CS first year subjects",
+          "scores": {
+            "context_coverage": 0.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0,
+            "dialogue_history_score": 0.3,
+            "context_matches": [],
+            "previous_context_matches": [
+              "curriculum",
+              "program",
+              "about",
+              "information"
+            ],
+            "response_length": 37
+          },
+          "dialogue_history_score": 0.3
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.8002308208810155,
+        0.3
+      ],
+      "average_dialogue_history_score": 0.7000769402936718,
+      "exchange_count": 3
+    },
+    {
+      "session_id": "history_test_2",
+      "topic": "admissions_enrollment",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What are the admission requirements for transfer students?",
+          "response": "## Admission Requirements for Transfer Students\n\nThe admission requirements for transfer students are as follows:\n\n### Documents to Submit\n\n* **Transfer Credentials** or **Honorable Dismissal**\n* **Original Transcript of Records** or **Certified Academic Records** for evaluation\n* **Certificate of Good Moral Character**\n* **PSA-authenticated Birth Certificate**\n* **Four recent 1\u201d x 1\u201d ID photos**\n* **A copy of the Description and Syllabus of courses already taken**\n* **Photocopies of the Marriage Contract** (for married students)\n\n### Additional Requirements\n\n* For Non-Filipino applicants, kindly approach the **International Student\u2019s Section**.\n\n## Enrollment Process for Transfer Students\n\n1. **Submit four sets of enrollment documents** to the Transfer Students Counter at Room J301, Third Floor, Jubilee Hall.\n2. **Secure the Transfer Students Admission Form (Form 20TR)**.\n3. **Fill out Form 20 TR** in any of the rooms provided for this purpose.\n4. **Pay the Cashier (Finance Office)** the nonrefundable processing and application fee.\n5. **Present your accomplished Form 20TR** to the Transfer Student Counter Officer.\n6. **Proceed to your Department** for the essay and the interview. Secure your printout, which contains your class schedule and enrolment assessment.\n7. **Pay the Cashier (Finance Office)** the necessary fees. Claim your Official Receipt and your printout with the stamp \u201cEnrolled.\u201d \n8. **Bring photocopies of your NOA and High School Report Card** and one 1\u201d x 1\u201d photo to the Guidance Office, Ground Floor, Wieman Hall. \n9. **Proceed to the Enrolment Area of the Office of Student Affairs** for your official school I.D. and the school uniform design sheet. Submit one 1\u201d x 1\u201d ID photo, and claim your OSA Kit.",
+          "context_keywords": [
+            "transfer",
+            "students",
+            "admission",
+            "requirements"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What documents do they need?",
+          "response": "## Documents Needed for Admission\n\nThe required documents vary depending on the student type.\n\n### For New Students (First-Year Students)\n\n* PSA-authenticated Birth Certificate\n* Grade 12 Senior High School (SHS) Report Card\n* Good Moral Certificate\n* Laboratory Test Results:\n  * CBC (Complete Blood Count) with 1-month validity\n  * Urinalysis with 1-month validity\n  * Chest X-Ray with 6-month validity\n\n### For Transfer Students\n\n* Original Honorable Dismissal\n* Original Certificate of Good Moral\n* Original Transcript of Records (for evaluation)\n* PSA Birth Certificate\n* Laboratory Test Results:\n  * CBC & Urinalysis (1-month validity)\n  * Chest X-ray (6-month validity)\n\n### For International Students\n\n* Original Notice of Acceptance (NOA) from the Admissions Director\n* Original Senior High School Report Card, SF 9 (For FS who graduated SHS in Philippines) or Apostilled/Authenticated School Records or Grades, Diploma, Certificate of Finance, Birth Certificate, and Police Clearance by the Philippine Embassy at the foreign student\u2019s country of origin\n* Certificate of Good Moral Character (for foreign students who studied in Philippine schools/universities)\n* Three (3) 1 x 1 and Four (4) 2 x 2 colored photos\n* Medical Certificate from the University Clinic\n* Valid passport, valid I-card, and valid visa - if any\n* One (1) copy of Notarized General Parents\u2019 Consent signed by parents or Legal Guardian (forms, c/o Admissions Office)\n* Signed Data Privacy Provision\n* Personal History Statement\n\n### For Returnees\n\n* Updated Transcript of Records\n* Clearance from their former Department\n* Recommendation Letters from:\n  * Program Coordinator/Director\n  * Guidance Counselor/Director\n  * OSA Director\n  * FYDP Facilitator or ASF Formator/Former Teacher\n* Leave of Absence form\n\n### For Audit Students\n\n* Application\n* Interview\n* Application fee\n* Payment of necessary fees as determined by the Office of the Treasurer\n* Other documents as the Admission Director may require\n* For Non-Filipino applicants: a special Study Permit (SSP) from the Bureau of Immigration; photocopy of passport where the applicant\u2019s name, photo, visa and authorized stay in the Philippines appear.",
+          "expected_context": [
+            "transfer",
+            "students",
+            "documents",
+            "requirements"
+          ],
+          "context_test": "Should understand 'they' refers to transfer students",
+          "scores": {
+            "context_coverage": 0.75,
+            "continuity_score": 1.0,
+            "bleu_score": 0.001063041742278498,
+            "dialogue_history_score": 0.6752126083484558,
+            "context_matches": [
+              "transfer",
+              "students",
+              "documents"
+            ],
+            "previous_context_matches": [
+              "photos",
+              "four",
+              "office",
+              "guidance",
+              "students",
+              "copy",
+              "transfer",
+              "necessary",
+              "honorable",
+              "high",
+              "moral",
+              "form",
+              "dismissal",
+              "birth",
+              "character",
+              "with",
+              "certificate",
+              "evaluation",
+              "report",
+              "fees",
+              "international",
+              "admission",
+              "photo",
+              "application",
+              "records",
+              "osa",
+              "transcript",
+              "psa-authenticated",
+              "noa",
+              "documents",
+              "department",
+              "student",
+              "fee",
+              "original",
+              "interview",
+              "non-filipino",
+              "finance",
+              "card",
+              "school",
+              "good",
+              "applicants",
+              "any",
+              "one"
+            ],
+            "response_length": 393
+          },
+          "dialogue_history_score": 0.6752126083484558
+        },
+        {
+          "exchange": 3,
+          "query": "When should they apply?",
+          "response": "## When to Apply for a Student Visa\n\nInternational students should apply for a student visa immediately after receiving the official confirmation email from Ateneo de Davao University, declaring their admitted status.\n\n## Step-by-Step Process\n\n1. **Receive Admission Confirmation**: Get the official confirmation email from Ateneo de Davao University.\n2. **Email the AIM Office**: Send an email to the Ateneo Internationalization for Mindanao (AIM) Office at [international@addu.edu.ph](mailto:international@addu.edu.ph) requesting to file for a visa application.\n\n## Important Notes\n\n* International students currently residing in their home countries are not required to apply for a student visa.\n* A visa is only needed if the applicant is physically present and pursuing education in the Philippines.\n* Students must not leave the country for at least one (1) month until a decision regarding their immigration is reached.",
+          "expected_context": [
+            "transfer",
+            "students",
+            "apply",
+            "deadline"
+          ],
+          "context_test": "Should maintain transfer student context for application timing",
+          "scores": {
+            "context_coverage": 0.5,
+            "continuity_score": 1.0,
+            "bleu_score": 0.001247662851498219,
+            "dialogue_history_score": 0.5502495325702997,
+            "context_matches": [
+              "students",
+              "apply"
+            ],
+            "previous_context_matches": [
+              "process",
+              "office",
+              "students",
+              "country",
+              "applicant",
+              "official",
+              "admission",
+              "international",
+              "visa",
+              "student",
+              "from",
+              "required",
+              "needed",
+              "university",
+              "immigration",
+              "leave",
+              "their",
+              "present",
+              "application",
+              "philippines",
+              "one"
+            ],
+            "response_length": 171
+          },
+          "dialogue_history_score": 0.5502495325702997
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.6752126083484558,
+        0.5502495325702997
+      ],
+      "average_dialogue_history_score": 0.7418207136395852,
+      "exchange_count": 3
+    },
+    {
+      "session_id": "history_test_3",
+      "topic": "fees",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What are the tuition fees for Engineering programs?",
+          "response": "## Tuition Fees for Engineering Programs\n\nThe tuition fees for Engineering programs at ADDU vary by program and year level. Here are the estimated tuition fees for each Engineering program:\n\n### Bachelor of Science in Aerospace Engineering (BS AE)\n\n* Year 1: \n  - 1st Semester: \u20b166,778.70 (28 units)\n  - 2nd Semester: \u20b163,342.40 (26 units)\n* Year 2: \n  - 1st Semester: \u20b165,368.40 (27 units)\n  -  2nd Semester: \u20b163,721.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b165,317.45 (27 units)\n  - 2nd Semester: \u20b166,895.90 (28 units)\n  - Summer: \u20b125,856.20 (2 units)\n* Year 4: \n  - 1st Semester: \u20b159,046.45 (25 units)\n  - 2nd Semester: \u20b157,468.00 (24 units)\n\n### Bachelor of Science in Chemical Engineering (BS CHE)\n\n* Year 1: \n  - 1st Semester: \u20b170,215.00 (30 units)\n  - 2nd Semester: \u20b165,060.55 (27 units)\n* Year 2: \n  - 1st Semester: \u20b165,368.40 (27 units)\n  - 2nd Semester: \u20b160,428.00 (24 units)\n* Year 3: \n  - 1st Semester: \u20b169,662.10 (24 units)\n  - 2nd Semester: \u20b160,582.10 (24 units)\n  - Summer: \u20b125,856.20 (2 units)\n* Year 4: \n  - 1st Semester: \u20b149,575.75 (19 units)\n  - 2nd Semester: \u20b149,575.75 (19 units)\n\n### Bachelor of Science in Civil Engineering (BS CE)\n\n* Year 1: \n  - 1st Semester: \u20b170,215.00 (30 units)\n  - 2nd Semester: \u20b165,060.55 (27 units)\n* Year 2: \n  - 1st Semester: \u20b167,015.20 (28 units)\n  - 2nd Semester: \u20b160,428.00 (24 units)\n* Year 3: \n  - 1st Semester: \u20b160,582.10 (24 units)\n  - 2nd Semester: \u20b162,160.55 (25 units)\n  - Summer: \u20b127,434.65 (3 units)\n* Year 4: \n  - 1st Semester: \u20b152,732.65 (21 units)\n  - 2nd Semester: \u20b149,575.75 (19 units)\n\n### Bachelor of Science in Computer Engineering (BS COMP ENG)\n\n* Year 1: \n  - 1st Semester: \u20b173,651.30 (32 units)\n  - 2nd Semester: \u20b166,778.70 (28 units)\n* Year 2: \n  - 1st Semester: \u20b163,721.60 (26 units)\n  - 2nd Semester: \u20b163,721.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b155,846.75 (21 units)\n  - 2nd Semester: \u20b155,846.75 (21 units)\n  - Summer: \u20b127,434.65 (3 units)\n* Year 4: \n  - 1st Semester: \u20b152,732.65 (21 units)\n  - 2nd Semester: \u20b132,212.80 (8 units)\n\n### Bachelor of Science in Electrical Engineering (BS EE)\n\n* Year 1: \n  - 1st Semester: \u20b170,215.00 (30 units)\n  - 2nd Semester: \u20b165,060.55 (27 units)\n* Year 2: \n  - 1st Semester: \u20b162,074.80 (25 units)\n  - 2nd Semester: \u20b163,721.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b162,160.55 (25 units)\n  - 2nd Semester: \u20b159,003.65 (23 units)\n  - Summer: \u20b125,856.20 (2 units)\n* Year 4: \n  - 1st Semester: \u20b155,889.55 (23 units)\n  - 2nd Semester: \u20b141,683.50 (14 units)\n\n### Bachelor of Science in Electronics Engineering (BS ELECTRONICS ENG)\n\n* Year 1: \n  - 1st Semester: \u20b170,215.00 (30 units)\n  - 2nd Semester: \u20b165,060.55 (27 units)\n* Year 2: \n  - 1st Semester: \u20b162,074.80 (25 units)\n  - 2nd Semester: \u20b162,074.80 (25 units)\n* Year 3: \n  - 1st Semester: \u20b160,582.10 (24 units)\n  - 2nd Semester: \u20b157,425.20 (22 units)\n  - Summer: \u20b127,434.65 (3 units)\n* Year 4: \n  - 1st Semester: \u20b151,154.20 (20 units)\n  - 2nd Semester: \u20b143,261.95 (15 units)\n\n### Bachelor of Science in Industrial Engineering (BS IE)\n\n* Year 1: \n  - 1st Semester: \u20b173,651.30 (32 units)\n  - 2nd Semester: \u20b166,778.70 (28 units)\n* Year 2: \n  - 1st Semester: \u20b158,781.20 (23 units)\n  - 2nd Semester: \u20b165,368.40 (27 units)\n* Year 3: \n  - 1st Semester: \u20b159,003.65 (23 units)\n  - 2nd Semester: \u20b154,268.30 (20 units)\n  - Summer: \u20b127,434.65 (3 units)\n* Year 4: \n  - 1st Semester: \u20b152,732.65 (21 units)\n  - 2nd Semester: \u20b141,683.50 (14 units)\n\n### Bachelor of Science in Mechanical Engineering (BS ME)\n\n* Year 1: \n  - 1st Semester: \u20b166,778.70 (28 units)\n  - 2nd Semester: \u20b163,342.40 (26 units)\n* Year 2: \n  - 1st Semester: \u20b167,015.20 (28 units)\n  - 2nd Semester: \u20b167,015.20 (28 units)\n* Year 3: \n  - 1st Semester: \u20b165,317.45 (27 units)\n  - 2nd Semester: \u20b166,895.90 (28 units)\n  - Summer: \u20b125,856.20 (2 units)\n* Year 4: \n  - 1st Semester: \u20b154,311.10 (22 units)\n  - 2nd Semester: \u20b159,046.45 (25 units)\n\n### Bachelor of Science in Robotics Engineering (BS RE)\n\n* Year 1: \n  - 1st Semester: \u20b166,778.70 (28 units)\n  - 2nd Semester: \u20b168,496.85 (29 units)\n* Year 2: \n  - 1st Semester: \u20b165,368.40 (27 units)\n  - 2nd Semester: \u20b165,368.40 (27 units)\n* Year 3: \n  - 1st Semester: \u20b165,317.45 (27 units)\n  - 2nd Semester: \u20b165,317.45 (27 units)\n  - Summer: \u20b125,856.20 (2 units)\n* Year 4: \n  - 1st Semester: \u20b162,203.35 (27 units)\n  - 2nd Semester: \u20b155,889.55 (23 units)",
+          "context_keywords": [
+            "engineering",
+            "tuition",
+            "fees",
+            "programs"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "Are there payment plans for it?",
+          "response": "The Bachelor of Science in Nursing (BSN) program has the following tuition fees:\n\n**Year 1:**\n* 1st Sem: \u20b172,077.15 (31 units)\n* 2nd Sem: \u20b166,922.70 (28 units)\n* Summer: \u20b134,277.85 (9 units)\n\n**Year 2:**\n* 1st Sem: \u20b168,633.40 (27 units)\n* 2nd Sem: \u20b167,486.60 (26 units)\n\n**Year 3:**\n* 1st Sem: \u20b164,058.95 (22 units)\n* 2nd Sem: \u20b165,637.40 (23 units)\n\n**Year 4:**\n* 1st Sem: \u20b153,978.25 (19 units)\n* 2nd Sem: \u20b144,507.55 (13 units)\n\nRegarding payment plans, the provided information does not specify installment options or payment schedules. However, it provides a detailed breakdown of tuition fees per semester.\n\nFor payment schedules and installment options, it is best to check with the university directly.",
+          "expected_context": [
+            "engineering",
+            "payment",
+            "plans",
+            "tuition"
+          ],
+          "context_test": "Should understand 'it' refers to Engineering tuition fees",
+          "scores": {
+            "context_coverage": 0.75,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0024699602779372836,
+            "dialogue_history_score": 0.6754939920555875,
+            "context_matches": [
+              "payment",
+              "plans",
+              "tuition"
+            ],
+            "previous_context_matches": [
+              "program",
+              "1st",
+              "bachelor",
+              "tuition",
+              "units",
+              "year",
+              "fees",
+              "2nd",
+              "science",
+              "summer",
+              "semester"
+            ],
+            "response_length": 170
+          },
+          "dialogue_history_score": 0.6754939920555875
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.6754939920555875
+      ],
+      "average_dialogue_history_score": 0.8377469960277937,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_4",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "Tell me about the Nursing program curriculum",
+          "response": "## Bachelor of Science in Nursing (BSN)\n\n### School of Nursing\n\n#### Curriculum for Year 1\n\nThe Bachelor of Science in Nursing (BSN) program at Ateneo de Davao University is a 4-year undergraduate degree program that aims to provide students with a strong foundation in nursing theory, research, and practice.\n\n### Year 1 Curriculum\n\n#### First Semester (31.0 Units)\n\n* **ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 1** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 0.0\n\t+ Credit Prof Units: 3.0\n* **ASF 1000 - ARRUPE SOCIAL FORMATION 0** (2.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **ASF 1101 - ARRUPE SOCIAL FORMATION 1** (2.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **GE 1105 - UNDERSTANDING THE SELF** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **GE 1106 - PURPOSIVE COMMUNICATION** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **PE 1114 - PATH-FIT I** (2.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **NCM 1130 - THEORETICAL FOUNDATION OF NURSING** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **Bio N 1131 - ANATOMY AND PHYSIOLOGY FOR NURSING LEC** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **Bio N 1132 - ANATOMY AND PHYSIOLOGY FOR NURSING LAB** (2.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 6.0\n\t+ Credit Prof Units: 2.0\n* **Chem 1067 - BIOCHEMISTRY FOR NURSING LEC** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **Chem 1068 - BIOCHEMISTRY FOR NURSING LAB** (2.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 6.0\n\t+ Credit Prof Units: 2.0\n* **Philo 1000 - PHILOSOPHY** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n\n#### Second Semester (28.0 Units)\n\n* **Theo 1000 - THEOLOGY** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **ASF 1203 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 2** (3.0 CU)\n\t+ Pre-requisites: ASF 1102\n\t+ Pay Units: 0.0\n\t+ Credit Prof Units: 3.0\n* **PE 1215 - PATH-FIT II** (2.0 CU)\n\t+ Pre-requisites: PE 1114\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **GE 1107 - ART APPRECIATION** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **NCM 1233 - HEALTH ASSESSMENT LEC** (3.0 CU)\n\t+ Pre-requisites: NCM 1130, Bio N 1131, Bio N 1132, Chem 1067, Chem 1068\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **NCM 1234 - HEALTH ASSESSMENT RLE** (2.0 CU)\n\t+ Pre-requisites: NCM 1130, Bio N 1131, Bio N 1132, Chem 1067, Chem 1068\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **NCM 1235 - HEALTH EDUCATION** (3.0 CU)\n\t+ Pre-requisites: NCM 1130\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **NCM 1236 - FUNDAMENTALS OF NURSING PRACTICE LEC** (3.0 CU)\n\t+ Pre-requisites: NCM 1130, Bio N 1131, Bio N 1132, Chem 1067, Chem 1068\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **NCM 1237 - FUNDAMENTALS OF NURSING PRACTICE RLE** (2.0 CU)\n\t+ Pre-requisites: NCM 1130, Bio N 1131, Bio N 1132, Chem 1067, Chem 1068\n\t+ Pay Units: 2.0\n\t+ Credit Prof Units: 2.0\n* **Bio N 1238 - MICROBIOLOGY AND PARASITOLOGY LEC** (3.0 CU)\n\t+ Pre-requisites: Bio N 1131, Bio N 1132\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **Bio N 1239 - MICROBIOLOGY AND PARASITOLOGY LAB** (1.0 CU)\n\t+ Pre-requisites: Bio N 1131, Bio N 1132\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 1.0\n\n#### Summer (9.0 Units)\n\n* **GE 1108 - MATHEMATICS IN THE MODERN WORLD** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **GE 1109 - ETHICS** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n* **GE 1212 - SCIENCE, TECHNOLOGY AND SOCIETY** (3.0 CU)\n\t+ Pre-requisites: None\n\t+ Pay Units: 3.0\n\t+ Credit Prof Units: 3.0\n\nFor more information about the curriculum of the program, head to this link: [Bachelor of Science in Nursing](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Nursing.pdf)",
+          "context_keywords": [
+            "nursing",
+            "program",
+            "curriculum"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What are the clinical requirements?",
+          "response": "## Program Confirmation\nThe Bachelor of Science in Nursing (BS N) or BSN program is available at Ateneo de Davao University.\n\n## Clinical Requirements\nThe BSN program at Ateneo de Davao University has clinical requirements integrated into its curriculum. \n\n### Year 1\n- No specific clinical courses are mentioned in the first year.\n\n### Year 2\n- **Community Health Nursing 1 RLE (Individual and Family as Clients)**: 2 units, 2 pay units\n- **Nutrition and Diet Therapy Lab**: 1 unit, 1 pay unit\n- **Fundamentals of Nursing Practice RLE**: 2 units, 2 pay units\n- **Health Assessment RLE**: 2 units, 2 pay units\n\n### Year 3\n- **Community Health Nursing 2 RLE (Population Groups and Community as Clients)**: 1 unit, 1 pay unit\n- **Care of Clients with Problems in Oxygenation, Fluid and Electrolytes, Infectious, Inflammatory RLE**: 6 units, 6 pay units\n- **Care of Older Adult RLE**: 1 unit, 1 pay unit\n\n### Year 4\n- **Nursing Care of Clients with Life Threatening Conditions, Acutely Ill/Multi-organ Problems, High Dependency RLE**: 5 units, 5 pay units\n- **Nursing Leadership and Management RLE**: 3 units, 3 pay units\n- **Disaster Nursing RLE**: 1 unit, 1 pay unit\n- **Intensive Nursing Practicum RLE (Hospital and Community Settings)**: 8 units, 8 pay units\n\n## Additional Information\nFor more detailed information about the curriculum and clinical requirements of the BSN program, you may refer to the official document: [BSN Curriculum PDF](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Nursing.pdf)",
+          "expected_context": [
+            "nursing",
+            "clinical",
+            "requirements"
+          ],
+          "context_test": "Should understand clinical requirements are for Nursing",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0012331301588664725,
+            "dialogue_history_score": 0.8002466260317733,
+            "context_matches": [
+              "nursing",
+              "clinical",
+              "requirements"
+            ],
+            "previous_context_matches": [
+              "assessment",
+              "health",
+              "//www.addu.edu.ph/wp-content/uploads/2020/06/bachelor-of-science-in-nursing.pdf",
+              "year",
+              "ateneo",
+              "about",
+              "curriculum",
+              "nursing",
+              "https",
+              "with",
+              "lab",
+              "units",
+              "rle",
+              "pay",
+              "science",
+              "bsn",
+              "university",
+              "information",
+              "program",
+              "bachelor",
+              "fundamentals",
+              "davao",
+              "more",
+              "first",
+              "practice"
+            ],
+            "response_length": 339
+          },
+          "dialogue_history_score": 0.8002466260317733
+        },
+        {
+          "exchange": 3,
+          "query": "How long does the program take?",
+          "response": "The Bachelor of Science in Nursing (BSN) program at Ateneo de Davao University is a 4-year program with a total of 198.0 CU.\n\nHere's a breakdown of the program's curriculum:\n\n**Year 1:**\n- First Semester: 31.0 Units\n- Second Semester: 28.0 Units\n- Summer: 9.0 Units\n\n**Year 2:**\n- First Semester: 27.0 Units\n- Second Semester: 26.0 Units\n\n**Year 3:**\n- First Semester: 22.0 Units\n- Second Semester: 23.0 Units\n\n**Year 4:**\n- First Semester: 19.0 Units\n- Second Semester: 13.0 Units\n\nThe curriculum includes various subjects such as:\n- Theoretical foundations of nursing\n- Health assessment\n- Nursing research\n- Community health nursing\n- Care of clients with various health conditions\n\nFor more information about the curriculum of the program, you can visit: https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Science-in-Nursing.pdf",
+          "expected_context": [
+            "nursing",
+            "program",
+            "duration",
+            "years"
+          ],
+          "context_test": "Should understand 'the program' refers to Nursing program",
+          "scores": {
+            "context_coverage": 0.5,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0012934507474219826,
+            "dialogue_history_score": 0.5502586901494845,
+            "context_matches": [
+              "nursing",
+              "program"
+            ],
+            "previous_context_matches": [
+              "assessment",
+              "health",
+              "//www.addu.edu.ph/wp-content/uploads/2020/06/bachelor-of-science-in-nursing.pdf",
+              "year",
+              "ateneo",
+              "about",
+              "curriculum",
+              "summer",
+              "nursing",
+              "https",
+              "conditions",
+              "with",
+              "care",
+              "28.0",
+              "units",
+              "second",
+              "research",
+              "31.0",
+              "9.0",
+              "theoretical",
+              "science",
+              "clients",
+              "bsn",
+              "university",
+              "information",
+              "semester",
+              "program",
+              "community",
+              "bachelor",
+              "davao",
+              "more",
+              "first",
+              "4-year"
+            ],
+            "response_length": 165
+          },
+          "dialogue_history_score": 0.5502586901494845
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.8002466260317733,
+        0.5502586901494845
+      ],
+      "average_dialogue_history_score": 0.7835017720604193,
+      "exchange_count": 3
+    },
+    {
+      "session_id": "history_test_5",
+      "topic": "admissions_enrollment",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "How do I apply for scholarships?",
+          "response": "## Applying for Scholarships at ADDU\n\n### Types of Scholarships\n* **Grant-in-Aid**: Covers from \u20b110,000 up to 100% of tuition and fees.\n* **Working Scholar**: Offers 100% tuition and fees coverage in exchange for rendering a minimum of four hours of service daily.\n* **Jubilee Scholarship Fund**: Awarded to high school valedictorians (Top 1) for 100% tuition coverage and salutatorians (Top 2) for 50% tuition coverage.\n\n### General Application Requirements\nTo apply for a scholarship, you'll need to prepare the following documents:\n1. **Proof of Financial Capacity**: This can be a BIR Form 2316 (for employed), BIR Form 1701 (for self-employed), or a Certificate of Low Income (for unemployed).\n2. **Academic Credentials**: Complete grades from Senior High School.\n3. **Essay**: A 500-word essay is required.\n4. **Photos of Residence**: Photos of the front of your house and the kitchen, certified by the Barangay Chairman.\n5. **Certificate of Good Moral Character**.\n6. **School Recommendation**: From a Prefect of Discipline, Guidance Counselor, or Class Adviser.\n7. **School Certificate**: Required only for the Jubilee Scholarship Fund.\n\n### Application Periods\n* **Jubilee Scholarship Fund**: May 5 - May 17, 2025\n* **Grant-in-Aid & Working Scholar**: May 5 - May 31, 2025\n\n### Contact Information\nFor scholarship concerns, you may reach out to:\n* **scholarship@addu.edu.ph** (local 8303)",
+          "context_keywords": [
+            "scholarships",
+            "apply",
+            "financial",
+            "aid"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What are the requirements for them?",
+          "response": "## Admission Requirements \n\n### For First-Year Students \n\n1. **Original Senior High School School Report Card [Form 138-A]**\n2. **Photocopy of PSA-authenticated Birth Certificate**\n3. **Photocopy of Marriage Contract (for married students)**\n4. **Certificate of Good Moral Character**\n5. **Four (4) recent 1x1 ID photos**\n\n### For Transfer Students \n\n1. **Transfer Credentials or Honorable Dismissal**\n2. **Original Transcript of Records or Certified Academic Records for evaluation**\n3. **Certificate of Good Moral Character**\n4. **PSA-authenticated Birth Certificate**\n5. **Four recent 1\u201d x 1\u201d ID photos**\n6. **A copy of the Description and Syllabus of courses already taken**\n7. **Photocopies of the Marriage Contract (for married students)**\n\n### For Returnees \n\n1. **Updated Transcript of Records**\n2. **Clearance from their former Department**\n3. **Recommendation Letters from:**\n   1. Program Coordinator/Director\n   2. Guidance Counselor/Director\n   3. OSA Director\n   4. FYDP Facilitator or ASF Formator/Former Teacher\n4. **Leave of Absence form**\n\n### For Audit Students \n\n1. **Application**\n2. **Interview**\n3. **Application fee**\n4. **Payment of necessary fees as determined by the Office of the Treasurer**\n5. **Other documents as the Admission Director may require**",
+          "expected_context": [
+            "scholarships",
+            "requirements",
+            "eligibility"
+          ],
+          "context_test": "Should understand 'them' refers to scholarships",
+          "scores": {
+            "context_coverage": 0.3333333333333333,
+            "continuity_score": 1.0,
+            "bleu_score": 0.00059375352275568,
+            "dialogue_history_score": 0.4667854173712178,
+            "context_matches": [
+              "requirements"
+            ],
+            "previous_context_matches": [
+              "photos",
+              "four",
+              "guidance",
+              "high",
+              "moral",
+              "form",
+              "character",
+              "certificate",
+              "fees",
+              "certified",
+              "academic",
+              "documents",
+              "from",
+              "may",
+              "recommendation",
+              "requirements",
+              "credentials",
+              "senior",
+              "school",
+              "good",
+              "application"
+            ],
+            "response_length": 301
+          },
+          "dialogue_history_score": 0.4667854173712178
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.4667854173712178
+      ],
+      "average_dialogue_history_score": 0.7333927086856089,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_6",
+      "topic": "fees",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What payment methods are available?",
+          "response": "The available payment methods are:\n\n* Cash\n* Cheque payments (provided that acceptance from the bank can be secured before the examination schedule and/or at least two weeks before the final examination schedule)\n* Online bank transfers and mobile payment services through:\n\t+ BDO\n\t+ RCBC\n\t+ Unionbank\n\t+ Metrobank\n\t+ BPI\n\t+ Landbank\n\t+ GCash\n* Payment centers:\n\t+ Banco de Oro Universal Bank (BDO)\n\t+ Rizal Commercial Banking Corporation (RCBC)\n\t+ United Coconut Planters Bank (UCPB)\n\t+ BDO Network Bank\n\t+ SM City \u2013 Davao\n\t+ Unionbank\n\t+ Metrobank\n\t+ Bank of the Philippine Islands (BPI)\n\t+ Cebuana Lhuillier\n\t+ Landbank\n\t+ M Lhullier",
+          "context_keywords": [
+            "payment",
+            "methods",
+            "options"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "Which banks support these?",
+          "response": "The banks that support payment for Ateneo de Davao University fees are:\n\n* Banco de Oro Universal Bank (BDO)\n* Rizal Commercial Banking Corporation (RCBC)\n* United Coconut Planters Bank (UCPB)\n* BDO Network Bank\n* SM City \u2013 Davao\n* Unionbank\n* Metrobank\n* Bank of the Philippine Islands (BPI)\n* Cebuana Lhuillier\n* Landbank\n* M Lhullier",
+          "expected_context": [
+            "payment",
+            "methods",
+            "banks",
+            "support"
+          ],
+          "context_test": "Should understand 'these' refers to payment methods",
+          "scores": {
+            "context_coverage": 0.75,
+            "continuity_score": 1.0,
+            "bleu_score": 0.003519816815769827,
+            "dialogue_history_score": 0.675703963363154,
+            "context_matches": [
+              "payment",
+              "banks",
+              "support"
+            ],
+            "previous_context_matches": [
+              "bank",
+              "lhullier",
+              "philippine",
+              "rcbc",
+              "oro",
+              "unionbank",
+              "corporation",
+              "bpi",
+              "ucpb",
+              "banco",
+              "universal",
+              "payment",
+              "banking",
+              "bdo",
+              "rizal",
+              "network",
+              "city",
+              "landbank",
+              "metrobank",
+              "cebuana",
+              "commercial",
+              "lhuillier",
+              "davao",
+              "planters",
+              "that",
+              "united",
+              "coconut",
+              "islands"
+            ],
+            "response_length": 68
+          },
+          "dialogue_history_score": 0.675703963363154
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.675703963363154
+      ],
+      "average_dialogue_history_score": 0.837851981681577,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_7",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What programs are available in the School of Engineering?",
+          "response": "## School of Engineering and Architecture:\n\n### Computer Studies Cluster\n- **BS CS** - Bachelor of Science in Computer Science\n- **BS IS** - Bachelor of Science in Information Systems\n- **BS IT** - Bachelor of Science in Information Technology\n- **BS DS** - Bachelor of Science in Data Science\n\n### Engineering Cluster\n- **BS AE** - Bachelor of Science in Aerospace Engineering\n- **BS ME** - Bachelor of Science in Mechanical Engineering\n- **BS EE** - Bachelor of Science in Electrical Engineering\n- **BS ECE** - Bachelor of Science in Electronics Engineering\n- **BS CHE** - Bachelor of Science in Chemical Engineering\n- **BS CE** - Bachelor of Science in Civil Engineering\n- **BS COMP ENG** - Bachelor of Science in Computer Engineering\n- **BS IE** - Bachelor of Science in Industrial Engineering\n- **BS RE** - Bachelor of Science in Renewable Energy",
+          "context_keywords": [
+            "engineering",
+            "programs",
+            "school",
+            "available"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "Which one has the most math courses?",
+          "response": "To determine which program has the most math courses, I'll need to compare the curriculum of BS Electronics Engineering with other programs. However, you only asked about BS Electronics Engineering.\n\n## Math Subjects in BS Electronics Engineering\n\nThe curriculum for BS Electronics Engineering includes the following math subjects:\n\n* **Year 1:**\n\t+ **First Semester:** \n\t\t- MATH 1 (Calculus) \n\t+ **Second Semester:** \n\t\t- MATH 2 (Differential Equations and Linear Algebra)\n* **Year 2:**\n\t+ **First Semester:** \n\t\t- MATH 3 (Probability and Statistics)\n* **Year 3:**\n\t+ **First Semester:** \n\t\t- EE 301 (Circuit Analysis) with prerequisite MATH 2 \n\t+ **Second Semester:** \n\t\t- EE 302 (Electronics and Telecommunications) \n* **Year 4:**\n\t+ **First Semester:** \n\t\t- EE 401 (Control Systems) with prerequisite MATH 3 \n\t\t- EE 402 (Digital Signal Processing) \n\n## Comparison with Other Programs\n\nTo provide an accurate answer, I would need to compare the math courses in BS Electronics Engineering with other programs. The following programs from the School of Engineering & Architecture have math-intensive curricula:\n\n* BS Computer Engineering\n* BS Electrical Engineering\n* BS Mechanical Engineering\n\nThese programs likely have similar math requirements, but a detailed comparison is necessary to determine which one has the most math courses.\n\n## Math Courses in Other Engineering Programs\n\nHere's a general overview of math courses in other engineering programs:\n\n### School of Engineering & Architecture\n* **BS Computer Engineering:**\n\t+ MATH 1 (Calculus)\n\t+ MATH 2 (Differential Equations and Linear Algebra)\n\t+ MATH 3 (Probability and Statistics)\n* **BS Electrical Engineering:**\n\t+ MATH 1 (Calculus)\n\t+ MATH 2 (Differential Equations and Linear Algebra)\n\t+ MATH 3 (Probability and Statistics)\n* **BS Mechanical Engineering:**\n\t+ MATH 1 (Calculus)\n\t+ MATH 2 (Differential Equations and Linear Algebra)\n\t+ MATH 3 (Probability and Statistics)\n\nWithout a detailed comparison of each program's curriculum, it's difficult to determine which program has the most math courses. However, based on the information provided, it appears that BS Electronics Engineering has a significant number of math courses.\n\nIf you would like to compare the math courses in other programs, please let me know, and I'll be happy to provide more information.",
+          "expected_context": [
+            "engineering",
+            "programs",
+            "math",
+            "courses"
+          ],
+          "context_test": "Should understand 'which one' refers to engineering programs",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0011208241644295723,
+            "dialogue_history_score": 0.8002241648328859,
+            "context_matches": [
+              "engineering",
+              "programs",
+              "math",
+              "courses"
+            ],
+            "previous_context_matches": [
+              "electronics",
+              "mechanical",
+              "electrical",
+              "architecture",
+              "systems",
+              "school",
+              "computer",
+              "engineering",
+              "information"
+            ],
+            "response_length": 476
+          },
+          "dialogue_history_score": 0.8002241648328859
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.8002241648328859
+      ],
+      "average_dialogue_history_score": 0.900112082416443,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_8",
+      "topic": "admissions_enrollment",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What is the application process for international students?",
+          "response": "## Application Process for International Students\n\nThe application process for international students at Ateneo de Davao University involves several steps:\n\n### Step 1: Assessment of Completeness of Documents\n\nInternational students need to have their enrollment documents checked for completeness at the International Student Counter at Room F213, Second Floor, Finster Hall. The required documents include:\n\n* Original Notice of Acceptance (NOA) from the Admissions Director\n* Original Senior High School Report Card, SF 9 (For FS who graduated SHS in Philippines) or Apostilled/Authenticated School Records or Grades, Diploma, Certificate of Finance, Birth Certificate, and Police Clearance by the Philippine Embassy at the foreign student\u2019s country of origin\n* Certificate of Good Moral Character (for foreign students who studied in Philippine schools/universities)\n* Three (3) 1 x 1 and Four (4) 2 x 2 colored photos\n* Medical Certificate from the University Clinic\n* Valid passport, valid I-card, and valid visa - if any\n* One (1) copy of Notarized General Parents\u2019 Consent signed by parents or Legal Guardian (forms, c/o Admissions Office)\n* Signed Data Privacy Provision\n* Completed Personal History Statement\n\n### Step 2: Submission of Documents and Pre-registration\n\nInternational students need to proceed to the pre-registration counter of the Admissions Office to submit the documents and for pre-listing/pre-registration verification.\n\n### Step 3: School ID\n\nInternational students need to have their photo taken for their School ID at the Office of Student Affairs (OSA). They also need to submit the Notarized General Parent\u2019s Consent to the OSA.\n\n### Step 4: Interview\n\nAn interview with the Department Chair or a designated faculty interviewer is necessary and important to guide the foreign student\u2019s chosen course or field of study.\n\n### Step 5: Encoding of Courses and Printout of Class Schedule\n\nThe program department encodes and provides courses and a printout of class schedules.\n\n### Step 6: Payment of Tuition and Fees\n\nInternational students need to pay their tuition and fees, including OSA, Admission and Aid, and Guidance Office charges, to the Cashier of the Finance Office.\n\n### Step 7: Return to the Office of Student Affairs for the OSA Kit\n\nInternational students need to return to the Office of Student Affairs to receive their OSA Kit.\n\n## Required Documents\n\nInternational students must provide two photocopies of the following documents:\n\n* Original SF 9, Honorable Dismissal, or Authenticated Latest Transcript of Records\n* Certificate of Good Moral or a Recommendation letter\n* Authenticated Birth Certificate or Family Registration\n* Valid Study Visa and passport (bio-page and latest arrival stamp)\n* Authenticated proof of Financial Support (at least $3,500.00)\n* 10 pieces of 2x2 colored ID photos with a white background\n* Standard laboratory test results (CBC, Urinalysis, Chest X-ray)",
+          "context_keywords": [
+            "international",
+            "students",
+            "application",
+            "process"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What additional documents do they need?",
+          "response": "## Additional Documents for Student Visa Application\n\nTo apply for a student visa, you need to prepare the following additional documents:\n\n### For Student Visa Applicants 18 Years Old and Above\n\n1. **Medical Certificate**: Issued by the Bureau of Quarantine (BOQ)\n2. **Passport Documents**: Scanned copies of passport bio-page, latest admission with valid authorized stay, and BOQ stamp\n3. **Notice of Acceptance**: Notice of Acceptance of the applicant bearing a clear impression of the school\u2019s official dry seal\n4. **National Bureau of Investigation (NBI) Clearance**: If the application is filed six (6) months or more from the date of the first arrival in the Philippines\n5. **ID Photos**: Two (2) colored 2\u201dx2\u201d ID Photos; white background, no eyeglasses, and no scanned photos\n6. **Original Passport**\n7. **Duly Accomplished CGAF**: BI FORM CGAF-003-REV 2\n\n### For Student Visa Applicants Below 18 Years Old\n\n1. **Special Study Permit (SSP)**: Not a student visa; SSP is required for those below 18 years old or taking a non-degree or short course\n\n### Additional Requirements\n\n1. **ACR I-CARD Application**: For those with approved student visas, proceed to apply for the new Alien Certificate of Registration Identity Card (ACR I-CARD)\n2. **Annual Report**: International students with valid visa and ACR I-CARD holders must submit Annual Reports to the BI every January until the last day of February of the current year\n\n## Notes\n\n* International students must not leave the country for at least one (1) month until a decision regarding their immigration is reached\n* Immigration fees shall be paid for by the applicant\n* It is recommended to submit required documents to the Admission Office on time to avoid delays in processing applications",
+          "expected_context": [
+            "international",
+            "students",
+            "documents",
+            "additional"
+          ],
+          "context_test": "Should understand 'they' refers to international students",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0012005788185350142,
+            "dialogue_history_score": 0.800240115763707,
+            "context_matches": [
+              "international",
+              "students",
+              "documents",
+              "additional"
+            ],
+            "previous_context_matches": [
+              "photos",
+              "proceed",
+              "office",
+              "i-card",
+              "students",
+              "country",
+              "need",
+              "with",
+              "certificate",
+              "following",
+              "stamp",
+              "report",
+              "least",
+              "notice",
+              "international",
+              "fees",
+              "admission",
+              "medical",
+              "course",
+              "one",
+              "bio-page",
+              "latest",
+              "passport",
+              "visa",
+              "colored",
+              "documents",
+              "must",
+              "student",
+              "from",
+              "original",
+              "clearance",
+              "study",
+              "arrival",
+              "required",
+              "two",
+              "valid",
+              "white",
+              "registration",
+              "submit",
+              "their",
+              "card",
+              "school",
+              "application",
+              "background",
+              "philippines",
+              "acceptance"
+            ],
+            "response_length": 374
+          },
+          "dialogue_history_score": 0.800240115763707
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.800240115763707
+      ],
+      "average_dialogue_history_score": 0.9001200578818536,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_9",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What is the Business Administration curriculum?",
+          "response": "## Curriculum for Bachelor of Science in Business Management (BS BM) - Year 1\n\n### First Semester (27.0 Credit Prof Units)\n\n1. **Theo 1000 - THEOLOGY** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n2. **ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 1** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 0.0\n\n3. **ASF 1000 - ARRUPE SOCIAL FORMATION 0** (2.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 2.0\n\n4. **ASF 1101 - ARRUPE SOCIAL FORMATION 1** (2.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 2.0\n\n5. **PE 1114 - PATH-FIT I** (2.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 2.0\n\n6. **GE 1210 - READINGS IN PHILIPPINE HISTORY** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n7. **GE 1211 - THE CONTEMPORARY WORLD** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n8. **GE 1213 - LIFE AND WORKS OF RIZAL** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n9. **GE 1212 - SCIENCE, TECHNOLOGY AND SOCIETY** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n10. **MGT 1130 - MANAGEMENT AND ORGANIZATION** (3.0 CU)\n    - Pre-requisites: None\n    - Pay Units: 3.0\n\n### Second Semester (26.0 Credit Prof Units)\n\n1. **GE 1105 - UNDERSTANDING THE SELF** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n2. **GE 1106 - PURPOSIVE COMMUNICATION** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n3. **GE 1107 - ART APPRECIATION** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n4. **GE 1108 - MATHEMATICS IN THE MODERN WORLD** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n5. **GE 1109 - ETHICS** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n6. **ASF 1203 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 2** (3.0 CU)\n   - Pre-requisites: ASF 1102\n   - Pay Units: 0.0\n\n7. **PE 1215 - PATH-FIT II** (2.0 CU)\n   - Pre-requisites: PE 1114\n   - Pay Units: 2.0\n\n8. **MGT 1231 - ORGANIZATIONAL COMMUNICATION & PRESENTATION** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\n9. **Philo 1000 - PHILOSOPHY** (3.0 CU)\n   - Pre-requisites: None\n   - Pay Units: 3.0\n\nFor more information about the curriculum of the program, head to this link: [Bachelor of Science in Business Management Curriculum PDF](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Sciance-in-Business-Management.pdf)",
+          "context_keywords": [
+            "business",
+            "administration",
+            "curriculum",
+            "program"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What subjects are in second year?",
+          "response": "I don't have information about the AB IDS-LL program's curriculum in my knowledge base. Please check our official program list or contact admissions directly.",
+          "expected_context": [
+            "business",
+            "administration",
+            "second",
+            "year"
+          ],
+          "context_test": "Should understand 'second year' refers to Business Administration second year",
+          "scores": {
+            "context_coverage": 0.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0,
+            "dialogue_history_score": 0.3,
+            "context_matches": [],
+            "previous_context_matches": [
+              "curriculum",
+              "program",
+              "about",
+              "information"
+            ],
+            "response_length": 28
+          },
+          "dialogue_history_score": 0.3
+        },
+        {
+          "exchange": 3,
+          "query": "Are there internship requirements?",
+          "response": "I don't have information about the AB IDS-LL program's curriculum or specific requirements, including internship requirements, in my knowledge base. For the most current and detailed information, please contact our admissions office or check the official Ateneo de Davao University program documentation.",
+          "expected_context": [
+            "business",
+            "administration",
+            "internship",
+            "requirements"
+          ],
+          "context_test": "Should understand internship context for Business Administration",
+          "scores": {
+            "context_coverage": 0.5,
+            "continuity_score": 1.0,
+            "bleu_score": 0.007919253535534795,
+            "dialogue_history_score": 0.551583850707107,
+            "context_matches": [
+              "internship",
+              "requirements"
+            ],
+            "previous_context_matches": [
+              "admissions",
+              "program",
+              "ids-ll",
+              "n't",
+              "official",
+              "base",
+              "our",
+              "about",
+              "curriculum",
+              "please",
+              "knowledge",
+              "contact",
+              "check",
+              "information"
+            ],
+            "response_length": 49
+          },
+          "dialogue_history_score": 0.551583850707107
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.3,
+        0.551583850707107
+      ],
+      "average_dialogue_history_score": 0.6171946169023691,
+      "exchange_count": 3
+    },
+    {
+      "session_id": "history_test_10",
+      "topic": "fees",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What are the fees for Nursing program?",
+          "response": "The program you inquired about is not available in the provided context documents.\n\nHowever, here are the fees for the Bachelor of Science in Nursing (BSN) program:\n\n**Year 1:**\n* 1st Semester: \u20b172,077.15 (31 units)\n* 2nd Semester: \u20b166,922.70 (28 units)\n* Summer: \u20b134,277.85 (9 units)\n\n**Year 2:**\n* 1st Semester: \u20b168,633.40 (27 units)\n* 2nd Semester: \u20b167,486.60 (26 units)\n\n**Year 3:**\n* 1st Semester: \u20b164,058.95 (22 units)\n* 2nd Semester: \u20b165,637.40 (23 units)\n\n**Year 4:**\n* 1st Semester: \u20b153,978.25 (19 units)\n* 2nd Semester: \u20b144,507.55 (13 units)",
+          "context_keywords": [
+            "nursing",
+            "program",
+            "fees",
+            "tuition"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "How much per year?",
+          "response": "To provide the yearly tuition fees for the Bachelor of Science in Nursing (BSN) program, we need to sum the semester-wise estimated tuition fees for each year.\n\n**Year 1:**\n- 1st Semester: \u20b172,077.15\n- 2nd Semester: \u20b166,922.70\n- Summer: \u20b134,277.85\nTotal: \u20b1173,277.70\n\n**Year 2:**\n- 1st Semester: \u20b168,633.40\n- 2nd Semester: \u20b167,486.60\nTotal: \u20b1136,120.00\n\n**Year 3:**\n- 1st Semester: \u20b164,058.95\n- 2nd Semester: \u20b165,637.40\nTotal: \u20b1129,696.35\n\n**Year 4:**\n- 1st Semester: \u20b153,978.25\n- 2nd Semester: \u20b144,507.55\nTotal: \u20b198,485.80\n\nThe total tuition fee for the entire BSN program is not directly provided, but you can sum these yearly amounts for a complete program cost.",
+          "expected_context": [
+            "nursing",
+            "program",
+            "fees",
+            "year"
+          ],
+          "context_test": "Should understand 'per year' refers to Nursing program yearly fees",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0017899975006857051,
+            "dialogue_history_score": 0.8003579995001372,
+            "context_matches": [
+              "nursing",
+              "program",
+              "fees",
+              "year"
+            ],
+            "previous_context_matches": [
+              "\u20b165,637.40",
+              "year",
+              "\u20b134,277.85",
+              "\u20b166,922.70",
+              "\u20b172,077.15",
+              "summer",
+              "nursing",
+              "provided",
+              "fees",
+              "\u20b144,507.55",
+              "science",
+              "\u20b167,486.60",
+              "bsn",
+              "semester",
+              "program",
+              "1st",
+              "bachelor",
+              "\u20b168,633.40",
+              "not",
+              "2nd",
+              "\u20b153,978.25",
+              "\u20b164,058.95"
+            ],
+            "response_length": 142
+          },
+          "dialogue_history_score": 0.8003579995001372
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.8003579995001372
+      ],
+      "average_dialogue_history_score": 0.9001789997500687,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_11",
+      "topic": "admissions_enrollment",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What are the requirements for graduate programs?",
+          "response": "The provided context documents only contain information about undergraduate programs, specifically admissions, enrollment procedures, and academic policies for new students, transfer students, and other student types. There is no information available about graduate programs or their requirements.\n\nIf you're looking for information on graduate programs, you may want to contact the Ateneo de Davao University directly or check their official resources for more information.",
+          "context_keywords": [
+            "graduate",
+            "programs",
+            "requirements",
+            "admission"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What documents are needed for them?",
+          "response": "## Documents Required for New Students \n\n* **PSA-authenticated Birth Certificate**\n* **Grade 12 Senior High School (SHS) Report Card**\n* **Good Moral Certificate**\n* **Laboratory Test Results:**\n  * CBC (Complete Blood Count) with 1-month validity\n  * Urinalysis with 1-month validity\n  * Chest X-Ray with 6-month validity\n\n## Documents Required for Transfer Students \n\n* **Transfer Credentials or Honorable Dismissal**\n* **Original Transcript of Records or Certified Academic Records for evaluation**\n* **Certificate of Good Moral Character**\n* **PSA-authenticated Birth Certificate**\n* **Four recent 1\u201d x 1\u201d ID photos**\n* **A copy of the Description and Syllabus of courses already taken**\n* **Photocopies of the Marriage Contract (for married students)**\n\n## Documents Required for International Students \n\n* **Original SF 9, Honorable Dismissal, or Authenticated Latest Transcript of Records**\n* **Certificate of Good Moral or a Recommendation letter**\n* **Authenticated Birth Certificate or Family Registration**\n* **Valid Study Visa and passport (bio-page and latest arrival stamp)**\n* **Authenticated proof of Financial Support (at least $3,500.00)**\n* **10 pieces of 2x2 colored ID photos with a white background**\n* **Standard laboratory test results (CBC, Urinalysis, Chest X-ray)**",
+          "expected_context": [
+            "graduate",
+            "programs",
+            "documents",
+            "requirements"
+          ],
+          "context_test": "Should understand 'them' refers to graduate programs",
+          "scores": {
+            "context_coverage": 0.25,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0006431442849164086,
+            "dialogue_history_score": 0.42512862885698327,
+            "context_matches": [
+              "documents"
+            ],
+            "previous_context_matches": [
+              "new",
+              "documents",
+              "students",
+              "transfer",
+              "academic"
+            ],
+            "response_length": 278
+          },
+          "dialogue_history_score": 0.42512862885698327
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.42512862885698327
+      ],
+      "average_dialogue_history_score": 0.7125643144284917,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_12",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "Tell me about the Psychology program",
+          "response": "## Bachelor of Arts Major in Psychology (AB PSYCH)\n\n### Program Details\n\n- **School**: School of Arts and Sciences\n- **Cluster**: Humanities & Letters\n- **Acronym**: AB PSYCH\n- **Effective Academic Year**: 2019\u20132020\n- **Total Program Credits**: 122.0 CU\n\n### Curriculum\n\n#### Year 1 \u2014 First Semester (30.0 CU)\n\n- **ASF 1102 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 1** (3.0 CU)\n- **ASF 1000 - ARRUPE SOCIAL FORMATION 0** (2.0 CU)\n- **ASF 1101 - ARRUPE SOCIAL FORMATION 1** (2.0 CU)\n- **GE 1105 - UNDERSTANDING THE SELF** (3.0 CU)\n- **GE 1106 - PURPOSIVE COMMUNICATION** (3.0 CU)\n- **GE 1107 - ART APPRECIATION** (3.0 CU)\n- **GE 1108 - MATHEMATICS IN THE MODERN WORLD** (3.0 CU)\n- **GE 1109 - ETHICS** (3.0 CU)\n- **PE 1114 - PATH-FIT I** (2.0 CU)\n- **Philo 1000 - PHILOSOPHY** (3.0 CU)\n- **PSY 1130 - INTRODUCTION TO PSYCHOLOGY AND LEARNING PRINCIPLES** (3.0 CU)\n\n#### Year 1 \u2014 Second Semester (25.0 CU)\n\n- **Theo 1000 - THEOLOGY** (3.0 CU)\n- **ASF 1203 - NATIONAL SERVICE TRAINING PROGRAM - CIVIC WELFARE TRAINING SERVICE 2** (3.0 CU)\n- **PE 1215 - PATH-FIT II** (2.0 CU)\n- **GE 1210 - READINGS IN PHILIPPINE HISTORY** (3.0 CU)\n- **GE 1211 - THE CONTEMPORARY WORLD** (3.0 CU)\n- **GE 1213 - LIFE AND WORKS OF RIZAL** (3.0 CU)\n- **GE 1212 - SCIENCE, TECHNOLOGY AND SOCIETY** (3.0 CU)\n- **PSY 1231 - PSYCHOLOGICAL STATISTICS** (5.0 CU)\n\n#### Year 1 \u2014 Summer (6.0 CU)\n\n- **PSY 1332 - DEVELOPMENTAL PSYCHOLOGY** (3.0 CU)\n- **PSY 1333 - PHYSIOLOGICAL PSYCHOLOGY** (3.0 CU)\n\n#### Year 2 \u2014 First Semester (22.0 CU)\n\n- **PSY 2134 - THEORIES OF PERSONALITY** (3.0 CU)\n- **PSY 2135 - FILIPINO PSYCHOLOGY** (3.0 CU)\n- **PSY 2136 - EXPERIMENTAL PSYCHOLOGY** (5.0 CU)\n- **PSY 2137 - ELECTIVE 1-DISASTER AND MENTAL HEALTH** (3.0 CU)\n- **PE 2116 - PATH-FIT III** (2.0 CU)\n- **GE 3219 - ELECTIVE 2** (3.0 CU)\n- **GE 3118 - ELECTIVE 1** (3.0 CU)\n\n#### Year 2 \u2014 Second Semester (19.0 CU)\n\n- **GE 4120 - ELECTIVE 3** (3.0 CU)\n- **PE 2217 - PATH-FIT IV** (2.0 CU)\n- **PSY 2238 - SOCIAL PSYCHOLOGY** (3.0 CU)\n- **PSY 2239 - COGNITIVE PSYCHOLOGY** (3.0 CU)\n- **PSY 2240 - ABNORMAL PSYCHOLOGY** (3.0 CU)\n- **PSY 2241 - PSYCHOLOGICAL ASSESSMENT** (5.0 CU)\n\n#### Year 3 \u2014 First Semester (12.0 CU)\n\n- **PSY 3143 - INDUSTRIAL ORGANIZATIONAL PSYCHOLOGY** (3.0 CU)\n- **PSY 3144 - RESEARCH IN PSYCHOLOGY 1** (3.0 CU)\n- **PSY 3145 - ELECTIVE 2- SENIORS' IN-SERVICE TRAINING** (3.0 CU)\n- **PSY 2342 - FIELD METHODS IN PSYCHOLOGY** (3.0 CU)\n\n#### Year 3 \u2014 Second Semester (8.0 CU)\n\n- **PSY 3246 - RESEARCH IN PSYCHOLOGY 2** (3.0 CU)\n- **PSY 3247 - ELECTIVE 3-PRACTICUM IN PSYCHOLOGY** (3.0 CU)\n- **ASF 4204 - SENIORS' INTEGRATION PROGRAM** (2.0 CU)\n\n### Additional Information\n\nFor more information about the curriculum of the program, you can visit: [Bachelor of Arts Major in Psychology Curriculum PDF](https://www.addu.edu.ph/wp-content/uploads/2020/06/Bachelor-of-Arts-Major-in-Psychology.pdf)",
+          "context_keywords": [
+            "psychology",
+            "program",
+            "curriculum"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What are the major subjects?",
+          "response": "## Major Subjects in AB PSYCH\n\nThe AB PSYCH program is offered under the School of Arts & Sciences, specifically in the Social Sciences cluster.\n\n### Major Subjects:\n\n- **Psychology Major Subjects:**\n  - Introduction to Psychology\n  - Methods in Research\n  - Statistics in Psychology\n  - Abnormal Psychology\n  - Cognitive Psychology\n  - Social Psychology\n  - Developmental Psychology\n  - Personality Psychology\n  - Research Methods in Psychology\n  - Psychological Testing and Assessment\n  - Clinical Psychology\n  - Counseling Psychology\n  - Neuropsychology\n  - Health Psychology\n\nFor more information about the AB PSYCH program and its curriculum, you may want to inquire directly with the Ateneo de Davao University Admissions Office.",
+          "expected_context": [
+            "psychology",
+            "program",
+            "major",
+            "subjects"
+          ],
+          "context_test": "Should understand 'major subjects' refers to Psychology program subjects",
+          "scores": {
+            "context_coverage": 1.0,
+            "continuity_score": 1.0,
+            "bleu_score": 0.003838920099966978,
+            "dialogue_history_score": 0.8007677840199935,
+            "context_matches": [
+              "psychology",
+              "program",
+              "major",
+              "subjects"
+            ],
+            "previous_context_matches": [
+              "assessment",
+              "health",
+              "psychological",
+              "psychology",
+              "about",
+              "curriculum",
+              "cognitive",
+              "cluster",
+              "social",
+              "psych",
+              "arts",
+              "statistics",
+              "abnormal",
+              "developmental",
+              "introduction",
+              "research",
+              "sciences",
+              "personality",
+              "methods",
+              "major",
+              "information",
+              "program",
+              "school",
+              "more"
+            ],
+            "response_length": 118
+          },
+          "dialogue_history_score": 0.8007677840199935
+        },
+        {
+          "exchange": 3,
+          "query": "How many years does it take?",
+          "response": "I couldn't determine the duration for the IT TAKE program. Please try asking about the curriculum for more details.",
+          "expected_context": [
+            "psychology",
+            "program",
+            "years",
+            "duration"
+          ],
+          "context_test": "Should understand duration question refers to Psychology program",
+          "scores": {
+            "context_coverage": 0.5,
+            "continuity_score": 1.0,
+            "bleu_score": 0.010331208012220438,
+            "dialogue_history_score": 0.5520662416024441,
+            "context_matches": [
+              "program",
+              "duration"
+            ],
+            "previous_context_matches": [
+              "details",
+              "program",
+              "about",
+              "curriculum",
+              "more"
+            ],
+            "response_length": 22
+          },
+          "dialogue_history_score": 0.5520662416024441
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.8007677840199935,
+        0.5520662416024441
+      ],
+      "average_dialogue_history_score": 0.7842780085408125,
+      "exchange_count": 3
+    },
+    {
+      "session_id": "history_test_13",
+      "topic": "fees",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What are the miscellaneous fees?",
+          "response": "The provided context documents do not specify the miscellaneous fees. However, I can provide information on tuition fees and payment schedules for specific programs if you mention the program you are interested in.\n\nFor example, here are the tuition fees for some programs:\n\n* **Bachelor of Science in Nursing (BSN)**:\n\t+ Year 1: \n\t\t- 1st Semester: \u20b172,077.15 (31 units)\n\t\t- 2nd Semester: \u20b166,922.70 (28 units)\n\t\t- Summer: \u20b134,277.85 (9 units)\n\t+ Year 2: \n\t\t- 1st Semester: \u20b168,633.40 (27 units)\n\t\t- 2nd Semester: \u20b167,486.60 (26 units)\n* **Bachelor of Arts in Anthropology - Academic Research (AB Anthro-AcadRes)**:\n\t+ Year 1: \n\t\t- 1st Semester: \u20b159,846.10 (24 units)\n\t\t- 2nd Semester: \u20b158,127.95 (23 units)\n* **Bachelor of Arts in English Language (AB EL)**:\n\t+ Year 1: \n\t\t- 1st Semester: \u20b170,180.00 (30 units)\n\t\t- 2nd Semester: \u20b163,307.40 (26 units)\n\nPlease specify the program you are interested in, and I can provide more detailed information on tuition fees and payment schedules.",
+          "context_keywords": [
+            "miscellaneous",
+            "fees",
+            "additional",
+            "costs"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "Are they required for all students?",
+          "response": "Tuition fees are required for all students enrolled in the various programs at Ateneo de Davao University. \n\nHere are the tuition fees for some of the programs:\n\n**Bachelor of Science in Nursing (BSN)**\n* Year 1: \n  - 1st Semester: \u20b172,077.15 (31 units)\n  - 2nd Semester: \u20b166,922.70 (28 units)\n  - Summer: \u20b134,277.85 (9 units)\n* Year 2: \n  - 1st Semester: \u20b168,633.40 (27 units)\n  - 2nd Semester: \u20b167,486.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b164,058.95 (22 units)\n  - 2nd Semester: \u20b165,637.40 (23 units)\n* Year 4: \n  - 1st Semester: \u20b153,978.25 (19 units)\n  - 2nd Semester: \u20b144,507.55 (13 units)\n\n**Bachelor of Public Management (BPM)**\n* Year 1: \n  - 1st Semester: \u20b165,025.55 (27 units)\n  - 2nd Semester: \u20b163,307.40 (26 units)\n* Year 2: \n  - 1st Semester: \u20b158,746.20 (23 units)\n  - 2nd Semester: \u20b153,805.80 (20 units)\n* Year 3: \n  - 1st Semester: \u20b155,811.75 (21 units)\n  - 2nd Semester: \u20b155,811.75 (21 units)\n* Year 4: \n  - 1st Semester: \u20b147,962.30 (18 units)\n  - 2nd Semester: \u20b141,648.50 (14 units)\n\n**Bachelor of Science in Accountancy (BS A)**\n* Year 1: \n  - 1st Semester: \u20b170,180.00 (30 units)\n  - 2nd Semester: \u20b163,307.40 (26 units)\n  - Summer: \u20b134,098.85 (9 units)\n* Year 2: \n  - 1st Semester: \u20b158,746.20 (23 units)\n  - 2nd Semester: \u20b158,746.20 (23 units)\n  - Summer: \u20b130,750.60 (6 units)\n* Year 3: \n  - 1st Semester: \u20b155,811.75 (21 units)\n  - 2nd Semester: \u20b155,811.75 (21 units)\n  - Summer: \u20b132,135.00 (6 units)\n* Year 4: \n  - 1st Semester: \u20b138,491.60 (12 units)\n  - 2nd Semester: \u20b151,119.20 (20 units)\n\n**Bachelor of Science in Management Accounting (BS MA)**\n* Year 1: \n  - 1st Semester: \u20b170,180.00 (30 units)\n  - 2nd Semester: \u20b163,307.40 (26 units)\n  - Summer: \u20b134,098.85 (9 units)\n* Year 2: \n  - 1st Semester: \u20b158,746.20 (23 units)\n  - 2nd Semester: \u20b158,746.20 (23 units)\n* Year 3: \n  - 1st Semester: \u20b160,547.10 (24 units)\n  - 2nd Semester: \u20b160,547.10 (24 units)\n* Year 4: \n  - 1st Semester: \u20b152,697.65 (21 units)\n  - 2nd Semester: \u20b136,913.15 (11 units)\n\n**Bachelor of Science in Business Management (BSBM)**\n* Year 1: \n  - 1st Semester: \u20b165,025.55 (27 units)\n  - 2nd Semester: \u20b163,307.40 (26 units)\n* Year 2: \n  - 1st Semester: \u20b158,746.20 (23 units)\n  - 2nd Semester: \u20b158,746.20 (23 units)\n* Year 3: \n  - 1st Semester: \u20b146,341.05 (15 units)\n  - 2nd Semester: \u20b146,341.05 (15 units)\n* Year 4: \n  - 1st Semester: \u20b143,226.95 (15 units)\n  - 2nd Semester: \u20b132,177.80 (8 units)\n\n**Bachelor of Science in Entrepreneurship (BS ENTREP)**\n* Year 1: \n  - 1st Semester: \u20b165,025.55 (27 units)\n  - 2nd Semester: \u20b163,307.40 (26 units)\n  - Summer: \u20b134,098.85 (9 units)\n* Year 2: \n  - 1st Semester: \u20b148,865.40 (17 units)\n  - 2nd Semester: \u20b148,865.40 (17 units)\n* Year 3: \n  - 1st Semester: \u20b146,341.05 (15 units)\n  - 2nd Semester: \u20b155,811.75 (21 units)\n  - Summer: \u20b127,399.65 (3 units)\n* Year 4: \n  - 1st Semester: \u20b140,070.05 (13 units)\n  - 2nd Semester: \u20b141,648.50 (14 units)\n\n**Bachelor of Early Education (BECE)**\n* Year 1: \n  - 1st Semester: \u20b170,905.00 (30 units)\n  - 2nd Semester: \u20b164,032.40 (26 units)\n* Year 2: \n  - 1st Semester: \u20b164,411.60 (26 units)\n  - 2nd Semester: \u20b164,411.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b166,007.45 (27 units)\n  - 2nd Semester: \u20b161,272.10 (24 units)\n* Year 4: \n  - 1st Semester: \u20b134,331.25 (9 units)\n  - 2nd Semester: \u20b132,752.80 (8 units)\n\n**Bachelor of Elementary Education (BEED)**\n* Year 1: \n  - 1st Semester: \u20b170,905.00 (30 units)\n  - 2nd Semester: \u20b158,877.95 (23 units)\n* Year 2: \n  - 1st Semester: \u20b164,411.60 (26 units)\n  - 2nd Semester: \u20b164,411.60 (26 units)\n* Year 3: \n  - 1st Semester: \u20b161,272.10 (24 units)\n  - 2nd Semester: \u20b156,536.75 (21 units)\n* Year 4: \n  - 1st Semester: \u20b139,066.60 (12 units)\n  - 2nd Semester: \u20b132,752.80 (8 units)",
+          "expected_context": [
+            "miscellaneous",
+            "fees",
+            "required",
+            "students"
+          ],
+          "context_test": "Should understand 'they' refers to miscellaneous fees",
+          "scores": {
+            "context_coverage": 0.75,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0002642969152763553,
+            "dialogue_history_score": 0.6750528593830554,
+            "context_matches": [
+              "fees",
+              "required",
+              "students"
+            ],
+            "previous_context_matches": [
+              "\u20b163,307.40",
+              "year",
+              "\u20b134,277.85",
+              "\u20b172,077.15",
+              "\u20b166,922.70",
+              "summer",
+              "nursing",
+              "units",
+              "fees",
+              "tuition",
+              "\u20b170,180.00",
+              "science",
+              "\u20b167,486.60",
+              "bsn",
+              "semester",
+              "\u20b168,633.40",
+              "1st",
+              "bachelor",
+              "here",
+              "2nd",
+              "some",
+              "programs"
+            ],
+            "response_length": 887
+          },
+          "dialogue_history_score": 0.6750528593830554
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.6750528593830554
+      ],
+      "average_dialogue_history_score": 0.8375264296915277,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_14",
+      "topic": "admissions_enrollment",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "How do I enroll as a returning student?",
+          "response": "## Enrollment Procedures for Returning Students\n\n1. **Check Eligibility**: Ensure you are a returning student, meaning you did not enroll in the previous semester but have previously enrolled at Ateneo de Davao University.\n2. **Evaluation**: Go to your department for evaluation before the registration-enrollment days.\n3. **Online Pre-registration**: Pre-register online via the Student Information System (SIS) account prior to the enrollment period.\n4. **Enrollment**: During the enrollment period, confirm or modify your generated list by adding and dropping courses, update your profile, and print out your registration list.\n5. **Payment of Fees**: Pay your fees and dues on the set dates.\n6. **Enrollment Confirmation**: Complete the enrollment process by confirming your enrollment via your payment of fees.\n\n## Required Documents for Readmission (if applicable)\n\n* Updated Transcript of Records\n* Clearance from your former Department\n* Recommendation Letters from:\n  * Program Coordinator/Director\n  * Guidance Counselor/Director\n  * OSA Director\n  * FYDP Facilitator or ASF Formator/Former Teacher\n* Leave of Absence form (if applicable)\n\n## Additional Notes\n\n* Old students are allowed to stay in the University for a maximum of five years for a four-year course.\n* Students who have been readmitted must meet the required QPI to avoid dismissal.",
+          "context_keywords": [
+            "enroll",
+            "returning",
+            "student",
+            "process"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What's the deadline for it?",
+          "response": "The provided context does not mention a specific deadline for document requirements. However, it outlines the required documents for different student types:\n\n**New Students (First-Year Applicants)**\n* PSA-authenticated Birth Certificate\n* Grade 12 Senior High School (SHS) Report Card\n* Good Moral Certificate\n* Laboratory Test Results:\n  * CBC (Complete Blood Count) with 1-month validity\n  * Urinalysis with 1-month validity\n  * Chest X-Ray with 6-month validity\n\n**Transfer Students**\n* Original Honorable Dismissal\n* Original Certificate of Good Moral\n* Original Transcript of Records (for evaluation)\n* PSA Birth Certificate\n* Laboratory Test Results:\n  * CBC & Urinalysis (1-month validity)\n  * Chest X-ray (6-month validity)\n\n**Additional Requirements**\n* Four recent 1\u201d x 1\u201d ID photos\n* Photocopy of Marriage Contract (for married students)\n\nPlease note that the enrollment process involves several steps, including online registration, document validation, interview, RFID photo and signature, physical examination, payment of fees, and creation of an ADDU account. \n\nTo confirm specific deadlines, it is best to consult the Ateneo de Davao University's official resources or contact their Admissions Office directly.",
+          "expected_context": [
+            "enroll",
+            "returning",
+            "student",
+            "deadline"
+          ],
+          "context_test": "Should understand 'it' refers to returning student enrollment",
+          "scores": {
+            "context_coverage": 0.75,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0009767994115044407,
+            "dialogue_history_score": 0.675195359882301,
+            "context_matches": [
+              "enroll",
+              "student",
+              "deadline"
+            ],
+            "previous_context_matches": [
+              "account",
+              "process",
+              "ateneo",
+              "complete",
+              "students",
+              "dismissal",
+              "evaluation",
+              "fees",
+              "records",
+              "payment",
+              "transcript",
+              "additional",
+              "online",
+              "documents",
+              "student",
+              "required",
+              "university",
+              "registration",
+              "not",
+              "confirm",
+              "davao",
+              "enrollment"
+            ],
+            "response_length": 218
+          },
+          "dialogue_history_score": 0.675195359882301
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.675195359882301
+      ],
+      "average_dialogue_history_score": 0.8375976799411504,
+      "exchange_count": 2
+    },
+    {
+      "session_id": "history_test_15",
+      "topic": "programs_courses",
+      "conversations": [
+        {
+          "exchange": 1,
+          "query": "What programs are offered in the School of Medicine?",
+          "response": "I don't have information about the School of Medicine or its programs in my knowledge base. Please check our official program list or contact admissions directly.",
+          "context_keywords": [
+            "programs",
+            "school",
+            "medicine",
+            "offered"
+          ],
+          "dialogue_history_score": 1.0,
+          "analysis": "Initial context establishment"
+        },
+        {
+          "exchange": 2,
+          "query": "What are the admission requirements for these?",
+          "response": "I notice you're asking about **General Admissions and Enrollment**, but we're currently in the **Program Curriculum** section.\n\nTo get the most accurate information about General Admissions and Enrollment, please:\n\n1. Click **\"Change Topic\"** below\n2. Select **\"General Admissions and Enrollment\"** from the topic list\n3. Ask your question again\n\nThis will ensure you get the most relevant and up-to-date information for your query.",
+          "expected_context": [
+            "programs",
+            "school",
+            "medicine",
+            "admission",
+            "requirements"
+          ],
+          "context_test": "Should understand 'these' refers to School of Medicine programs",
+          "scores": {
+            "context_coverage": 0.2,
+            "continuity_score": 1.0,
+            "bleu_score": 0,
+            "dialogue_history_score": 0.4,
+            "context_matches": [
+              "admission"
+            ],
+            "previous_context_matches": [
+              "list",
+              "admissions",
+              "program",
+              "about",
+              "please",
+              "information"
+            ],
+            "response_length": 90
+          },
+          "dialogue_history_score": 0.4
+        },
+        {
+          "exchange": 3,
+          "query": "How competitive are they?",
+          "response": "I don't have information about the AB IDS-LL program in my knowledge base. Please check our official program list or contact admissions directly.assistant\n\nHowever, I can provide information on other programs offered by Ateneo de Davao University. Here is the list of programs:\n\n### School of Arts & Sciences\n- **Humanities & Letters (Cluster)**: AB ENG, AB MC, AB IDS (various minors), AB PHILO\n- **Natural Sciences & Mathematics (Cluster)**: BS BIO, BS CHEM, BS MATH, BS ENVI SCI\n- **Computer Studies (Cluster)**: BS IS, BS IT, BS CS, BS DS\n- **Social Sciences (Cluster)**: AB ECON, AB POLSCI, AB PSYCH, AB SOCIO, AB IS, AB ANTHRO\n\n### School of Business & Governance\n- **Accountancy (Cluster)**: BS A, BS MA\n- **Business Management (Cluster)**: BS BM, BS ENTREP, BS FIN, BS HRDM, BS MKTG, BPM\n\n### School of Education\n- **Education (Cluster)**: BECE, BEED, BSED (English, Math, Science, Social Studies)\n\n### School of Engineering & Architecture\n- **Engineering (Cluster)**: BS AE, BS ARCH, BS CHE, BS CE, BS COMP ENG, BS EE, BS ELECTRONICS ENG, BS IE, BS ME, BS RE\n\n### School of Nursing\n- **Nursing (Cluster)**: BS N\n\nFor more information about a specific program, feel free to ask.",
+          "expected_context": [
+            "programs",
+            "school",
+            "medicine",
+            "competitive"
+          ],
+          "context_test": "Should understand 'they' refers to School of Medicine programs",
+          "scores": {
+            "context_coverage": 0.5,
+            "continuity_score": 1.0,
+            "bleu_score": 0.0006660647680267665,
+            "dialogue_history_score": 0.5501332129536054,
+            "context_matches": [
+              "programs",
+              "school"
+            ],
+            "previous_context_matches": [
+              "list",
+              "admissions",
+              "program",
+              "ask",
+              "n't",
+              "official",
+              "base",
+              "our",
+              "about",
+              "school",
+              "please",
+              "knowledge",
+              "contact",
+              "check",
+              "information",
+              "programs"
+            ],
+            "response_length": 319
+          },
+          "dialogue_history_score": 0.5501332129536054
+        }
+      ],
+      "session_scores": [
+        1.0,
+        0.4,
+        0.5501332129536054
+      ],
+      "average_dialogue_history_score": 0.6500444043178685,
+      "exchange_count": 3
+    }
+  ],
+  "overall_dialogue_history_score": 0.7849338470839495,
+  "target_score": 0.4,
+  "target_achieved": true,
+  "total_sessions": 15,
+  "successful_sessions": 15
+}
