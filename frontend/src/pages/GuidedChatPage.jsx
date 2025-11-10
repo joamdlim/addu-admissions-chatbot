@@ -401,166 +401,262 @@ const GuidedChatPage = () => {
                 ) : (
                   <div>
                     <div>
-                      {m.content.split("\n").map((line, lineIndex) => {
-                        const trimmedLine = line.trim();
+                      {(() => {
+                        // Group consecutive numbered list items together
+                        const lines = m.content.split("\n");
+                        const processedLines = [];
+                        let i = 0;
 
-                        // Handle bullet points specially
-                        if (trimmedLine.startsWith("•")) {
-                          return (
-                            <div key={lineIndex} className="mb-2">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ children }) => <span>{children}</span>,
-                                  strong: ({ children }) => (
-                                    <strong className="font-bold text-gray-900">
-                                      {children}
-                                    </strong>
-                                  ),
-                                }}
-                              >
-                                {trimmedLine}
-                              </ReactMarkdown>
-                            </div>
-                          );
+                        while (i < lines.length) {
+                          const trimmedLine = lines[i].trim();
+
+                          // Check if this line starts a numbered list (pattern: number followed by period and space)
+                          const numberedListMatch =
+                            trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+
+                          if (numberedListMatch) {
+                            // Collect consecutive numbered list items
+                            const numberedItems = [];
+                            let j = i;
+
+                            while (j < lines.length) {
+                              const trimmedItem = lines[j].trim();
+                              const itemMatch =
+                                trimmedItem.match(/^(\d+)\.\s+(.+)$/);
+
+                              if (itemMatch) {
+                                numberedItems.push({
+                                  number: parseInt(itemMatch[1]),
+                                  content: itemMatch[2],
+                                });
+                                j++;
+                              } else {
+                                break;
+                              }
+                            }
+
+                            // Render as a single ordered list
+                            processedLines.push({
+                              type: "numbered-list",
+                              items: numberedItems,
+                              lineIndex: i,
+                            });
+
+                            i = j;
+                          } else if (trimmedLine.startsWith("•")) {
+                            // Handle bullet points specially
+                            processedLines.push({
+                              type: "bullet",
+                              content: trimmedLine,
+                              lineIndex: i,
+                            });
+                            i++;
+                          } else if (trimmedLine === "") {
+                            // Handle empty lines
+                            processedLines.push({
+                              type: "empty",
+                              lineIndex: i,
+                            });
+                            i++;
+                          } else {
+                            // Regular content
+                            processedLines.push({
+                              type: "regular",
+                              content: trimmedLine,
+                              lineIndex: i,
+                            });
+                            i++;
+                          }
                         }
 
-                        // Handle empty lines
-                        if (trimmedLine === "") {
-                          return <div key={lineIndex} className="mb-2"></div>;
-                        }
+                        return processedLines.map((item, idx) => {
+                          if (item.type === "numbered-list") {
+                            // Render numbered list directly as HTML ol/li elements
+                            // This ensures proper numbering regardless of the original numbers
+                            return (
+                              <div key={item.lineIndex} className="mb-2">
+                                <ol className="list-decimal list-outside ml-6 mb-2 space-y-1">
+                                  {item.items.map((listItem, listIdx) => (
+                                    <li key={listIdx} className="mb-1">
+                                      <ReactMarkdown
+                                        components={{
+                                          p: ({ children }) => (
+                                            <span>{children}</span>
+                                          ),
+                                          strong: ({ children }) => (
+                                            <strong className="font-bold text-gray-900">
+                                              {children}
+                                            </strong>
+                                          ),
+                                        }}
+                                      >
+                                        {listItem.content}
+                                      </ReactMarkdown>
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
+                            );
+                          } else if (item.type === "bullet") {
+                            return (
+                              <div key={item.lineIndex} className="mb-2">
+                                <ReactMarkdown
+                                  components={{
+                                    p: ({ children }) => (
+                                      <span>{children}</span>
+                                    ),
+                                    strong: ({ children }) => (
+                                      <strong className="font-bold text-gray-900">
+                                        {children}
+                                      </strong>
+                                    ),
+                                  }}
+                                >
+                                  {item.content}
+                                </ReactMarkdown>
+                              </div>
+                            );
+                          } else if (item.type === "empty") {
+                            return (
+                              <div key={item.lineIndex} className="mb-2"></div>
+                            );
+                          } else {
+                            // Handle regular content with full ReactMarkdown processing
+                            return (
+                              <div key={item.lineIndex} className="mb-2">
+                                <ReactMarkdown
+                                  components={{
+                                    // Enhanced curriculum formatting
+                                    p: ({ children }) => {
+                                      const text = children?.toString() || "";
 
-                        // Handle regular content with full ReactMarkdown processing
-                        return (
-                          <div key={lineIndex} className="mb-2">
-                            <ReactMarkdown
-                              components={{
-                                // Enhanced curriculum formatting
-                                p: ({ children }) => {
-                                  const text = children?.toString() || "";
+                                      // Check if this is a curriculum title/header
+                                      if (
+                                        text.includes("Year") &&
+                                        text.includes("Semester") &&
+                                        text.includes("Units")
+                                      ) {
+                                        return (
+                                          <h3 className="font-bold text-lg text-gray-900 mt-4 mb-3">
+                                            {children}
+                                          </h3>
+                                        );
+                                      }
 
-                                  // Check if this is a curriculum title/header
-                                  if (
-                                    text.includes("Year") &&
-                                    text.includes("Semester") &&
-                                    text.includes("Units")
-                                  ) {
-                                    return (
-                                      <h3 className="font-bold text-lg text-gray-900 mt-4 mb-3">
+                                      // Check if this is a course entry
+                                      if (
+                                        text.includes("Prerequisites:") ||
+                                        text.includes("Pay Units:") ||
+                                        text.includes("Credit Prof Units:")
+                                      ) {
+                                        return (
+                                          <div className="ml-4 text-sm text-gray-600 mb-1">
+                                            {children}
+                                          </div>
+                                        );
+                                      }
+
+                                      // Check if this is a course title (usually starts with course code)
+                                      if (/^[A-Z]{2,4}\s+\d{4}/.test(text)) {
+                                        return (
+                                          <div className="font-semibold text-gray-900 mt-2 mb-1">
+                                            {children}
+                                          </div>
+                                        );
+                                      }
+
+                                      // Check if this paragraph contains a URL and convert to hyperlink
+                                      const urlRegex = /(https?:\/\/[^\s]+)/g;
+                                      if (urlRegex.test(text)) {
+                                        const parts = text.split(urlRegex);
+                                        const processedContent = parts.map(
+                                          (part, index) => {
+                                            // Clean the part to remove any trailing whitespace or newlines
+                                            const cleanPart = part.trim();
+                                            if (cleanPart.match(urlRegex)) {
+                                              // Use generic link text for all URLs
+                                              const linkText = "Click Here";
+
+                                              return (
+                                                <a
+                                                  key={index}
+                                                  href={cleanPart}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
+                                                >
+                                                  {linkText}
+                                                </a>
+                                              );
+                                            }
+                                            return part;
+                                          }
+                                        );
+                                        return (
+                                          <p className="mb-2 last:mb-0">
+                                            {processedContent}
+                                          </p>
+                                        );
+                                      }
+
+                                      return (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      );
+                                    },
+                                    ul: ({ children }) => (
+                                      <ul className="list-disc list-inside mb-2 space-y-1">
+                                        {children}
+                                      </ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="list-decimal list-inside mb-2 space-y-1">
+                                        {children}
+                                      </ol>
+                                    ),
+                                    li: ({ children }) => (
+                                      <li className="mb-1">{children}</li>
+                                    ),
+                                    strong: ({ children }) => (
+                                      <strong className="font-bold text-gray-900">
+                                        {children}
+                                      </strong>
+                                    ),
+                                    h1: ({ children }) => (
+                                      <h1 className="text-xl font-bold text-gray-900 mb-3">
+                                        {children}
+                                      </h1>
+                                    ),
+                                    h2: ({ children }) => (
+                                      <h2 className="text-lg font-bold text-gray-900 mb-2">
+                                        {children}
+                                      </h2>
+                                    ),
+                                    h3: ({ children }) => (
+                                      <h3 className="text-md font-bold text-gray-900 mb-2">
                                         {children}
                                       </h3>
-                                    );
-                                  }
-
-                                  // Check if this is a course entry
-                                  if (
-                                    text.includes("Prerequisites:") ||
-                                    text.includes("Pay Units:") ||
-                                    text.includes("Credit Prof Units:")
-                                  ) {
-                                    return (
-                                      <div className="ml-4 text-sm text-gray-600 mb-1">
-                                        {children}
-                                      </div>
-                                    );
-                                  }
-
-                                  // Check if this is a course title (usually starts with course code)
-                                  if (/^[A-Z]{2,4}\s+\d{4}/.test(text)) {
-                                    return (
-                                      <div className="font-semibold text-gray-900 mt-2 mb-1">
-                                        {children}
-                                      </div>
-                                    );
-                                  }
-
-                                  // Check if this paragraph contains a URL and convert to hyperlink
-                                  const urlRegex = /(https?:\/\/[^\s]+)/g;
-                                  if (urlRegex.test(text)) {
-                                    const parts = text.split(urlRegex);
-                                    const processedContent = parts.map(
-                                      (part, index) => {
-                                        // Clean the part to remove any trailing whitespace or newlines
-                                        const cleanPart = part.trim();
-                                        if (cleanPart.match(urlRegex)) {
-                                          // Use generic link text for all URLs
-                                          const linkText = "Click Here";
-
-                                          return (
-                                            <a
-                                              key={index}
-                                              href={cleanPart}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
-                                            >
-                                              {linkText}
-                                            </a>
-                                          );
-                                        }
-                                        return part;
-                                      }
-                                    );
-                                    return (
-                                      <p className="mb-2 last:mb-0">
-                                        {processedContent}
-                                      </p>
-                                    );
-                                  }
-
-                                  return (
-                                    <p className="mb-2 last:mb-0">{children}</p>
-                                  );
-                                },
-                                ul: ({ children }) => (
-                                  <ul className="list-disc list-inside mb-2 space-y-1">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="list-decimal list-inside mb-2 space-y-1">
-                                    {children}
-                                  </ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li className="mb-1">{children}</li>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong className="font-bold text-gray-900">
-                                    {children}
-                                  </strong>
-                                ),
-                                h1: ({ children }) => (
-                                  <h1 className="text-xl font-bold text-gray-900 mb-3">
-                                    {children}
-                                  </h1>
-                                ),
-                                h2: ({ children }) => (
-                                  <h2 className="text-lg font-bold text-gray-900 mb-2">
-                                    {children}
-                                  </h2>
-                                ),
-                                h3: ({ children }) => (
-                                  <h3 className="text-md font-bold text-gray-900 mb-2">
-                                    {children}
-                                  </h3>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
-                                  >
-                                    Click Here
-                                  </a>
-                                ),
-                              }}
-                            >
-                              {trimmedLine}
-                            </ReactMarkdown>
-                          </div>
-                        );
-                      })}
+                                    ),
+                                    a: ({ href, children }) => (
+                                      <a
+                                        href={href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
+                                      >
+                                        Click Here
+                                      </a>
+                                    ),
+                                  }}
+                                >
+                                  {item.content}
+                                </ReactMarkdown>
+                              </div>
+                            );
+                          }
+                        });
+                      })()}
                     </div>
 
                     {/* Typing indicator for streaming messages */}
