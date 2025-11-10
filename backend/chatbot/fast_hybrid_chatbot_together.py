@@ -809,7 +809,9 @@ class FastHybridChatbotTogether:
             sorted_keywords = sorted(program_keywords, key=len, reverse=True)
             
             for program in sorted_keywords:
-                if program in query_lower:
+                import re
+                pattern = r'\b' + re.escape(program.lower()) + r'\b'
+                if re.search(pattern, query_lower):
                     fee_info['program_name'] = program
                     print(f"📚 Fallback program extraction for fees: '{program}'")
                     break
@@ -1619,7 +1621,7 @@ class FastHybridChatbotTogether:
     def retrieve_fees_documents(self, query: str, top_k: int = 2) -> List[Dict]:
         """
         Specialized retrieval for fees, payments, and financial information.
-        Excludes documents with 'regulation' in keywords to avoid policy documents.
+        Includes all documents with fees or financial document types.
         """
         import re
         
@@ -1682,16 +1684,12 @@ class FastHybridChatbotTogether:
             topic_keywords = get_topic_keywords('fees')
             print(f"📝 Using topic keywords for additional filtering: {topic_keywords}")
             
-            # Filter documents: must have fee keywords AND not have 'regulation'
+            # Filter documents: must have fee keywords
             filtered_docs = []
             for i, (doc_id, content, metadata) in enumerate(zip(all_ids, all_contents, all_metadatas)):
                 doc_keywords = metadata.get('keywords', '').lower()
                 filename = metadata.get('filename', '').lower()
                 
-                # Skip documents with 'regulation' in keywords
-                if 'regulation' in doc_keywords:
-                    print(f"🚫 Excluding document with 'regulation' in keywords: {metadata.get('filename', 'N/A')}")
-                    continue
                 
                 # Check if document has fee-related keywords or is already from document_type filtering
                 has_fee_keywords = False
@@ -3216,6 +3214,48 @@ class FastHybridChatbotTogether:
             all_ids = all_docs.get('ids', [])
             all_contents = all_docs.get('documents', [])
             all_metadatas = all_docs.get('metadatas', [])
+            
+            # Filter fees documents: only allow regulation/policy fees documents for admissions
+            if topic_id == 'admissions_enrollment':
+                filtered_ids = []
+                filtered_contents = []
+                filtered_metadatas = []
+                
+                for doc_id, content, metadata in zip(all_ids, all_contents, all_metadatas):
+                    doc_type = metadata.get('document_type', '').lower()
+                    
+                    # If it's a fees document, check if it's a regulation/policy
+                    if doc_type in ['fees', 'financial']:
+                        doc_keywords = metadata.get('keywords', '').lower()
+                        filename = metadata.get('filename', '').lower()
+                        
+                        # Only include if it's a regulation/policy document
+                        is_regulation = (
+                            'regulation' in doc_keywords or 
+                            'regulation' in filename or
+                            'policy' in doc_keywords or
+                            'policy' in filename or
+                            filename.endswith('.pdf')  # PDFs are likely policies, CSVs are program fees
+                        )
+                        
+                        if is_regulation:
+                            filtered_ids.append(doc_id)
+                            filtered_contents.append(content)
+                            filtered_metadatas.append(metadata)
+                            print(f"✅ Including fees regulation document: {metadata.get('filename', 'N/A')}")
+                        else:
+                            print(f"🚫 Excluding non-regulation fees document: {metadata.get('filename', 'N/A')}")
+                    else:
+                        # Include all non-fees documents
+                        filtered_ids.append(doc_id)
+                        filtered_contents.append(content)
+                        filtered_metadatas.append(metadata)
+                
+                # Update the lists with filtered results
+                all_ids = filtered_ids
+                all_contents = filtered_contents
+                all_metadatas = filtered_metadatas
+                print(f"📚 After fees regulation filtering: {len(all_ids)} documents (excluded {len(all_docs.get('ids', [])) - len(all_ids)} non-regulation fees docs)")
             
             print(f"📚 Applying topic keyword filtering to {len(all_ids)} document type-filtered documents...")
             
