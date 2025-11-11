@@ -4968,14 +4968,8 @@ RULES:
 
 If you want to see the list of programs, click on the buttons below per school, or if you want to ask for specific curricula, just type it in the chatbox below."""
                     
-                    # Create school buttons
-                    school_buttons = [
-                        {'id': 'school_arts_sciences', 'label': 'School of Arts & Sciences', 'type': 'school'},
-                        {'id': 'school_business_governance', 'label': 'School of Business & Governance', 'type': 'school'},
-                        {'id': 'school_education', 'label': 'School of Education', 'type': 'school'},
-                        {'id': 'school_engineering_architecture', 'label': 'School of Engineering & Architecture', 'type': 'school'},
-                        {'id': 'school_nursing', 'label': 'School of Nursing', 'type': 'school'}
-                    ]
+                    # Create school buttons dynamically from JSON config
+                    school_buttons = self._generate_school_buttons()
                     
                     button_configs = get_button_configs()
                     # Add school buttons to the existing action buttons
@@ -5024,13 +5018,7 @@ If you want to see the list of programs, click on the buttons below per school, 
                     school_programs = self._get_school_programs(action_data)
                     
                     # Create school buttons again for continued interaction
-                    school_buttons = [
-                        {'id': 'school_arts_sciences', 'label': 'School of Arts & Sciences', 'type': 'school'},
-                        {'id': 'school_business_governance', 'label': 'School of Business & Governance', 'type': 'school'},
-                        {'id': 'school_education', 'label': 'School of Education', 'type': 'school'},
-                        {'id': 'school_engineering_architecture', 'label': 'School of Engineering & Architecture', 'type': 'school'},
-                        {'id': 'school_nursing', 'label': 'School of Nursing', 'type': 'school'}
-                    ]
+                    school_buttons = self._generate_school_buttons()
                     
                     button_configs = get_button_configs()
                     all_buttons = button_configs['topic_conversation']['buttons'] + school_buttons
@@ -5401,6 +5389,85 @@ If you want to see the list of programs, click on the buttons below per school, 
         """Force reload of normalization configuration"""
         self._normalization_config = None
         return self._load_normalization_config()
+    
+    def _get_schools_from_config(self) -> list:
+        """Extract unique schools from JSON config"""
+        config = self._load_normalization_config()
+        schools = set()
+        
+        # Extract from program_abbreviations
+        for school_section, programs_data in config.get("program_abbreviations", {}).items():
+            if school_section.startswith('_'):  # Skip metadata
+                continue
+                
+            for abbrev_key, abbrev_data in programs_data.items():
+                if isinstance(abbrev_data, dict) and 'school' in abbrev_data:
+                    schools.add(abbrev_data['school'])
+        
+        # Also extract from school_abbreviations and school_keywords
+        school_abbrevs = config.get("school_abbreviations", {})
+        school_keywords = config.get("school_keywords", {})
+        
+        for abbrev, school_name in school_abbrevs.items():
+            if not abbrev.startswith('_'):
+                schools.add(school_name)
+        
+        for keyword, school_name in school_keywords.items():
+            if not keyword.startswith('_'):
+                schools.add(school_name)
+        
+        return sorted(list(schools))
+    
+    def _get_programs_by_school_from_config(self, school_name: str) -> dict:
+        """Get programs organized by cluster for a specific school from JSON config"""
+        config = self._load_normalization_config()
+        school_programs = {}
+        
+        # Extract programs for the specified school
+        for school_section, programs_data in config.get("program_abbreviations", {}).items():
+            if school_section.startswith('_'):  # Skip metadata
+                continue
+                
+            for abbrev_key, abbrev_data in programs_data.items():
+                if (isinstance(abbrev_data, dict) and 
+                    abbrev_data.get('school') == school_name and 
+                    'full_name' in abbrev_data):
+                    
+                    cluster = abbrev_data.get('cluster', 'Other')
+                    if cluster not in school_programs:
+                        school_programs[cluster] = []
+                    
+                    school_programs[cluster].append({
+                        'abbreviation': abbrev_data['full_name'],
+                        'description': abbrev_data.get('description', ''),
+                        'priority': abbrev_data.get('priority', '')
+                    })
+        
+        return school_programs
+    
+    def _generate_school_buttons(self) -> list:
+        """Generate school buttons dynamically from JSON config"""
+        schools = self._get_schools_from_config()
+        school_buttons = []
+        
+        # Create mapping from school names to button IDs
+        school_id_mapping = {
+            'School of Arts & Sciences': 'school_arts_sciences',
+            'School of Business & Governance': 'school_business_governance',
+            'School of Education': 'school_education',
+            'School of Engineering & Architecture': 'school_engineering_architecture',
+            'School of Nursing': 'school_nursing'
+        }
+        
+        for school in schools:
+            if school in school_id_mapping:
+                school_buttons.append({
+                    'id': school_id_mapping[school],
+                    'label': school,
+                    'type': 'school'
+                })
+        
+        return school_buttons
     
     def _get_program_abbreviations(self):
         """Get all program abbreviations from config"""
@@ -6685,96 +6752,37 @@ If you want to see the list of programs, click on the buttons below per school, 
         return None
     
     def _get_school_programs(self, school_id: str) -> str:
-        """Get program list for a specific school"""
-        school_programs = {
-            'school_arts_sciences': """**School of Arts & Sciences**
-
-● Humanities & Letters (Cluster)
-1. AB ENG – Bachelor of Arts in English Language
-2. AB C – Bachelor of Arts in Communication
-3. AB IDS-Language and Literature – Bachelor of Arts in Interdisciplinary Studies, minor in Language & Literature
-4. AB IDS-Media and Business – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Business
-5. AB IDS-Media and Philosophy – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Philosophy
-6. AB IDS-Media and Technology – Bachelor of Arts in Interdisciplinary Studies, minor in Media & Technology
-7. AB IDS-Philosophy and Theology – Bachelor of Arts in Interdisciplinary Studies, minor in Philosophy & Theology
-8. AB PHILO – Bachelor of Arts Major in Philosophy
-
-● Natural Sciences & Mathematics (Cluster)
-1. BS BIO – Bachelor of Science in Biology (General Biology)
-2. BS BIO – MEDBIO – Bachelor of Science in Biology Major in Medical Biology
-3. BS CHEM – Bachelor of Science in Chemistry
-4. BS MATH – Bachelor of Science in Mathematics
-5. BS ENVI SCI – Bachelor of Science in Environmental Science
-
-● Computer Studies (Cluster)
-1. BS IS – Bachelor of Science in Information Systems
-2. BS IT – Bachelor of Science in Information Technology
-3. BS CS – Bachelor of Science in Computer Science
-4. BS DS – Bachelor of Science in Data Science
-
-● Social Sciences (Cluster)
-1. AB ECON – Bachelor of Arts Major in Economics
-2. AB DS - Bachelor of Arts in Development Studies
-3. AB POLSCI – Bachelor of Arts Major in Political Studies
-4. AB PSYCH – Bachelor of Arts Major in Psychology
-5. AB SOCIO – Bachelor of Arts Major in Sociology
-6. AB IS - Bachelor of Arts in Islamic Studies
-7. AB IS - AMERICAN STUDIES– Bachelor of Arts in International Studies Major in American Studies
-8. AB IS - ASIAN STUDIES– Bachelor of Arts in International Studies Major in Asian Studies
-9. AB ANTHRO - ACADRES – Bachelor of Arts in Anthropology - Academic Research
-10. AB ANTHRO - COMDEV – Bachelor of Arts in Anthropology - Community Development/Social Enterprise
-11. AB ANTHRO - IPED – Bachelor of Arts in Anthropology - IP Education
-12. AB ANTHRO - MEDANTH – Bachelor of Arts in Anthropology - Medical Anthroplogy
-13. AB ANTHRO - PRELAW – Bachelor of Arts in Anthropology - Leadership/Pre-Law
-14. BS SOCIAL WORK - Bachelor of Science in Social Work
-""",
-
-            'school_business_governance': """**School of Business & Governance**
-
-● Accountancy (Cluster)
-1. BS A – Bachelor of Science in Accountancy
-2. BS MA – Bachelor of Science in Management Accounting
-
-● Business Management (Cluster)
-1. BS BM – Bachelor of Science in Business Management
-2. BS ENTREP – Bachelor of Science in Entrepreneurship
-3. BS ENTREP-A – Bachelor of Science in Entrepreneurship Major in Agri-Business
-4. BS FIN – Bachelor of Science in Finance
-5. BS HRDM – Bachelor of Science in Human Resource Development and Management
-6. BS MKTG – Bachelor of Science in Marketing
-7. BPM – Bachelor of Public Management""",
-
-            'school_education': """**School of Education**
-
-● Education (Cluster)
-1. BECE – Bachelor of Early Childhood Education
-2. BEED – Bachelor of Elementary Education
-3. BSED – English – Bachelor of Secondary Education Major in English
-4. BSED – Math – Bachelor of Secondary Education Major in Mathematics
-5. BSED – Science – Bachelor of Secondary Education Major in Science
-6. BSED – SS – Bachelor of Secondary Education Major in Social Studies""",
-
-            'school_engineering_architecture': """**School of Engineering & Architecture**
-
-● Engineering & Architecture (Cluster)
-1. BS AE – Bachelor of Science in Aerospace Engineering
-2. BS ARCH – Bachelor of Science in Architecture
-3. BS CHE – Bachelor of Science in Chemical Engineering
-4. BS CE – Bachelor of Science in Civil Engineering
-5. BS COMP ENG – Bachelor of Science in Computer Engineering
-6. BS EE – Bachelor of Science in Electrical Engineering
-7. BS ELECTRONICS ENG – Bachelor of Science in Electronics Engineering
-8. BS IE – Bachelor of Science in Industrial Engineering
-9. BS ME – Bachelor of Science in Mechanical Engineering
-10. BS RE – Bachelor of Science in Robotics Engineering""",
-
-            'school_nursing': """**School of Nursing**
-
-● Nursing (Cluster)
-1. BS N – Bachelor of Science in Nursing"""
+        """Get program list for a specific school dynamically from JSON config"""
+        # Map school IDs to school names
+        school_id_to_name = {
+            'school_arts_sciences': 'School of Arts & Sciences',
+            'school_business_governance': 'School of Business & Governance',
+            'school_education': 'School of Education',
+            'school_engineering_architecture': 'School of Engineering & Architecture',
+            'school_nursing': 'School of Nursing'
         }
         
-        return school_programs.get(school_id, "School information not found.")
+        school_name = school_id_to_name.get(school_id)
+        if not school_name:
+            return "School information not found."
+        
+        # Get programs for this school from JSON config
+        school_programs = self._get_programs_by_school_from_config(school_name)
+        
+        if not school_programs:
+            return f"No programs found for {school_name}."
+        
+        # Format the output
+        output = f"**{school_name}**\n\n"
+        
+        for cluster, programs in school_programs.items():
+            if programs:  # Only show clusters that have programs
+                output += f"● {cluster} (Cluster)\n"
+                for i, program in enumerate(programs, 1):
+                    output += f"{i}. {program['abbreviation']} – {program['description']}\n"
+                output += "\n"
+        
+        return output.strip()
     
     def _parse_curriculum_by_years(self, curriculum_content: str) -> dict:
         """

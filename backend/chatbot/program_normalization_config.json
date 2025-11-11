@@ -39,46 +39,63 @@
         "description": "Communication field name"
       },
 
-      "abids-ll": {
-        "full_name": "AB IDS-LL",
+      "abis-languageandliterature": {
+        "full_name": "AB IS - Language and Literature",
         "priority": "safe",
-        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Language & Literature"
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Language & Literature",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
       },
-      "abids-mb": {
-        "full_name": "AB IDS-MB",
+      "abis-mediaandbusiness": {
+        "full_name": "AB IS - Media and Business",
         "priority": "safe",
-        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Business"
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Business",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
       },
-      "abids-mp": {
-        "full_name": "AB IDS-MP",
+      "abis-mediaandphilosophy": {
+        "full_name": "AB IS - Media and Philosophy",
         "priority": "safe",
-        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Philosophy"
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Philosophy",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
       },
-      "abids-mt": {
-        "full_name": "AB IDS-MT",
+      "abis-mediaandtechnology": {
+        "full_name": "AB IS - Media and Technology",
         "priority": "safe",
-        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Technology"
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Media & Technology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
       },
-      "abids-pt": {
-        "full_name": "AB IDS-PT",
+      "abis-philosophyandtheology": {
+        "full_name": "AB IS - Philosophy and Theology",
         "priority": "safe",
-        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Philosophy & Theology"
+        "conflicts_with": ["BS IS"],
+        "description": "Bachelor of Arts in Interdisciplinary Studies, minor in Philosophy & Theology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Humanities & Letters"
       },
       "ids": {
-        "full_name": "AB IDS",
+        "full_name": "AB IS",
         "priority": "context_aware",
+        "conflicts_with": ["BS IS"],
         "description": "Interdisciplinary Studies abbreviation"
       },
       "interdisciplinary": {
-        "full_name": "AB IDS",
+        "full_name": "AB IS",
         "priority": "context_aware",
+        "conflicts_with": ["BS IS"],
         "description": "Interdisciplinary Studies field name"
       },
 
       "abphilo": {
         "full_name": "AB PHILO",
         "priority": "safe",
-        "description": "Bachelor of Arts Major in Philosophy (Pre-Law)",
+        "description": "Bachelor of Arts Major in Philosophy",
         "school": "School of Arts & Sciences",
         "cluster": "Humanities & Letters"
       },
@@ -116,7 +133,9 @@
       "bsbio-medbio": {
         "full_name": "BS BIO - MEDBIO",
         "priority": "safe",
-        "description": "Bachelor of Science in Biology Major in Medical Biology"
+        "description": "Bachelor of Science in Biology Major in Medical Biology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Natural Sciences & Mathematics"
       },
       "medbio": {
         "full_name": "BS BIO - MEDBIO",
@@ -309,7 +328,9 @@
       "abpolsci": {
         "full_name": "AB POLSCI",
         "priority": "safe",
-        "description": "Bachelor of Arts Major in Political Science"
+        "description": "Bachelor of Arts Major in Political Science",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "polsci": {
         "full_name": "AB POLSCI",
@@ -343,7 +364,9 @@
       "absocio": {
         "full_name": "AB SOCIO",
         "priority": "safe",
-        "description": "Bachelor of Arts Major in Sociology"
+        "description": "Bachelor of Arts Major in Sociology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "socio": {
         "full_name": "AB SOCIO",
@@ -360,19 +383,25 @@
         "full_name": "AB IS",
         "priority": "safe",
         "conflicts_with": ["BS IS"],
-        "description": "Bachelor of Arts in Islamic Studies"
+        "description": "Bachelor of Arts in Islamic Studies",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abis-american": {
         "full_name": "AB IS - AMERICAN STUDIES",
         "priority": "safe",
         "conflicts_with": ["BS IS"],
-        "description": "Bachelor of Arts in International Studies Major in American Studies"
+        "description": "Bachelor of Arts in International Studies Major in American Studies",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abis-asian": {
         "full_name": "AB IS - ASIAN STUDIES",
         "priority": "safe",
         "conflicts_with": ["BS IS"],
-        "description": "Bachelor of Arts in International Studies Major in Asian Studies"
+        "description": "Bachelor of Arts in International Studies Major in Asian Studies",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "islamic studies": {
         "full_name": "AB IS",
@@ -388,48 +417,45 @@
       "abanthro-acadres": {
         "full_name": "AB ANTHRO - ACADRES",
         "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology - Academic Research"
+        "description": "Bachelor of Arts in Anthropology - Academic Research",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abanthro-comdev": {
         "full_name": "AB ANTHRO - COMDEV",
         "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology - Community Development/Social Enterprise"
+        "description": "Bachelor of Arts in Anthropology - Community Development/Social Enterprise",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abanthro-iped": {
         "full_name": "AB ANTHRO - IPED",
         "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology - IP Education"
+        "description": "Bachelor of Arts in Anthropology - IP Education",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abanthro-medanth": {
         "full_name": "AB ANTHRO - MEDANTH",
         "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology - Medical Anthropology"
+        "description": "Bachelor of Arts in Anthropology - Medical Anthropology",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "abanthro-prelaw": {
         "full_name": "AB ANTHRO - PRELAW",
         "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology - Leadership/Pre-Law"
-      },
-      "abanthro": {
-        "full_name": "AB ANTHRO",
-        "priority": "safe",
-        "description": "Bachelor of Arts in Anthropology"
-      },
-      "anthro": {
-        "full_name": "AB ANTHRO",
-        "priority": "context_aware",
-        "description": "Anthropology abbreviation"
-      },
-      "anthropology": {
-        "full_name": "AB ANTHRO",
-        "priority": "context_aware",
-        "description": "Anthropology field name"
+        "description": "Bachelor of Arts in Anthropology - Leadership/Pre-Law",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
 
       "bssocialwork": {
         "full_name": "BS SOCIAL WORK",
         "priority": "safe",
-        "description": "Bachelor of Science in Social Work"
+        "description": "Bachelor of Science in Social Work",
+        "school": "School of Arts & Sciences",
+        "cluster": "Social Sciences"
       },
       "social work": {
         "full_name": "BS SOCIAL WORK",
@@ -465,7 +491,9 @@
       "bsma": {
         "full_name": "BS MA",
         "priority": "safe",
-        "description": "Bachelor of Science in Management Accounting"
+        "description": "Bachelor of Science in Management Accounting",
+        "school": "School of Business & Governance",
+        "cluster": "Accountancy"
       },
       "management accounting": {
         "full_name": "BS MA",
@@ -494,7 +522,9 @@
       "bsentrep": {
         "full_name": "BS ENTREP",
         "priority": "safe",
-        "description": "Bachelor of Science in Entrepreneurship"
+        "description": "Bachelor of Science in Entrepreneurship",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "entrep": {
         "full_name": "BS ENTREP",
@@ -510,7 +540,9 @@
       "bsentrep-a": {
         "full_name": "BS ENTREP - A",
         "priority": "safe",
-        "description": "Bachelor of Science in Entrepreneurship Major in Agri-Business"
+        "description": "Bachelor of Science in Entrepreneurship Major in Agri-Business",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "agri-business": {
         "full_name": "BS ENTREP - A",
@@ -521,7 +553,9 @@
       "bsfin": {
         "full_name": "BS FIN",
         "priority": "safe",
-        "description": "Bachelor of Science in Finance"
+        "description": "Bachelor of Science in Finance",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "fin": {
         "full_name": "BS FIN",
@@ -537,7 +571,9 @@
       "bshrdm": {
         "full_name": "BS HRDM",
         "priority": "safe",
-        "description": "Bachelor of Science in Human Resource Development and Management"
+        "description": "Bachelor of Science in Human Resource Development and Management",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "hrdm": {
         "full_name": "BS HRDM",
@@ -558,7 +594,9 @@
       "bsmktg": {
         "full_name": "BS MKTG",
         "priority": "safe",
-        "description": "Bachelor of Science in Marketing"
+        "description": "Bachelor of Science in Marketing",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "mktg": {
         "full_name": "BS MKTG",
@@ -574,7 +612,9 @@
       "bpm": {
         "full_name": "BPM",
         "priority": "safe",
-        "description": "Bachelor of Public Management"
+        "description": "Bachelor of Public Management",
+        "school": "School of Business & Governance",
+        "cluster": "Business Management"
       },
       "public management": {
         "full_name": "BPM",
@@ -605,7 +645,9 @@
       "beed": {
         "full_name": "BEED",
         "priority": "safe",
-        "description": "Bachelor of Elementary Education"
+        "description": "Bachelor of Elementary Education",
+        "school": "School of Education",
+        "cluster": "Education"
       },
       "eed": {
         "full_name": "BEED",
@@ -621,37 +663,30 @@
       "bsed-english": {
         "full_name": "BSED - English",
         "priority": "safe",
-        "description": "Bachelor of Secondary Education Major in English"
+        "description": "Bachelor of Secondary Education Major in English",
+        "school": "School of Education",
+        "cluster": "Education"
       },
       "bsed-math": {
         "full_name": "BSED - Math",
         "priority": "safe",
-        "description": "Bachelor of Secondary Education Major in Mathematics"
+        "description": "Bachelor of Secondary Education Major in Mathematics",
+        "school": "School of Education",
+        "cluster": "Education"
       },
       "bsed-science": {
         "full_name": "BSED - Science",
         "priority": "safe",
-        "description": "Bachelor of Secondary Education Major in Science"
+        "description": "Bachelor of Secondary Education Major in Science",
+        "school": "School of Education",
+        "cluster": "Education"
       },
       "bsed-ss": {
         "full_name": "BSED - SS",
         "priority": "safe",
-        "description": "Bachelor of Secondary Education Major in Social Studies"
-      },
-      "bsed": {
-        "full_name": "BSED",
-        "priority": "safe",
-        "description": "Bachelor of Secondary Education"
-      },
-      "sed": {
-        "full_name": "BSED",
-        "priority": "context_aware",
-        "description": "Secondary Education abbreviation"
-      },
-      "secondary education": {
-        "full_name": "BSED",
-        "priority": "context_aware",
-        "description": "Secondary Education field name"
+        "description": "Bachelor of Secondary Education Major in Social Studies",
+        "school": "School of Education",
+        "cluster": "Education"
       }
     },
 
@@ -678,7 +713,9 @@
       "bsarch": {
         "full_name": "BS ARCH",
         "priority": "safe",
-        "description": "Bachelor of Science in Architecture"
+        "description": "Bachelor of Science in Architecture",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "arch": {
         "full_name": "BS ARCH",
@@ -694,7 +731,9 @@
       "bsche": {
         "full_name": "BS CHE",
         "priority": "safe",
-        "description": "Bachelor of Science in Chemical Engineering"
+        "description": "Bachelor of Science in Chemical Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "che": {
         "full_name": "BS CHE",
@@ -710,7 +749,9 @@
       "bsce": {
         "full_name": "BS CE",
         "priority": "safe",
-        "description": "Bachelor of Science in Civil Engineering"
+        "description": "Bachelor of Science in Civil Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "ce": {
         "full_name": "BS CE",
@@ -727,7 +768,9 @@
       "bscompeng": {
         "full_name": "BS COMP ENG",
         "priority": "safe",
-        "description": "Bachelor of Science in Computer Engineering"
+        "description": "Bachelor of Science in Computer Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "compeng": {
         "full_name": "BS COMP ENG",
@@ -743,7 +786,9 @@
       "bsee": {
         "full_name": "BS EE",
         "priority": "safe",
-        "description": "Bachelor of Science in Electrical Engineering"
+        "description": "Bachelor of Science in Electrical Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "ee": {
         "full_name": "BS EE",
@@ -760,7 +805,9 @@
       "bselectronicseng": {
         "full_name": "BS ELECTRONICS ENG",
         "priority": "safe",
-        "description": "Bachelor of Science in Electronics Engineering"
+        "description": "Bachelor of Science in Electronics Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "electronics": {
         "full_name": "BS ELECTRONICS ENG",
@@ -771,7 +818,9 @@
       "bsie": {
         "full_name": "BS IE",
         "priority": "safe",
-        "description": "Bachelor of Science in Industrial Engineering"
+        "description": "Bachelor of Science in Industrial Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "ie": {
         "full_name": "BS IE",
@@ -788,7 +837,9 @@
       "bsme": {
         "full_name": "BS ME",
         "priority": "safe",
-        "description": "Bachelor of Science in Mechanical Engineering"
+        "description": "Bachelor of Science in Mechanical Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "me": {
         "full_name": "BS ME",
@@ -805,7 +856,9 @@
       "bsre": {
         "full_name": "BS RE",
         "priority": "safe",
-        "description": "Bachelor of Science in Robotics Engineering"
+        "description": "Bachelor of Science in Robotics Engineering",
+        "school": "School of Engineering & Architecture",
+        "cluster": "Engineering & Architecture"
       },
       "re": {
         "full_name": "BS RE",
@@ -958,7 +1011,7 @@
   "conflict_resolution": {
     "is": {
       "BS IS": "Information Systems (Computer Studies)",
-      "AB IS": "Islamic Studies OR International Studies (Social Sciences)"
+      "AB IS": "Islamic Studies OR International Studies OR Interdisciplinary Studies (Social Sciences)"
     },
     "ds": {
       "BS DS": "Data Science (Computer Studies)",
