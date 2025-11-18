@@ -37,6 +37,15 @@ WORD_PREDICTION_CONFIG = {
     "top_k": 8
 }
 
+# Retry configuration for handling rate limits and server errors
+RETRY_CONFIG = {
+    "max_retries": 3,
+    "base_delay": 2.0,         # Base delay in seconds
+    "max_delay": 30.0,         # Maximum delay in seconds
+    "rate_limit_delay": 1.0,   # Delay between requests to avoid rate limiting
+    "retryable_errors": [500, 429, 502, 503, 504]  # HTTP status codes to retry
+}
+
 print("[AI] Initializing Together AI client with Llama-4-Scout model...")
 start_time = time.time()
 
@@ -68,8 +77,30 @@ def extract_response_text(result: Any) -> str:
             return result["choices"][0]["message"]["content"].strip()
     return ""
 
-def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = False) -> Union[str, Iterator[Dict[str, Any]]]:
-    """Generate a response using Together AI"""
+def extract_error_code(error: Exception) -> Optional[int]:
+    """Extract HTTP error code from exception"""
+    error_str = str(error).lower()
+    
+    # Check for specific error codes in the error message
+    if "500" in error_str or "internal server error" in error_str:
+        return 500
+    elif "429" in error_str or "rate limit" in error_str or "too many requests" in error_str:
+        return 429
+    elif "502" in error_str or "bad gateway" in error_str:
+        return 502
+    elif "503" in error_str or "service unavailable" in error_str:
+        return 503
+    elif "504" in error_str or "gateway timeout" in error_str:
+        return 504
+    
+    # Try to extract from requests.HTTPError
+    if hasattr(error, 'response') and hasattr(error.response, 'status_code'):
+        return error.response.status_code
+    
+    return None
+
+def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = False, retry_count: int = 0) -> Union[str, Iterator[Dict[str, Any]]]:
+    """Generate a response using Together AI with retry logic"""
     
     # Prepare messages for chat completion
     messages = [
@@ -85,6 +116,10 @@ def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = F
     
     # Time the generation
     start_time = time.time()
+    
+    # Add rate limiting delay on first attempt
+    if retry_count == 0:
+        time.sleep(RETRY_CONFIG["rate_limit_delay"])
     
     try:
         if stream:
@@ -140,7 +175,26 @@ def generate_fast_response(prompt: str, max_tokens: int = 1024, stream: bool = F
             return response_text
             
     except Exception as e:
-        print(f"[ERROR] Together AI generation error: {e}")
+        error_code = extract_error_code(e)
+        
+        # Check if we should retry
+        if (error_code in RETRY_CONFIG["retryable_errors"] and 
+            retry_count < RETRY_CONFIG["max_retries"]):
+            
+            # Calculate exponential backoff delay
+            delay = min(
+                RETRY_CONFIG["base_delay"] * (2 ** retry_count),
+                RETRY_CONFIG["max_delay"]
+            )
+            
+            print(f"[WARN] Together AI error {error_code}, retrying in {delay:.1f}s (attempt {retry_count + 1}/{RETRY_CONFIG['max_retries']})...")
+            time.sleep(delay)
+            
+            # Recursive retry
+            return generate_fast_response(prompt, max_tokens, stream, retry_count + 1)
+        
+        # No more retries or non-retryable error
+        print(f"[ERROR] Together AI generation error after {retry_count + 1} attempts: {e}")
         return ""
 
 def generate_response(prompt: str, max_tokens: int = 1024) -> str:
@@ -186,11 +240,15 @@ def stream_response(prompt: str, max_tokens: int = 1024) -> str:
     
     return full_response
 
-def correct_typos(text: str) -> str:
-    """Correct typos in the input text using Together AI"""
+def correct_typos(text: str, retry_count: int = 0) -> str:
+    """Correct typos in the input text using Together AI with retry logic"""
     prompt = f"Fix typos in this text and return ONLY the corrected version with no extra words or explanations: {text}"
     
     messages = [{"role": "user", "content": prompt}]
+    
+    # Add rate limiting delay on first attempt
+    if retry_count == 0:
+        time.sleep(RETRY_CONFIG["rate_limit_delay"] * 0.5)  # Shorter delay for typo correction
     
     try:
         response = client.chat.completions.create(
@@ -206,12 +264,34 @@ def correct_typos(text: str) -> str:
         return corrected_text if corrected_text else text
         
     except Exception as e:
-        print(f"[WARNING] Typo correction failed: {e}")
+        error_code = extract_error_code(e)
+        
+        # Check if we should retry
+        if (error_code in RETRY_CONFIG["retryable_errors"] and 
+            retry_count < RETRY_CONFIG["max_retries"]):
+            
+            # Calculate exponential backoff delay
+            delay = min(
+                RETRY_CONFIG["base_delay"] * (2 ** retry_count) * 0.5,  # Shorter delays for typo correction
+                RETRY_CONFIG["max_delay"] * 0.5
+            )
+            
+            print(f"[WARN] Typo correction error {error_code}, retrying in {delay:.1f}s (attempt {retry_count + 1}/{RETRY_CONFIG['max_retries']})...")
+            time.sleep(delay)
+            
+            # Recursive retry
+            return correct_typos(text, retry_count + 1)
+        
+        print(f"[WARNING] Typo correction failed after {retry_count + 1} attempts: {e}")
         return text
 
-def predict_next_words(text: str, num_suggestions: int = 2) -> List[str]:
-    """Predict next words using Together AI"""
+def predict_next_words(text: str, num_suggestions: int = 2, retry_count: int = 0) -> List[str]:
+    """Predict next words using Together AI with retry logic"""
     suggestions = []
+    
+    # Add rate limiting delay on first attempt
+    if retry_count == 0:
+        time.sleep(RETRY_CONFIG["rate_limit_delay"] * 0.3)  # Even shorter delay for word prediction
     
     try:
         for i in range(min(num_suggestions, 2)):
@@ -231,7 +311,25 @@ def predict_next_words(text: str, num_suggestions: int = 2) -> List[str]:
                 suggestions.append(suggestion)
                 
     except Exception as e:
-        print(f"[WARNING] Word prediction failed: {e}")
+        error_code = extract_error_code(e)
+        
+        # Check if we should retry
+        if (error_code in RETRY_CONFIG["retryable_errors"] and 
+            retry_count < RETRY_CONFIG["max_retries"]):
+            
+            # Calculate exponential backoff delay
+            delay = min(
+                RETRY_CONFIG["base_delay"] * (2 ** retry_count) * 0.3,  # Shortest delays for word prediction
+                RETRY_CONFIG["max_delay"] * 0.3
+            )
+            
+            print(f"[WARN] Word prediction error {error_code}, retrying in {delay:.1f}s (attempt {retry_count + 1}/{RETRY_CONFIG['max_retries']})...")
+            time.sleep(delay)
+            
+            # Recursive retry
+            return predict_next_words(text, num_suggestions, retry_count + 1)
+        
+        print(f"[WARNING] Word prediction failed after {retry_count + 1} attempts: {e}")
     
     return suggestions
 
@@ -288,5 +386,6 @@ __all__ = [
     "llm",
     "TOGETHER_CONFIG",
     "TYPO_CORRECTION_CONFIG", 
-    "WORD_PREDICTION_CONFIG"
+    "WORD_PREDICTION_CONFIG",
+    "RETRY_CONFIG"
 ]
