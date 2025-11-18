@@ -32,7 +32,7 @@ class F1ScoreEvaluatorGuided:
     def __init__(self):
         self.base_url = "http://127.0.0.1:8000/chatbot"
         
-        # 30 test samples for typo correction (15) and next-word prediction (15)
+        # 150 test samples for typo correction (75) and next-word prediction (75)
         self.typo_correction_samples = [
             # Basic typos in admission context
             {"input": "admision requirements", "expected": "admission requirements"},
@@ -53,10 +53,83 @@ class F1ScoreEvaluatorGuided:
             {"input": "finacial aid", "expected": "financial aid"},
             {"input": "semster fees", "expected": "semester fees"},
             {"input": "anual cost", "expected": "annual cost"},
-            {"input": "installement options", "expected": "installment options"}
+            {"input": "installement options", "expected": "installment options"},
+            
+            # Additional admission context typos
+            {"input": "documnet submission", "expected": "document submission"},
+            {"input": "transcritp evaluation", "expected": "transcript evaluation"},
+            {"input": "recomendation letters", "expected": "recommendation letters"},
+            {"input": "applcation form", "expected": "application form"},
+            {"input": "eligibilty criteria", "expected": "eligibility criteria"},
+            {"input": "deadlin extension", "expected": "deadline extension"},
+            {"input": "intervew schedule", "expected": "interview schedule"},
+            {"input": "admision committee", "expected": "admission committee"},
+            {"input": "acadmic records", "expected": "academic records"},
+            {"input": "transferr credits", "expected": "transfer credits"},
+            {"input": "internatioanl students", "expected": "international students"},
+            {"input": "visa requirments", "expected": "visa requirements"},
+            {"input": "languag proficiency", "expected": "language proficiency"},
+            {"input": "entranc examination", "expected": "entrance examination"},
+            {"input": "portfolo submission", "expected": "portfolio submission"},
+            
+            # Additional program-related typos
+            {"input": "curriculm structure", "expected": "curriculum structure"},
+            {"input": "cours catalog", "expected": "course catalog"},
+            {"input": "degre requirements", "expected": "degree requirements"},
+            {"input": "major declartion", "expected": "major declaration"},
+            {"input": "minor progam", "expected": "minor program"},
+            {"input": "elctive courses", "expected": "elective courses"},
+            {"input": "prerequisit courses", "expected": "prerequisite courses"},
+            {"input": "laboraty work", "expected": "laboratory work"},
+            {"input": "internshp program", "expected": "internship program"},
+            {"input": "researh opportunities", "expected": "research opportunities"},
+            {"input": "thesis requirments", "expected": "thesis requirements"},
+            {"input": "graduaton requirements", "expected": "graduation requirements"},
+            {"input": "acadmic calendar", "expected": "academic calendar"},
+            {"input": "semster schedule", "expected": "semester schedule"},
+            {"input": "class timetabl", "expected": "class timetable"},
+            {"input": "examinaton schedule", "expected": "examination schedule"},
+            {"input": "gradng system", "expected": "grading system"},
+            {"input": "attendanc policy", "expected": "attendance policy"},
+            {"input": "withdrawl process", "expected": "withdrawal process"},
+            {"input": "readmision policy", "expected": "readmission policy"},
+            
+            # Additional fee-related typos
+            {"input": "registraton fees", "expected": "registration fees"},
+            {"input": "laboraty fees", "expected": "laboratory fees"},
+            {"input": "libray fees", "expected": "library fees"},
+            {"input": "dormitry fees", "expected": "dormitory fees"},
+            {"input": "parkng fees", "expected": "parking fees"},
+            {"input": "graduaton fees", "expected": "graduation fees"},
+            {"input": "transcritp fees", "expected": "transcript fees"},
+            {"input": "applcation fees", "expected": "application fees"},
+            {"input": "late paymet penalty", "expected": "late payment penalty"},
+            {"input": "refnd policy", "expected": "refund policy"},
+            {"input": "scholarhip funds", "expected": "scholarship funds"},
+            {"input": "finacial assistance", "expected": "financial assistance"},
+            {"input": "paymet methods", "expected": "payment methods"},
+            {"input": "installmnt plans", "expected": "installment plans"},
+            {"input": "discont programs", "expected": "discount programs"},
+            {"input": "fee waivr", "expected": "fee waiver"},
+            {"input": "budgt planning", "expected": "budget planning"},
+            {"input": "cost estimat", "expected": "cost estimate"},
+            {"input": "expens breakdown", "expected": "expense breakdown"},
+            {"input": "billing cycl", "expected": "billing cycle"},
+            
+            # Academic services typos
+            {"input": "acadmic advising", "expected": "academic advising"},
+            {"input": "tutorng services", "expected": "tutoring services"},
+            {"input": "counselng center", "expected": "counseling center"},
+            {"input": "carrer services", "expected": "career services"},
+            {"input": "placemnt office", "expected": "placement office"},
+            {"input": "alumin network", "expected": "alumni network"},
+            {"input": "studnt activities", "expected": "student activities"},
+            {"input": "recreaton center", "expected": "recreation center"},
+            {"input": "healt services", "expected": "health services"},
+            {"input": "disabilty services", "expected": "disability services"}
         ]
         
-        # 15 test samples for next-word prediction in guided context
+        # 75 test samples for next-word prediction in guided context
         self.word_prediction_samples = [
             # Admission context predictions
             {"input": "admission", "expected_words": ["requirements", "process", "deadline", "office", "application"]},
@@ -77,7 +150,80 @@ class F1ScoreEvaluatorGuided:
             {"input": "payment", "expected_words": ["plan", "method", "schedule", "options", "deadline"]},
             {"input": "semester", "expected_words": ["fees", "cost", "payment", "tuition", "breakdown"]},
             {"input": "annual", "expected_words": ["cost", "fees", "tuition", "payment", "amount"]},
-            {"input": "installment", "expected_words": ["plan", "payment", "options", "schedule", "terms"]}
+            {"input": "installment", "expected_words": ["plan", "payment", "options", "schedule", "terms"]},
+            
+            # Additional admission context predictions
+            {"input": "application", "expected_words": ["form", "deadline", "process", "status", "requirements"]},
+            {"input": "transcript", "expected_words": ["evaluation", "submission", "official", "copy", "request"]},
+            {"input": "recommendation", "expected_words": ["letter", "form", "submission", "requirements", "deadline"]},
+            {"input": "portfolio", "expected_words": ["submission", "requirements", "format", "deadline", "review"]},
+            {"input": "interview", "expected_words": ["schedule", "preparation", "requirements", "process", "guidelines"]},
+            {"input": "entrance", "expected_words": ["examination", "test", "requirements", "schedule", "preparation"]},
+            {"input": "eligibility", "expected_words": ["criteria", "requirements", "check", "verification", "assessment"]},
+            {"input": "deadline", "expected_words": ["extension", "submission", "application", "registration", "payment"]},
+            {"input": "document", "expected_words": ["submission", "verification", "requirements", "checklist", "upload"]},
+            {"input": "evaluation", "expected_words": ["process", "criteria", "committee", "results", "timeline"]},
+            {"input": "committee", "expected_words": ["review", "decision", "evaluation", "meeting", "members"]},
+            {"input": "decision", "expected_words": ["notification", "timeline", "process", "criteria", "appeal"]},
+            {"input": "notification", "expected_words": ["email", "letter", "timeline", "process", "status"]},
+            {"input": "appeal", "expected_words": ["process", "deadline", "requirements", "committee", "decision"]},
+            {"input": "deferral", "expected_words": ["request", "process", "deadline", "approval", "conditions"]},
+            
+            # Additional program context predictions
+            {"input": "curriculum", "expected_words": ["structure", "requirements", "courses", "design", "overview"]},
+            {"input": "course", "expected_words": ["catalog", "registration", "schedule", "requirements", "description"]},
+            {"input": "degree", "expected_words": ["requirements", "program", "completion", "planning", "audit"]},
+            {"input": "major", "expected_words": ["declaration", "requirements", "advisor", "courses", "planning"]},
+            {"input": "minor", "expected_words": ["program", "requirements", "declaration", "courses", "completion"]},
+            {"input": "elective", "expected_words": ["courses", "options", "selection", "requirements", "planning"]},
+            {"input": "prerequisite", "expected_words": ["courses", "requirements", "check", "completion", "waiver"]},
+            {"input": "laboratory", "expected_words": ["work", "requirements", "safety", "equipment", "schedule"]},
+            {"input": "internship", "expected_words": ["program", "requirements", "placement", "credit", "supervision"]},
+            {"input": "research", "expected_words": ["opportunities", "projects", "supervision", "funding", "ethics"]},
+            {"input": "thesis", "expected_words": ["requirements", "proposal", "defense", "committee", "guidelines"]},
+            {"input": "graduation", "expected_words": ["requirements", "ceremony", "application", "deadline", "honors"]},
+            {"input": "academic", "expected_words": ["calendar", "advisor", "standing", "probation", "appeal"]},
+            {"input": "semester", "expected_words": ["schedule", "registration", "calendar", "planning", "courses"]},
+            {"input": "schedule", "expected_words": ["planning", "conflicts", "changes", "registration", "advisor"]},
+            {"input": "examination", "expected_words": ["schedule", "preparation", "policy", "makeup", "proctoring"]},
+            {"input": "grading", "expected_words": ["system", "scale", "policy", "appeals", "calculation"]},
+            {"input": "attendance", "expected_words": ["policy", "requirements", "tracking", "makeup", "excused"]},
+            {"input": "withdrawal", "expected_words": ["process", "deadline", "refund", "academic", "medical"]},
+            {"input": "readmission", "expected_words": ["process", "requirements", "application", "committee", "timeline"]},
+            
+            # Additional fee context predictions
+            {"input": "registration", "expected_words": ["fees", "deadline", "process", "requirements", "confirmation"]},
+            {"input": "laboratory", "expected_words": ["fees", "safety", "equipment", "requirements", "insurance"]},
+            {"input": "library", "expected_words": ["fees", "services", "access", "resources", "fines"]},
+            {"input": "dormitory", "expected_words": ["fees", "application", "assignment", "rules", "contract"]},
+            {"input": "parking", "expected_words": ["fees", "permit", "registration", "enforcement", "appeals"]},
+            {"input": "graduation", "expected_words": ["fees", "ceremony", "application", "regalia", "photos"]},
+            {"input": "transcript", "expected_words": ["fees", "request", "processing", "delivery", "official"]},
+            {"input": "application", "expected_words": ["fees", "waiver", "payment", "deadline", "refund"]},
+            {"input": "penalty", "expected_words": ["fees", "late", "payment", "policy", "waiver"]},
+            {"input": "refund", "expected_words": ["policy", "process", "timeline", "eligibility", "calculation"]},
+            {"input": "scholarship", "expected_words": ["funds", "application", "eligibility", "renewal", "disbursement"]},
+            {"input": "assistance", "expected_words": ["program", "application", "eligibility", "documentation", "appeal"]},
+            {"input": "methods", "expected_words": ["payment", "online", "cash", "check", "card"]},
+            {"input": "plans", "expected_words": ["payment", "installment", "budget", "options", "enrollment"]},
+            {"input": "programs", "expected_words": ["discount", "assistance", "scholarship", "work-study", "grant"]},
+            {"input": "waiver", "expected_words": ["application", "eligibility", "documentation", "approval", "conditions"]},
+            {"input": "planning", "expected_words": ["budget", "financial", "cost", "estimation", "resources"]},
+            {"input": "estimate", "expected_words": ["cost", "budget", "calculator", "planning", "breakdown"]},
+            {"input": "breakdown", "expected_words": ["cost", "fee", "detailed", "itemized", "summary"]},
+            {"input": "cycle", "expected_words": ["billing", "payment", "academic", "semester", "annual"]},
+            
+            # Academic services predictions
+            {"input": "advising", "expected_words": ["academic", "appointment", "advisor", "planning", "requirements"]},
+            {"input": "tutoring", "expected_words": ["services", "center", "appointment", "subjects", "peer"]},
+            {"input": "counseling", "expected_words": ["center", "services", "appointment", "support", "confidential"]},
+            {"input": "career", "expected_words": ["services", "counseling", "planning", "resources", "placement"]},
+            {"input": "placement", "expected_words": ["office", "services", "job", "internship", "career"]},
+            {"input": "alumni", "expected_words": ["network", "services", "events", "mentoring", "career"]},
+            {"input": "student", "expected_words": ["activities", "services", "life", "organizations", "support"]},
+            {"input": "recreation", "expected_words": ["center", "facilities", "programs", "membership", "hours"]},
+            {"input": "health", "expected_words": ["services", "center", "insurance", "clinic", "wellness"]},
+            {"input": "disability", "expected_words": ["services", "accommodations", "support", "documentation", "resources"]}
         ]
         
         self.typo_results = []

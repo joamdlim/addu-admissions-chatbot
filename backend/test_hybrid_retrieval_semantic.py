@@ -20,9 +20,9 @@ class HybridRetrievalSemanticEvaluator:
     def __init__(self):
         self.base_url = "http://127.0.0.1:8000/chatbot"
         
-        # Define 50 varied user queries with expected relevant topics/documents
+        # Define 150 varied user queries with expected relevant topics/documents
         self.test_queries = [
-            # Admissions & Enrollment Queries (15 queries)
+            # Admissions & Enrollment Queries (60 queries)
             {
                 "query": "What are the admission requirements for first-year students?",
                 "expected_topics": ["admissions_enrollment"],
@@ -113,8 +113,278 @@ class HybridRetrievalSemanticEvaluator:
                 "expected_keywords": ["minimum", "GPA", "requirement", "admission"],
                 "semantic_category": "academic_requirements"
             },
+            {
+                "query": "How do I submit my SAT scores for admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "SAT", "scores", "admission", "testing"],
+                "semantic_category": "document_submission"
+            },
+            {
+                "query": "What are the requirements for early decision applications?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["early", "decision", "applications", "requirements", "deadline"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I apply for multiple programs simultaneously?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "multiple", "programs", "simultaneously", "application"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What is the application fee for undergraduate programs?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["application", "fee", "undergraduate", "programs", "cost"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I request an application fee waiver?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["request", "application", "fee", "waiver", "financial"],
+                "semantic_category": "financial_assistance"
+            },
+            {
+                "query": "What documents are required for graduate admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["documents", "required", "graduate", "admission", "application"],
+                "semantic_category": "graduate_admission"
+            },
+            {
+                "query": "How do I submit my TOEFL scores?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "TOEFL", "scores", "English", "proficiency"],
+                "semantic_category": "language_requirements"
+            },
+            {
+                "query": "What is the deadline for spring semester applications?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["deadline", "spring", "semester", "applications", "admission"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I defer my enrollment to the next academic year?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["defer", "enrollment", "next", "academic", "year"],
+                "semantic_category": "admission_deferral"
+            },
+            {
+                "query": "What are the requirements for conditional admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "conditional", "admission", "criteria", "conditions"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I apply for readmission after academic suspension?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "readmission", "academic", "suspension", "appeal"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "What is the process for appealing an admission decision?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "appealing", "admission", "decision", "review"],
+                "semantic_category": "admission_status"
+            },
+            {
+                "query": "Are there special requirements for homeschooled students?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["special", "requirements", "homeschooled", "students", "documentation"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I submit official transcripts from multiple institutions?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "official", "transcripts", "multiple", "institutions"],
+                "semantic_category": "document_submission"
+            },
+            {
+                "query": "What are the requirements for part-time student admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "part-time", "student", "admission", "enrollment"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I change my program after being admitted?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["change", "program", "admitted", "transfer", "switch"],
+                "semantic_category": "admission_status"
+            },
+            {
+                "query": "What are the requirements for dual degree programs?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "dual", "degree", "programs", "admission"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I apply for academic probation removal?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "academic", "probation", "removal", "appeal"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "What is the minimum age requirement for admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["minimum", "age", "requirement", "admission", "eligibility"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Are there rolling admissions for any programs?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["rolling", "admissions", "programs", "continuous", "application"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I submit letters of recommendation electronically?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "letters", "recommendation", "electronically", "online"],
+                "semantic_category": "document_submission"
+            },
+            {
+                "query": "What are the requirements for mature student admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "mature", "student", "admission", "adult"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I apply for admission while still completing prerequisites?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "admission", "completing", "prerequisites", "conditional"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What is the process for international credential evaluation?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "international", "credential", "evaluation", "transcripts"],
+                "semantic_category": "international_admission"
+            },
+            {
+                "query": "How do I apply for academic accommodation during admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "academic", "accommodation", "admission", "disability"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What are the requirements for concurrent enrollment?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "concurrent", "enrollment", "multiple", "institutions"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I submit additional materials after the deadline?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "additional", "materials", "deadline", "late"],
+                "semantic_category": "document_submission"
+            },
+            {
+                "query": "What is the process for credit by examination?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "credit", "examination", "testing", "placement"],
+                "semantic_category": "academic_requirements"
+            },
+            {
+                "query": "How do I apply for advanced standing admission?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "advanced", "standing", "admission", "credit"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What are the requirements for non-degree seeking students?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "non-degree", "seeking", "students", "enrollment"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I apply for multiple semesters at once?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "multiple", "semesters", "once", "application"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What is the process for academic forgiveness application?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "academic", "forgiveness", "application", "GPA"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "How do I submit proof of immunization?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "proof", "immunization", "health", "requirements"],
+                "semantic_category": "document_submission"
+            },
+            {
+                "query": "What are the requirements for guest student enrollment?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "guest", "student", "enrollment", "temporary"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I apply for admission with pending grades?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "admission", "pending", "grades", "incomplete"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "What is the process for academic reinstatement?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "academic", "reinstatement", "suspension", "appeal"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "How do I apply for course credit for life experience?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "course", "credit", "life", "experience"],
+                "semantic_category": "academic_requirements"
+            },
+            {
+                "query": "What are the requirements for audit student enrollment?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "audit", "student", "enrollment", "non-credit"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "Can I submit my application in multiple languages?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "application", "multiple", "languages", "translation"],
+                "semantic_category": "international_admission"
+            },
+            {
+                "query": "What is the process for academic calendar change requests?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "academic", "calendar", "change", "requests"],
+                "semantic_category": "admission_requirements"
+            },
+            {
+                "query": "How do I apply for priority course registration?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "priority", "course", "registration", "enrollment"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "What are the requirements for thesis defense scheduling?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["requirements", "thesis", "defense", "scheduling", "graduate"],
+                "semantic_category": "graduate_admission"
+            },
+            {
+                "query": "Can I apply for graduation with incomplete coursework?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["apply", "graduation", "incomplete", "coursework", "requirements"],
+                "semantic_category": "academic_requirements"
+            },
+            {
+                "query": "What is the process for academic suspension appeal?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["process", "academic", "suspension", "appeal", "committee"],
+                "semantic_category": "returning_student"
+            },
+            {
+                "query": "How do I submit research ethics approval documentation?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["submit", "research", "ethics", "approval", "documentation"],
+                "semantic_category": "graduate_admission"
+            },
             
-            # Programs & Courses Queries (20 queries)
+            # Programs & Courses Queries (45 queries)
             {
                 "query": "What is the Computer Science curriculum?",
                 "expected_topics": ["programs_courses"],
@@ -235,8 +505,158 @@ class HybridRetrievalSemanticEvaluator:
                 "expected_keywords": ["degree", "programs", "double", "major", "options"],
                 "semantic_category": "program_options"
             },
+            {
+                "query": "What programming languages are taught in Information Technology?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["programming", "languages", "information", "technology", "curriculum"],
+                "semantic_category": "program_curriculum"
+            },
+            {
+                "query": "Are there online degree programs available?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["online", "degree", "programs", "distance", "learning"],
+                "semantic_category": "course_delivery"
+            },
+            {
+                "query": "What is the duration of the Master's program in Business?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["duration", "master", "program", "business", "length"],
+                "semantic_category": "program_duration"
+            },
+            {
+                "query": "Are there evening classes for working professionals?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["evening", "classes", "working", "professionals", "schedule"],
+                "semantic_category": "course_scheduling"
+            },
+            {
+                "query": "What research opportunities are available in Psychology?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["research", "opportunities", "psychology", "projects", "faculty"],
+                "semantic_category": "program_characteristics"
+            },
+            {
+                "query": "Can I take courses from multiple departments?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["courses", "multiple", "departments", "interdisciplinary", "electives"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "What are the laboratory requirements for Chemistry?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["laboratory", "requirements", "chemistry", "practical", "work"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "Are there accelerated degree programs?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["accelerated", "degree", "programs", "fast", "track"],
+                "semantic_category": "program_options"
+            },
+            {
+                "query": "What is the curriculum for Environmental Science?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["curriculum", "environmental", "science", "courses", "program"],
+                "semantic_category": "program_curriculum"
+            },
+            {
+                "query": "Are there study abroad opportunities?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["study", "abroad", "opportunities", "international", "exchange"],
+                "semantic_category": "program_characteristics"
+            },
+            {
+                "query": "What are the prerequisites for advanced courses?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["prerequisites", "advanced", "courses", "requirements", "foundation"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "Can I audit courses without earning credit?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["audit", "courses", "credit", "non-degree", "learning"],
+                "semantic_category": "course_delivery"
+            },
+            {
+                "query": "What is the class size for graduate seminars?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["class", "size", "graduate", "seminars", "enrollment"],
+                "semantic_category": "program_characteristics"
+            },
+            {
+                "query": "Are there certificate programs available?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["certificate", "programs", "professional", "development", "credentials"],
+                "semantic_category": "program_options"
+            },
+            {
+                "query": "What software is used in the Digital Media program?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["software", "digital", "media", "program", "technology"],
+                "semantic_category": "program_curriculum"
+            },
+            {
+                "query": "Can I change my major after enrollment?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["change", "major", "enrollment", "transfer", "program"],
+                "semantic_category": "program_options"
+            },
+            {
+                "query": "What are the clinical requirements for Nursing?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["clinical", "requirements", "nursing", "practical", "experience"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "Are there weekend classes available?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["weekend", "classes", "schedule", "flexible", "options"],
+                "semantic_category": "course_scheduling"
+            },
+            {
+                "query": "What is the curriculum structure for Engineering?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["curriculum", "structure", "engineering", "program", "courses"],
+                "semantic_category": "program_curriculum"
+            },
+            {
+                "query": "Can I take graduate courses as an undergraduate?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["graduate", "courses", "undergraduate", "advanced", "standing"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "What are the fieldwork requirements for Social Work?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["fieldwork", "requirements", "social", "work", "practical"],
+                "semantic_category": "course_requirements"
+            },
+            {
+                "query": "Are there honors programs available?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["honors", "programs", "academic", "excellence", "distinction"],
+                "semantic_category": "program_options"
+            },
+            {
+                "query": "What is the thesis requirement for Master's programs?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["thesis", "requirement", "master", "programs", "research"],
+                "semantic_category": "graduation_requirements"
+            },
+            {
+                "query": "Can I complete my degree part-time?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["complete", "degree", "part-time", "flexible", "schedule"],
+                "semantic_category": "program_options"
+            },
+            {
+                "query": "What are the capstone project requirements?",
+                "expected_topics": ["programs_courses"],
+                "expected_keywords": ["capstone", "project", "requirements", "final", "assessment"],
+                "semantic_category": "graduation_requirements"
+            },
             
-            # Fees & Payment Queries (15 queries)
+            # Fees & Payment Queries (45 queries)
             {
                 "query": "What are the tuition fees for Engineering programs?",
                 "expected_topics": ["fees"],
@@ -326,6 +746,180 @@ class HybridRetrievalSemanticEvaluator:
                 "expected_topics": ["fees"],
                 "expected_keywords": ["banks", "support", "online", "payment", "fees"],
                 "semantic_category": "payment_methods"
+            },
+            {
+                "query": "Are there application fees for graduate programs?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["application", "fees", "graduate", "programs", "cost"],
+                "semantic_category": "application_fees"
+            },
+            {
+                "query": "What are the laboratory fees for science courses?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["laboratory", "fees", "science", "courses", "equipment"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Can I get a refund if I withdraw from courses?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["refund", "withdraw", "courses", "policy", "timeline"],
+                "semantic_category": "refund_policy"
+            },
+            {
+                "query": "What are the dormitory fees per semester?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["dormitory", "fees", "semester", "housing", "cost"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there late payment penalties for tuition?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["late", "payment", "penalties", "tuition", "charges"],
+                "semantic_category": "payment_methods"
+            },
+            {
+                "query": "What are the parking fees on campus?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["parking", "fees", "campus", "permit", "cost"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Can I pay fees using a credit card?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["pay", "fees", "credit", "card", "payment"],
+                "semantic_category": "payment_methods"
+            },
+            {
+                "query": "What are the graduation ceremony fees?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["graduation", "ceremony", "fees", "commencement", "cost"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there technology fees for online courses?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["technology", "fees", "online", "courses", "digital"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "What is the cost of transcript requests?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["cost", "transcript", "requests", "official", "fees"],
+                "semantic_category": "specific_fees"
+            },
+            {
+                "query": "Can I set up automatic payments for tuition?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["automatic", "payments", "tuition", "recurring", "setup"],
+                "semantic_category": "payment_methods"
+            },
+            {
+                "query": "What are the health insurance fees for students?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["health", "insurance", "fees", "students", "mandatory"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there discounts for early payment of fees?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["discounts", "early", "payment", "fees", "incentives"],
+                "semantic_category": "payment_discounts"
+            },
+            {
+                "query": "What are the library fines and fees?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["library", "fines", "fees", "overdue", "books"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Can international students pay in foreign currency?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["international", "students", "foreign", "currency", "payment"],
+                "semantic_category": "international_fees"
+            },
+            {
+                "query": "What are the student activity fees used for?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["student", "activity", "fees", "services", "programs"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there fees for course add/drop after deadline?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["fees", "course", "add", "drop", "deadline"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "What is the total cost for a four-year program?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["total", "cost", "four-year", "program", "estimate"],
+                "semantic_category": "total_program_cost"
+            },
+            {
+                "query": "Can I pay fees through bank transfer?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["pay", "fees", "bank", "transfer", "wire"],
+                "semantic_category": "payment_methods"
+            },
+            {
+                "query": "What are the recreation center membership fees?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["recreation", "center", "membership", "fees", "facilities"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there fees for makeup examinations?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["fees", "makeup", "examinations", "testing", "cost"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "What payment plans are available for tuition?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["payment", "plans", "tuition", "installment", "options"],
+                "semantic_category": "payment_options"
+            },
+            {
+                "query": "Can I pay fees using financial aid?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["pay", "fees", "financial", "aid", "scholarship"],
+                "semantic_category": "payment_methods"
+            },
+            {
+                "query": "What are the fees for ID card replacement?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["fees", "ID", "card", "replacement", "student"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there enrollment fees separate from tuition?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["enrollment", "fees", "separate", "tuition", "registration"],
+                "semantic_category": "enrollment_fees"
+            },
+            {
+                "query": "What are the fees for thesis binding and submission?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["fees", "thesis", "binding", "submission", "graduate"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Can I get a fee waiver for financial hardship?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["fee", "waiver", "financial", "hardship", "assistance"],
+                "semantic_category": "payment_discounts"
+            },
+            {
+                "query": "What are the conference attendance fees for students?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["conference", "attendance", "fees", "students", "academic"],
+                "semantic_category": "additional_fees"
+            },
+            {
+                "query": "Are there different fee structures for part-time students?",
+                "expected_topics": ["fees"],
+                "expected_keywords": ["different", "fee", "structures", "part-time", "students"],
+                "semantic_category": "program_fees"
             }
         ]
     
