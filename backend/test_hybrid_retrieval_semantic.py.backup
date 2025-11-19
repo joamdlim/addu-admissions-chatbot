@@ -922,564 +922,6 @@ class HybridRetrievalSemanticEvaluator:
                 "semantic_category": "program_fees"
             }
         ]
-        
-        # 75 NEGATIVE test queries - should NOT be relevant to university topics
-        self.negative_test_queries = [
-            # Weather/Climate queries
-            {
-                "query": "What's the weather like today?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "weather",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Will it rain tomorrow?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "weather",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the temperature outside?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "weather",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Is it going to snow this weekend?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "weather",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How humid is it today?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "weather",
-                "should_be_relevant": False
-            },
-            
-            # Cooking/Food queries
-            {
-                "query": "How do I cook pasta?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "cooking",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best pizza recipe?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "cooking",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How long should I bake a cake?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "cooking",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What ingredients do I need for cookies?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "cooking",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I make a sandwich?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "cooking",
-                "should_be_relevant": False
-            },
-            
-            # Sports queries
-            {
-                "query": "Who won the football game last night?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "sports",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the basketball score?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "sports",
-                "should_be_relevant": False
-            },
-            {
-                "query": "When is the next baseball game?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "sports",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I play tennis?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "sports",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What are the rules of soccer?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "sports",
-                "should_be_relevant": False
-            },
-            
-            # Entertainment/Media queries
-            {
-                "query": "What movies are playing tonight?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "entertainment",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's on TV right now?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "entertainment",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Who is your favorite actor?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "entertainment",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the latest music album?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "entertainment",
-                "should_be_relevant": False
-            },
-            {
-                "query": "When is the concert happening?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "entertainment",
-                "should_be_relevant": False
-            },
-            
-            # Shopping/Commerce queries
-            {
-                "query": "Where can I buy shoes?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "shopping",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the price of this phone?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "shopping",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Is there a sale at the mall?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "shopping",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How much does a car cost?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "shopping",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Where is the nearest store?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "shopping",
-                "should_be_relevant": False
-            },
-            
-            # Travel queries
-            {
-                "query": "How do I get to Paris?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "travel",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best hotel in Tokyo?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "travel",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How much is a flight to London?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "travel",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What should I pack for vacation?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "travel",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Where can I rent a car?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "travel",
-                "should_be_relevant": False
-            },
-            
-            # Technology/Gaming queries (non-educational)
-            {
-                "query": "How do I fix my computer?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "technology",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best video game?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "gaming",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I install this app?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "technology",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Why is my phone not working?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "technology",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the latest iPhone model?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "technology",
-                "should_be_relevant": False
-            },
-            
-            # Health/Medical queries (non-academic)
-            {
-                "query": "I have a headache, what should I do?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "health",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best medicine for cold?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "health",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I lose weight quickly?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "health",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What should I eat for breakfast?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "health",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How many hours should I sleep?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "health",
-                "should_be_relevant": False
-            },
-            
-            # Nonsense/Gibberish queries
-            {
-                "query": "Blah blah random text here",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nonsense",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Xyzabc qwerty asdfgh",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nonsense",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Jabberwocky brillig toves",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nonsense",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Flibber jibber wobble",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nonsense",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Zxcvbn mnbvcx poiuyt",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nonsense",
-                "should_be_relevant": False
-            },
-            
-            # Personal/Social queries
-            {
-                "query": "What's your favorite color?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "personal",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Do you have any friends?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "personal",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What did you do yesterday?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "personal",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How old are you?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "personal",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Where do you live?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "personal",
-                "should_be_relevant": False
-            },
-            
-            # Random factual queries (non-university)
-            {
-                "query": "What's the capital of France?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "geography",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How many planets are in our solar system?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "astronomy",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What year did World War II end?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "history",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the largest ocean on Earth?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "geography",
-                "should_be_relevant": False
-            },
-            {
-                "query": "Who invented the telephone?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "history",
-                "should_be_relevant": False
-            },
-            
-            # Animals/Nature queries
-            {
-                "query": "How fast can a cheetah run?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "animals",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What do elephants eat?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "animals",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How long do trees live?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "nature",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What colors can dogs see?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "animals",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do birds fly?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "animals",
-                "should_be_relevant": False
-            },
-            
-            # Household/Daily life queries
-            {
-                "query": "How do I clean my house?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "household",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best way to do laundry?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "household",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I fix a leaky faucet?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "household",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What time should I wake up?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "daily_life",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I organize my closet?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "household",
-                "should_be_relevant": False
-            },
-            
-            # Fashion/Beauty queries
-            {
-                "query": "What should I wear today?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "fashion",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I style my hair?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "beauty",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What makeup should I use?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "beauty",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the latest fashion trend?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "fashion",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I choose the right shoes?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "fashion",
-                "should_be_relevant": False
-            },
-            
-            # Financial queries (non-educational)
-            {
-                "query": "How do I invest in stocks?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "finance",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the best credit card?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "finance",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I save money?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "finance",
-                "should_be_relevant": False
-            },
-            {
-                "query": "What's the current exchange rate?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "finance",
-                "should_be_relevant": False
-            },
-            {
-                "query": "How do I file my taxes?",
-                "expected_topics": [],
-                "expected_keywords": [],
-                "semantic_category": "finance",
-                "should_be_relevant": False
-            }
-        ]
     
     def send_guided_chat_request(self, user_input: str, action_type: str = "message", 
                                action_data: str = None, session_id: str = None) -> Dict:
@@ -1513,11 +955,7 @@ class HybridRetrievalSemanticEvaluator:
             if doc_topic in expected_topics:
                 topic_matches += 1
         
-        # Fix topic_relevance calculation to stay within bounds [0, 1]
-        if expected_topics:
-            topic_relevance = min(topic_matches / len(expected_topics), 1.0)
-        else:
-            topic_relevance = 0
+        topic_relevance = topic_matches / len(expected_topics) if expected_topics else 0
         
         # Check keyword relevance
         keyword_matches = 0
@@ -1577,49 +1015,26 @@ class HybridRetrievalSemanticEvaluator:
         print("🚀 Starting Hybrid Retrieval Semantic Relevance Evaluation")
         print("🎯 Target: F1-Score ≥ 0.70 on semantic relevance tests")
         print("🔍 Testing: TF-IDF + Word2Vec hybrid retrieval system")
-        
-        # Combine positive and negative queries
-        all_queries = []
-        
-        # Add positive queries (should be relevant)
-        for query_data in self.test_queries:
-            query_copy = query_data.copy()
-            query_copy["should_be_relevant"] = True
-            query_copy["test_type"] = "positive"
-            all_queries.append(query_copy)
-        
-        # Add negative queries (should NOT be relevant)
-        for query_data in self.negative_test_queries:
-            all_queries.append({**query_data, "test_type": "negative"})
-        
-        print(f"📊 Total Test Queries: {len(all_queries)} ({len(self.test_queries)} positive, {len(self.negative_test_queries)} negative)")
+        print(f"📊 Test Queries: {len(self.test_queries)}")
         print("="*80)
         
         results = []
-        y_true = []  # Ground truth: 1 for should be relevant, 0 for should not be relevant
+        y_true = []  # Ground truth (all should be relevant)
         y_pred = []  # Predictions from retrieval system
         
         category_results = {}
         
-        for i, query_data in enumerate(all_queries, 1):
+        for i, query_data in enumerate(self.test_queries, 1):
             query = query_data["query"]
             expected_topics = query_data["expected_topics"]
             semantic_category = query_data["semantic_category"]
-            should_be_relevant = query_data["should_be_relevant"]
-            test_type = query_data["test_type"]
             
-            print(f"\n📝 Query {i}/{len(all_queries)}: [{test_type.upper()}] {query}")
-            print(f"🎯 Expected Topics: {expected_topics} (Should be relevant: {should_be_relevant})")
+            print(f"\n📝 Query {i}/50: {query}")
+            print(f"🎯 Expected Topics: {expected_topics}")
             print(f"🏷️ Category: {semantic_category}")
             
             # Initialize session with appropriate topic
-            if should_be_relevant and expected_topics:
-                topic_to_test = expected_topics[0]
-            else:
-                # For negative queries, use a random topic to test robustness
-                topics = ["admissions_enrollment", "programs_courses", "fees"]
-                topic_to_test = topics[i % len(topics)]
-            
+            topic_to_test = expected_topics[0] if expected_topics else "admissions_enrollment"
             session_id = f"semantic_test_{i}"
             
             # Select topic
@@ -1637,8 +1052,8 @@ class HybridRetrievalSemanticEvaluator:
             
             if not response_data:
                 print(f"❌ No response for query {i}")
-                y_true.append(1 if should_be_relevant else 0)
-                y_pred.append(0)  # No response = not relevant
+                y_true.append(1)  # Expected to be relevant
+                y_pred.append(0)  # Predicted as not relevant
                 continue
             
             # Extract retrieval information
@@ -1653,8 +1068,6 @@ class HybridRetrievalSemanticEvaluator:
                 "query_id": i,
                 "query": query,
                 "expected_topics": expected_topics,
-                "should_be_relevant": should_be_relevant,
-                "test_type": test_type,
                 "semantic_category": semantic_category,
                 "evaluation": evaluation,
                 "retrieved_docs": len(retrieved_docs),
@@ -1662,57 +1075,31 @@ class HybridRetrievalSemanticEvaluator:
             }
             results.append(result)
             
-            # For F1 calculation with proper binary classification
-            y_true.append(1 if should_be_relevant else 0)
-            
-            # For negative queries, we need to check if the system correctly identified irrelevance
-            if should_be_relevant:
-                # Positive case: should retrieve relevant documents
-                y_pred.append(1 if evaluation["is_relevant"] else 0)
-            else:
-                # Negative case: should NOT retrieve relevant documents OR should have low relevance
-                # Consider it correct if overall_relevance is low (< 0.3) or no documents retrieved
-                is_correctly_irrelevant = evaluation["overall_relevance"] < 0.3 or len(retrieved_docs) == 0
-                y_pred.append(0 if is_correctly_irrelevant else 1)  # 0 = correctly identified as irrelevant
+            # For F1 calculation
+            y_true.append(1)  # All queries should retrieve relevant documents
+            y_pred.append(1 if evaluation["is_relevant"] else 0)
             
             # Category tracking
             if semantic_category not in category_results:
                 category_results[semantic_category] = {"correct": 0, "total": 0}
             category_results[semantic_category]["total"] += 1
-            
-            # Check if prediction was correct
-            prediction_correct = (y_true[-1] == y_pred[-1])
-            if prediction_correct:
+            if evaluation["is_relevant"]:
                 category_results[semantic_category]["correct"] += 1
             
             # Print evaluation results
-            status = "✅" if prediction_correct else "❌"
+            status = "✅" if evaluation["is_relevant"] else "❌"
             print(f"{status} Relevance: {evaluation['overall_relevance']:.3f}")
             print(f"   Topic Match: {evaluation['topic_relevance']:.3f}")
             print(f"   Keyword Match: {evaluation['keyword_relevance']:.3f}")
             print(f"   Semantic Score: {evaluation['avg_semantic_score']:.3f}")
             print(f"   Hybrid Used: {evaluation['hybrid_used']}")
-            print(f"   Prediction Correct: {prediction_correct}")
             
             # Small delay between queries
             time.sleep(0.5)
         
-        # Calculate overall metrics using proper binary classification
-        if len(y_true) > 0:
-            # Calculate True Positives, False Positives, True Negatives, False Negatives
-            tp = sum(1 for true, pred in zip(y_true, y_pred) if true == 1 and pred == 1)
-            fp = sum(1 for true, pred in zip(y_true, y_pred) if true == 0 and pred == 1)
-            tn = sum(1 for true, pred in zip(y_true, y_pred) if true == 0 and pred == 0)
-            fn = sum(1 for true, pred in zip(y_true, y_pred) if true == 1 and pred == 0)
-            
-            # Calculate precision, recall, and F1
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-            accuracy = (tp + tn) / len(y_true)
-        else:
-            precision = recall = f1 = accuracy = 0.0
-            tp = fp = tn = fn = 0
+        # Calculate overall metrics
+        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='binary')
+        accuracy = sum(1 for t, p in zip(y_true, y_pred) if t == p) / len(y_true)
         
         return {
             "results": results,
@@ -1722,16 +1109,11 @@ class HybridRetrievalSemanticEvaluator:
                 "f1_score": f1,
                 "accuracy": accuracy,
                 "target_f1": 0.70,
-                "target_achieved": f1 >= 0.70,
-                "true_positives": tp,
-                "false_positives": fp,
-                "true_negatives": tn,
-                "false_negatives": fn
+                "target_achieved": f1 >= 0.70
             },
             "category_results": category_results,
-            "total_queries": len(all_queries),
-            "positive_queries": len(self.test_queries),
-            "negative_queries": len(self.negative_test_queries),
+            "total_queries": len(self.test_queries),
+            "relevant_predictions": sum(y_pred),
             "y_true": y_true,
             "y_pred": y_pred
         }
@@ -1747,20 +1129,13 @@ class HybridRetrievalSemanticEvaluator:
         print(f"📈 Achieved F1-Score: {metrics['f1_score']:.4f}")
         print(f"✅ Target Achieved: {'YES' if metrics['target_achieved'] else 'NO'}")
         print(f"📊 Total Queries: {results['total_queries']}")
-        print(f"📊 Positive Queries: {results['positive_queries']}")
-        print(f"📊 Negative Queries: {results['negative_queries']}")
+        print(f"✅ Relevant Predictions: {results['relevant_predictions']}")
         
         print(f"\n📋 DETAILED METRICS:")
         print(f"   Precision: {metrics['precision']:.4f}")
         print(f"   Recall: {metrics['recall']:.4f}")
         print(f"   F1-Score: {metrics['f1_score']:.4f}")
         print(f"   Accuracy: {metrics['accuracy']:.4f}")
-        
-        print(f"\n📊 CONFUSION MATRIX:")
-        print(f"   True Positives:  {metrics['true_positives']}")
-        print(f"   False Positives: {metrics['false_positives']}")
-        print(f"   True Negatives:  {metrics['true_negatives']}")
-        print(f"   False Negatives: {metrics['false_negatives']}")
         
         # Category breakdown
         print(f"\n📝 SEMANTIC CATEGORY PERFORMANCE:")

@@ -1,0 +1,3668 @@
+{
+  "typo_correction": {
+    "total_samples": 155,
+    "correct_predictions": 147,
+    "accuracy": 0.9483870967741935,
+    "results": [
+      {
+        "input": "admision requirements",
+        "expected": "admission requirements",
+        "corrected": "admission requirements",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "tution fees",
+        "expected": "tuition fees",
+        "corrected": "tuition fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "aplication deadline",
+        "expected": "application deadline",
+        "corrected": "application deadline",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "scholarhip information",
+        "expected": "scholarship information",
+        "corrected": "scholarship information",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "enrollmnt process",
+        "expected": "enrollment process",
+        "corrected": "enrollment process",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "comuter science progam",
+        "expected": "computer science program",
+        "corrected": "computer science program",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "enginerring cours",
+        "expected": "engineering course",
+        "corrected": "engineering course",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "nursng curriculum",
+        "expected": "nursing curriculum",
+        "corrected": "nursing curriculum",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "busines program",
+        "expected": "business program",
+        "corrected": "business program",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "informaton technology",
+        "expected": "information technology",
+        "corrected": "Information technology",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "paymet plans",
+        "expected": "payment plans",
+        "corrected": "payment plans",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "finacial aid",
+        "expected": "financial aid",
+        "corrected": "financial aid",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "semster fees",
+        "expected": "semester fees",
+        "corrected": "Semester fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "anual cost",
+        "expected": "annual cost",
+        "corrected": "annual cost",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "installement options",
+        "expected": "installment options",
+        "corrected": "installation options",
+        "similarity": 0.8205128205128205,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "documnet submission",
+        "expected": "document submission",
+        "corrected": "document submission",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "transcritp evaluation",
+        "expected": "transcript evaluation",
+        "corrected": "transcript evaluation",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "recomendation letters",
+        "expected": "recommendation letters",
+        "corrected": "recommendation letters",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "applcation form",
+        "expected": "application form",
+        "corrected": "application form",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "eligibilty criteria",
+        "expected": "eligibility criteria",
+        "corrected": "eligibility criteria",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "deadlin extension",
+        "expected": "deadline extension",
+        "corrected": "Deadline extension",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "intervew schedule",
+        "expected": "interview schedule",
+        "corrected": "Interview schedule",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "admision committee",
+        "expected": "admission committee",
+        "corrected": "admission committee",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "acadmic records",
+        "expected": "academic records",
+        "corrected": "academic records",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "transferr credits",
+        "expected": "transfer credits",
+        "corrected": "transfer credits",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "internatioanl students",
+        "expected": "international students",
+        "corrected": "international students",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "visa requirments",
+        "expected": "visa requirements",
+        "corrected": "visa requirements",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "languag proficiency",
+        "expected": "language proficiency",
+        "corrected": "Language proficiency",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "entranc examination",
+        "expected": "entrance examination",
+        "corrected": "entrance examination",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "portfolo submission",
+        "expected": "portfolio submission",
+        "corrected": "portfolio submission",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "curriculm structure",
+        "expected": "curriculum structure",
+        "corrected": "curriculum structure",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "cours catalog",
+        "expected": "course catalog",
+        "corrected": "Course catalog",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "degre requirements",
+        "expected": "degree requirements",
+        "corrected": "degree requirements",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "major declartion",
+        "expected": "major declaration",
+        "corrected": "major declaration",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "minor progam",
+        "expected": "minor program",
+        "corrected": "minor program",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "elctive courses",
+        "expected": "elective courses",
+        "corrected": "Elective courses",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "prerequisit courses",
+        "expected": "prerequisite courses",
+        "corrected": "Prerequisite courses",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "laboraty work",
+        "expected": "laboratory work",
+        "corrected": "Laboratory work",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "internshp program",
+        "expected": "internship program",
+        "corrected": "internship program",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "researh opportunities",
+        "expected": "research opportunities",
+        "corrected": "research opportunities",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "thesis requirments",
+        "expected": "thesis requirements",
+        "corrected": "thesis requirements",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "graduaton requirements",
+        "expected": "graduation requirements",
+        "corrected": "graduation requirements",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "acadmic calendar",
+        "expected": "academic calendar",
+        "corrected": "academic calendar",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "semster schedule",
+        "expected": "semester schedule",
+        "corrected": "semester schedule",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "class timetabl",
+        "expected": "class timetable",
+        "corrected": "class timetable",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "examinaton schedule",
+        "expected": "examination schedule",
+        "corrected": "examination schedule",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "gradng system",
+        "expected": "grading system",
+        "corrected": "grading system",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "attendanc policy",
+        "expected": "attendance policy",
+        "corrected": "attendance policy",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "withdrawl process",
+        "expected": "withdrawal process",
+        "corrected": "withdrawal process",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "readmision policy",
+        "expected": "readmission policy",
+        "corrected": "readmission policy",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "registraton fees",
+        "expected": "registration fees",
+        "corrected": "registration fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "laboraty fees",
+        "expected": "laboratory fees",
+        "corrected": "Laboratory fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "libray fees",
+        "expected": "library fees",
+        "corrected": "Library fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "dormitry fees",
+        "expected": "dormitory fees",
+        "corrected": "dormitory fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "parkng fees",
+        "expected": "parking fees",
+        "corrected": "parking fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "graduaton fees",
+        "expected": "graduation fees",
+        "corrected": "graduation fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "transcritp fees",
+        "expected": "transcript fees",
+        "corrected": "transcript fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "applcation fees",
+        "expected": "application fees",
+        "corrected": "application fees",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "late paymet penalty",
+        "expected": "late payment penalty",
+        "corrected": "Late payment penalty",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "refnd policy",
+        "expected": "refund policy",
+        "corrected": "refund policy",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "scholarhip funds",
+        "expected": "scholarship funds",
+        "corrected": "scholarship funds",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "finacial assistance",
+        "expected": "financial assistance",
+        "corrected": "financial assistance",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "paymet methods",
+        "expected": "payment methods",
+        "corrected": "Payment methods",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "installmnt plans",
+        "expected": "installment plans",
+        "corrected": "installation plans",
+        "similarity": 0.8,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "discont programs",
+        "expected": "discount programs",
+        "corrected": "discount programs",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "fee waivr",
+        "expected": "fee waiver",
+        "corrected": "fee waiver",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "budgt planning",
+        "expected": "budget planning",
+        "corrected": "Budget planning",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "cost estimat",
+        "expected": "cost estimate",
+        "corrected": "cost estimate",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "expens breakdown",
+        "expected": "expense breakdown",
+        "corrected": "Expense breakdown",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "billing cycl",
+        "expected": "billing cycle",
+        "corrected": "billing cycle",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "acadmic advising",
+        "expected": "academic advising",
+        "corrected": "academic advising",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "tutorng services",
+        "expected": "tutoring services",
+        "corrected": "tutoring services",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "counselng center",
+        "expected": "counseling center",
+        "corrected": "counseling center",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "carrer services",
+        "expected": "career services",
+        "corrected": "Career services",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "placemnt office",
+        "expected": "placement office",
+        "corrected": "placement office",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "alumin network",
+        "expected": "alumni network",
+        "corrected": "aluminum network",
+        "similarity": 0.8666666666666667,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "studnt activities",
+        "expected": "student activities",
+        "corrected": "student activities",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "recreaton center",
+        "expected": "recreation center",
+        "corrected": "recreation center",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "healt services",
+        "expected": "health services",
+        "corrected": "health services",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "disabilty services",
+        "expected": "disability services",
+        "corrected": "disability services",
+        "similarity": 1.0,
+        "should_correct": true,
+        "test_type": "positive",
+        "correct": true
+      },
+      {
+        "input": "admission requirements",
+        "expected": "admission requirements",
+        "corrected": "admission requirements",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "tuition fees",
+        "expected": "tuition fees",
+        "corrected": "tuition fees",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "application deadline",
+        "expected": "application deadline",
+        "corrected": "application deadline",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "scholarship information",
+        "expected": "scholarship information",
+        "corrected": "scholarship information",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "enrollment process",
+        "expected": "enrollment process",
+        "corrected": "enrollment process",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "computer science program",
+        "expected": "computer science program",
+        "corrected": "computer science program",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "engineering course",
+        "expected": "engineering course",
+        "corrected": "engineering course",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "nursing curriculum",
+        "expected": "nursing curriculum",
+        "corrected": "nursing curriculum",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "business program",
+        "expected": "business program",
+        "corrected": "business program",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "information technology",
+        "expected": "information technology",
+        "corrected": "information technology",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Smith University",
+        "expected": "Smith University",
+        "corrected": "Smith University",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Johnson Hall",
+        "expected": "Johnson Hall",
+        "corrected": "Johnson Hall",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Martinez Library",
+        "expected": "Martinez Library",
+        "corrected": "Martinez Library",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Brown Building",
+        "expected": "Brown Building",
+        "corrected": "Brown Building",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Davis Center",
+        "expected": "Davis Center",
+        "corrected": "Davis Center",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Wilson Laboratory",
+        "expected": "Wilson Laboratory",
+        "corrected": "Wilson Laboratory",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Garcia Auditorium",
+        "expected": "Garcia Auditorium",
+        "corrected": "Garcia Auditorium",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Miller Stadium",
+        "expected": "Miller Stadium",
+        "corrected": "Miller Stadium",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Anderson Dormitory",
+        "expected": "Anderson Dormitory",
+        "corrected": "Anderson Dormitory",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Taylor Gymnasium",
+        "expected": "Taylor Gymnasium",
+        "corrected": "Taylor Gymnasium",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "API documentation",
+        "expected": "API documentation",
+        "corrected": "API documentation",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "SQL database",
+        "expected": "SQL database",
+        "corrected": "SQL database",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "HTML coding",
+        "expected": "HTML coding",
+        "corrected": "HTML coding",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "CSS styling",
+        "expected": "CSS styling",
+        "corrected": "CSS styling",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "JavaScript programming",
+        "expected": "JavaScript programming",
+        "corrected": "JavaScript programming",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Python development",
+        "expected": "Python development",
+        "corrected": "Python development",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "JSON format",
+        "expected": "JSON format",
+        "corrected": "JSON format",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "XML parsing",
+        "expected": "XML parsing",
+        "corrected": "XML parsing",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "HTTP protocol",
+        "expected": "HTTP protocol",
+        "corrected": "HTTP Protocol",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "TCP connection",
+        "expected": "TCP connection",
+        "corrected": "TCP Connection",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "recieve notification",
+        "expected": "recieve notification",
+        "corrected": "receive notification",
+        "similarity": 0.95,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "seperate application",
+        "expected": "seperate application",
+        "corrected": "separate application",
+        "similarity": 0.95,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "loose requirements",
+        "expected": "loose requirements",
+        "corrected": "loose requirements \n\nbecomes \n\nlooser requirements",
+        "similarity": 0.5294117647058824,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "affect admission",
+        "expected": "affect admission",
+        "corrected": "affect admission",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "principle requirements",
+        "expected": "principle requirements",
+        "corrected": "principal requirements",
+        "similarity": 0.9545454545454546,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "complement courses",
+        "expected": "complement courses",
+        "corrected": "complementing courses",
+        "similarity": 0.9230769230769231,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "discrete mathematics",
+        "expected": "discrete mathematics",
+        "corrected": "discrete mathematics",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "stationary supplies",
+        "expected": "stationary supplies",
+        "corrected": "stationery supplies",
+        "similarity": 0.9473684210526315,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "capital requirements",
+        "expected": "capital requirements",
+        "corrected": "capital requirements",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "council meeting",
+        "expected": "council meeting",
+        "corrected": "council meeting",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Universidad Nacional",
+        "expected": "Universidad Nacional",
+        "corrected": "Universidad Nacional",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Escuela de Medicina",
+        "expected": "Escuela de Medicina",
+        "corrected": "Escuela de Medicina",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Facultad de Ingenieria",
+        "expected": "Facultad de Ingenieria",
+        "corrected": "Facultad de Ingenier\u00eda",
+        "similarity": 0.9545454545454546,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Centro de Estudios",
+        "expected": "Centro de Estudios",
+        "corrected": "Centro de Estudios",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Biblioteca Central",
+        "expected": "Biblioteca Central",
+        "corrected": "Biblioteca Central",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Departamento Academico",
+        "expected": "Departamento Academico",
+        "corrected": "Departamento Acad\u00e9mico",
+        "similarity": 0.9545454545454546,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Programa de Becas",
+        "expected": "Programa de Becas",
+        "corrected": "Programa de Becas",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Oficina de Admisiones",
+        "expected": "Oficina de Admisiones",
+        "corrected": "No typos were found. \nOficina de Admisiones",
+        "similarity": 0.65625,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "Laboratorio de Ciencias",
+        "expected": "Laboratorio de Ciencias",
+        "corrected": "Laboratorio de Ciencias",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "Aula Magna",
+        "expected": "Aula Magna",
+        "corrected": "Aula Magna",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "cardiovascular system",
+        "expected": "cardiovascular system",
+        "corrected": "cardiovascular system",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "pharmaceutical research",
+        "expected": "pharmaceutical research",
+        "corrected": "pharmaceutical research",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "biochemistry laboratory",
+        "expected": "biochemistry laboratory",
+        "corrected": "biochemistry laboratory",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "neurological examination",
+        "expected": "neurological examination",
+        "corrected": "neurological examination",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "pathophysiology course",
+        "expected": "pathophysiology course",
+        "corrected": "There is no text provided to correct. Please provide the text, and I will return the corrected version.",
+        "similarity": 0.176,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "pharmacokinetics study",
+        "expected": "pharmacokinetics study",
+        "corrected": "Pharmacokinetics study",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "immunology department",
+        "expected": "immunology department",
+        "corrected": "Immunology Department",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "microbiology culture",
+        "expected": "microbiology culture",
+        "corrected": "Microbiology culture",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "epidemiology research",
+        "expected": "epidemiology research",
+        "corrected": "Epidemiology research",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "histopathology analysis",
+        "expected": "histopathology analysis",
+        "corrected": "histopathological analysis",
+        "similarity": 0.8979591836734694,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "GPA calculation",
+        "expected": "GPA calculation",
+        "corrected": "GPA calculation",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "SAT scores",
+        "expected": "SAT scores",
+        "corrected": "There is no text provided to correct. Please provide the text, and I will return the corrected version.\n\nHowever, since you provided \"SAT scores\",",
+        "similarity": 0.1282051282051282,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "ACT results",
+        "expected": "ACT results",
+        "corrected": "No text provided.",
+        "similarity": 0.2857142857142857,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "TOEFL requirements",
+        "expected": "TOEFL requirements",
+        "corrected": "TOEFL requirements",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "IELTS certification",
+        "expected": "IELTS certification",
+        "corrected": "IELTS certification",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "GRE examination",
+        "expected": "GRE examination",
+        "corrected": "GRE examination",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "GMAT preparation",
+        "expected": "GMAT preparation",
+        "corrected": "GMAT preparation",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "MCAT study guide",
+        "expected": "MCAT study guide",
+        "corrected": "MCAT study guide",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "LSAT practice",
+        "expected": "LSAT practice",
+        "corrected": "LSAT practice",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "NCLEX review",
+        "expected": "NCLEX review",
+        "corrected": "NCLEX Review",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "curriculum vitae",
+        "expected": "curriculum vitae",
+        "corrected": "curriculum vitae",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "magna cum laude",
+        "expected": "magna cum laude",
+        "corrected": "magna cum laude",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "summa cum laude",
+        "expected": "summa cum laude",
+        "corrected": "summa cum laude",
+        "similarity": 1.0,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": true
+      },
+      {
+        "input": "cum laude honors",
+        "expected": "cum laude honors",
+        "corrected": "cum laude honors \u2192 cum laude, honors \n\nHowever, typically \"cum laude\" and \"honors\" are used in different contexts.",
+        "similarity": 0.24615384615384617,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      },
+      {
+        "input": "alumni association",
+        "expected": "alumni association",
+        "corrected": "No changes needed. \n\nalumni association",
+        "similarity": 0.631578947368421,
+        "should_correct": false,
+        "test_type": "negative",
+        "correct": false
+      }
+    ]
+  },
+  "word_prediction": {
+    "total_samples": 160,
+    "correct_predictions": 99,
+    "accuracy": 0.61875,
+    "results": [
+      {
+        "input": "admission",
+        "expected_words": [
+          "requirements",
+          "process",
+          "deadline",
+          "office",
+          "application"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "process application",
+          "process application"
+        ],
+        "correct": true
+      },
+      {
+        "input": "scholarship",
+        "expected_words": [
+          "information",
+          "requirements",
+          "application",
+          "eligibility",
+          "program"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"Merit",
+          "application for"
+        ],
+        "correct": true
+      },
+      {
+        "input": "financial",
+        "expected_words": [
+          "aid",
+          "assistance",
+          "support",
+          "help",
+          "options"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "aid",
+          "aid"
+        ],
+        "correct": true
+      },
+      {
+        "input": "transfer",
+        "expected_words": [
+          "student",
+          "credits",
+          "evaluation",
+          "requirements",
+          "process"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "credits",
+          "credits"
+        ],
+        "correct": true
+      },
+      {
+        "input": "international",
+        "expected_words": [
+          "student",
+          "requirements",
+          "admission",
+          "visa",
+          "documents"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "students",
+          "students welcome"
+        ],
+        "correct": false
+      },
+      {
+        "input": "computer science",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "major in",
+          "major in"
+        ],
+        "correct": false
+      },
+      {
+        "input": "engineering",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"School of",
+          "\"School of"
+        ],
+        "correct": false
+      },
+      {
+        "input": "nursing",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"Master of",
+          "\"Master of"
+        ],
+        "correct": false
+      },
+      {
+        "input": "business",
+        "expected_words": [
+          "curriculum",
+          "program",
+          "course",
+          "degree",
+          "subjects"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "administration",
+          "administration"
+        ],
+        "correct": false
+      },
+      {
+        "input": "first year",
+        "expected_words": [
+          "courses",
+          "subjects",
+          "curriculum",
+          "program",
+          "schedule"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "students typically",
+          "students typically"
+        ],
+        "correct": false
+      },
+      {
+        "input": "tuition",
+        "expected_words": [
+          "fees",
+          "cost",
+          "payment",
+          "price",
+          "amount"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "costs fees",
+          "costs fees"
+        ],
+        "correct": true
+      },
+      {
+        "input": "payment",
+        "expected_words": [
+          "plan",
+          "method",
+          "schedule",
+          "options",
+          "deadline"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "tuition fee",
+          "Application fee"
+        ],
+        "correct": false
+      },
+      {
+        "input": "semester",
+        "expected_words": [
+          "fees",
+          "cost",
+          "payment",
+          "tuition",
+          "breakdown"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "academic term",
+          "academic term"
+        ],
+        "correct": false
+      },
+      {
+        "input": "annual",
+        "expected_words": [
+          "cost",
+          "fees",
+          "tuition",
+          "payment",
+          "amount"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "tuition fee",
+          "tuition fee"
+        ],
+        "correct": true
+      },
+      {
+        "input": "installment",
+        "expected_words": [
+          "plan",
+          "payment",
+          "options",
+          "schedule",
+          "terms"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "payment plan",
+          "payment plan"
+        ],
+        "correct": true
+      },
+      {
+        "input": "application",
+        "expected_words": [
+          "form",
+          "deadline",
+          "process",
+          "status",
+          "requirements"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "process begins",
+          "process begins"
+        ],
+        "correct": true
+      },
+      {
+        "input": "transcript",
+        "expected_words": [
+          "evaluation",
+          "submission",
+          "official",
+          "copy",
+          "request"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "academic record",
+          "official academic"
+        ],
+        "correct": true
+      },
+      {
+        "input": "recommendation",
+        "expected_words": [
+          "letter",
+          "form",
+          "submission",
+          "requirements",
+          "deadline"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Letter of",
+          "Letter of"
+        ],
+        "correct": true
+      },
+      {
+        "input": "portfolio",
+        "expected_words": [
+          "submission",
+          "requirements",
+          "format",
+          "deadline",
+          "review"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'art and'",
+          "'art and'"
+        ],
+        "correct": false
+      },
+      {
+        "input": "interview",
+        "expected_words": [
+          "schedule",
+          "preparation",
+          "requirements",
+          "process",
+          "guidelines"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "On-campus",
+          "On-campus"
+        ],
+        "correct": false
+      },
+      {
+        "input": "entrance",
+        "expected_words": [
+          "examination",
+          "test",
+          "requirements",
+          "schedule",
+          "preparation"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'exam'",
+          "'exam'"
+        ],
+        "correct": false
+      },
+      {
+        "input": "eligibility",
+        "expected_words": [
+          "criteria",
+          "requirements",
+          "check",
+          "verification",
+          "assessment"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "criteria and requirements",
+          "criteria and"
+        ],
+        "correct": true
+      },
+      {
+        "input": "deadline",
+        "expected_words": [
+          "extension",
+          "submission",
+          "application",
+          "registration",
+          "payment"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "application",
+          "application"
+        ],
+        "correct": true
+      },
+      {
+        "input": "document",
+        "expected_words": [
+          "submission",
+          "verification",
+          "requirements",
+          "checklist",
+          "upload"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "supporting",
+          "supporting"
+        ],
+        "correct": false
+      },
+      {
+        "input": "evaluation",
+        "expected_words": [
+          "process",
+          "criteria",
+          "committee",
+          "results",
+          "timeline"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "holistic evaluation",
+          "holistic evaluation"
+        ],
+        "correct": false
+      },
+      {
+        "input": "committee",
+        "expected_words": [
+          "review",
+          "decision",
+          "evaluation",
+          "meeting",
+          "members"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Admissions committee",
+          "Admissions committee"
+        ],
+        "correct": false
+      },
+      {
+        "input": "decision",
+        "expected_words": [
+          "notification",
+          "timeline",
+          "process",
+          "criteria",
+          "appeal"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Admissions decision",
+          "Admissions decision"
+        ],
+        "correct": false
+      },
+      {
+        "input": "notification",
+        "expected_words": [
+          "email",
+          "letter",
+          "timeline",
+          "process",
+          "status"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "admission",
+          "admission"
+        ],
+        "correct": false
+      },
+      {
+        "input": "appeal",
+        "expected_words": [
+          "process",
+          "deadline",
+          "requirements",
+          "committee",
+          "decision"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "admissions appeal",
+          "Admissions Appeal"
+        ],
+        "correct": false
+      },
+      {
+        "input": "deferral",
+        "expected_words": [
+          "request",
+          "process",
+          "deadline",
+          "approval",
+          "conditions"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "of admission",
+          "of admission"
+        ],
+        "correct": false
+      },
+      {
+        "input": "curriculum",
+        "expected_words": [
+          "structure",
+          "requirements",
+          "courses",
+          "design",
+          "overview"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'course curriculum",
+          "Vitae Academic"
+        ],
+        "correct": false
+      },
+      {
+        "input": "course",
+        "expected_words": [
+          "catalog",
+          "registration",
+          "schedule",
+          "requirements",
+          "description"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "of study",
+          "of study"
+        ],
+        "correct": false
+      },
+      {
+        "input": "degree",
+        "expected_words": [
+          "requirements",
+          "program",
+          "completion",
+          "planning",
+          "audit"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "conferred",
+          "conferred"
+        ],
+        "correct": false
+      },
+      {
+        "input": "major",
+        "expected_words": [
+          "declaration",
+          "requirements",
+          "advisor",
+          "courses",
+          "planning"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "academic program",
+          "academic program"
+        ],
+        "correct": false
+      },
+      {
+        "input": "minor",
+        "expected_words": [
+          "program",
+          "requirements",
+          "declaration",
+          "courses",
+          "completion"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "field of",
+          "field of"
+        ],
+        "correct": false
+      },
+      {
+        "input": "elective",
+        "expected_words": [
+          "courses",
+          "options",
+          "selection",
+          "requirements",
+          "planning"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "courses.",
+          "courses taken"
+        ],
+        "correct": true
+      },
+      {
+        "input": "prerequisite",
+        "expected_words": [
+          "courses",
+          "requirements",
+          "check",
+          "completion",
+          "waiver"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "course requirement",
+          "course requirement"
+        ],
+        "correct": false
+      },
+      {
+        "input": "laboratory",
+        "expected_words": [
+          "work",
+          "requirements",
+          "safety",
+          "equipment",
+          "schedule"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "research experience",
+          "research experience"
+        ],
+        "correct": false
+      },
+      {
+        "input": "internship",
+        "expected_words": [
+          "program",
+          "requirements",
+          "placement",
+          "credit",
+          "supervision"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"summer",
+          "\"summer"
+        ],
+        "correct": false
+      },
+      {
+        "input": "research",
+        "expected_words": [
+          "opportunities",
+          "projects",
+          "supervision",
+          "funding",
+          "ethics"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"research experience",
+          "\"Research experience"
+        ],
+        "correct": false
+      },
+      {
+        "input": "thesis",
+        "expected_words": [
+          "requirements",
+          "proposal",
+          "defense",
+          "committee",
+          "guidelines"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "doctoral dissertation",
+          "research project"
+        ],
+        "correct": false
+      },
+      {
+        "input": "graduation",
+        "expected_words": [
+          "requirements",
+          "ceremony",
+          "application",
+          "deadline",
+          "honors"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'upon graduation",
+          "'upon graduation"
+        ],
+        "correct": false
+      },
+      {
+        "input": "academic",
+        "expected_words": [
+          "calendar",
+          "advisor",
+          "standing",
+          "probation",
+          "appeal"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'Academic record",
+          "'Academic record"
+        ],
+        "correct": false
+      },
+      {
+        "input": "semester",
+        "expected_words": [
+          "schedule",
+          "registration",
+          "calendar",
+          "planning",
+          "courses"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "academic term",
+          "academic term"
+        ],
+        "correct": false
+      },
+      {
+        "input": "schedule",
+        "expected_words": [
+          "planning",
+          "conflicts",
+          "changes",
+          "registration",
+          "advisor"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "an interview",
+          "an interview"
+        ],
+        "correct": false
+      },
+      {
+        "input": "examination",
+        "expected_words": [
+          "schedule",
+          "preparation",
+          "policy",
+          "makeup",
+          "proctoring"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "entrance examination",
+          "entrance examination"
+        ],
+        "correct": false
+      },
+      {
+        "input": "grading",
+        "expected_words": [
+          "system",
+          "scale",
+          "policy",
+          "appeals",
+          "calculation"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "system used",
+          "'Grading"
+        ],
+        "correct": true
+      },
+      {
+        "input": "attendance",
+        "expected_words": [
+          "policy",
+          "requirements",
+          "tracking",
+          "makeup",
+          "excused"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "is mandatory",
+          "is mandatory"
+        ],
+        "correct": false
+      },
+      {
+        "input": "withdrawal",
+        "expected_words": [
+          "process",
+          "deadline",
+          "refund",
+          "academic",
+          "medical"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Application withdrawal",
+          "Application withdrawal"
+        ],
+        "correct": false
+      },
+      {
+        "input": "readmission",
+        "expected_words": [
+          "process",
+          "requirements",
+          "application",
+          "committee",
+          "timeline"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "application for",
+          "application for"
+        ],
+        "correct": true
+      },
+      {
+        "input": "registration",
+        "expected_words": [
+          "fees",
+          "deadline",
+          "process",
+          "requirements",
+          "confirmation"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "process begins",
+          "process begins"
+        ],
+        "correct": true
+      },
+      {
+        "input": "laboratory",
+        "expected_words": [
+          "fees",
+          "safety",
+          "equipment",
+          "requirements",
+          "insurance"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "research experience",
+          "research experience"
+        ],
+        "correct": false
+      },
+      {
+        "input": "library",
+        "expected_words": [
+          "fees",
+          "services",
+          "access",
+          "resources",
+          "fines"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Resources Available",
+          "resources available"
+        ],
+        "correct": true
+      },
+      {
+        "input": "dormitory",
+        "expected_words": [
+          "fees",
+          "application",
+          "assignment",
+          "rules",
+          "contract"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Residential Life",
+          "Residential Life"
+        ],
+        "correct": false
+      },
+      {
+        "input": "parking",
+        "expected_words": [
+          "fees",
+          "permit",
+          "registration",
+          "enforcement",
+          "appeals"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "facilities available",
+          "facilities available"
+        ],
+        "correct": false
+      },
+      {
+        "input": "graduation",
+        "expected_words": [
+          "fees",
+          "ceremony",
+          "application",
+          "regalia",
+          "photos"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'upon graduation",
+          "'upon graduation"
+        ],
+        "correct": false
+      },
+      {
+        "input": "transcript",
+        "expected_words": [
+          "fees",
+          "request",
+          "processing",
+          "delivery",
+          "official"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "official academic",
+          "academic record"
+        ],
+        "correct": true
+      },
+      {
+        "input": "application",
+        "expected_words": [
+          "fees",
+          "waiver",
+          "payment",
+          "deadline",
+          "refund"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "process begins",
+          "process begins"
+        ],
+        "correct": false
+      },
+      {
+        "input": "penalty",
+        "expected_words": [
+          "fees",
+          "late",
+          "payment",
+          "policy",
+          "waiver"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "for late submission",
+          "for late submission"
+        ],
+        "correct": true
+      },
+      {
+        "input": "refund",
+        "expected_words": [
+          "policy",
+          "process",
+          "timeline",
+          "eligibility",
+          "calculation"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "tuition fee",
+          "tuition fee"
+        ],
+        "correct": false
+      },
+      {
+        "input": "scholarship",
+        "expected_words": [
+          "funds",
+          "application",
+          "eligibility",
+          "renewal",
+          "disbursement"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"Merit",
+          "\"Merit"
+        ],
+        "correct": false
+      },
+      {
+        "input": "assistance",
+        "expected_words": [
+          "program",
+          "application",
+          "eligibility",
+          "documentation",
+          "appeal"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Financial assistance",
+          "financial assistance"
+        ],
+        "correct": false
+      },
+      {
+        "input": "methods",
+        "expected_words": [
+          "payment",
+          "online",
+          "cash",
+          "check",
+          "card"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Research methods",
+          "Research methods"
+        ],
+        "correct": false
+      },
+      {
+        "input": "plans",
+        "expected_words": [
+          "payment",
+          "installment",
+          "budget",
+          "options",
+          "enrollment"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "future plans",
+          "future plans"
+        ],
+        "correct": false
+      },
+      {
+        "input": "programs",
+        "expected_words": [
+          "discount",
+          "assistance",
+          "scholarship",
+          "work-study",
+          "grant"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Academic programs",
+          "Academic programs"
+        ],
+        "correct": false
+      },
+      {
+        "input": "waiver",
+        "expected_words": [
+          "application",
+          "eligibility",
+          "documentation",
+          "approval",
+          "conditions"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Application fee",
+          "application fee"
+        ],
+        "correct": true
+      },
+      {
+        "input": "planning",
+        "expected_words": [
+          "budget",
+          "financial",
+          "cost",
+          "estimation",
+          "resources"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'strategic",
+          "\"Strategic"
+        ],
+        "correct": false
+      },
+      {
+        "input": "estimate",
+        "expected_words": [
+          "cost",
+          "budget",
+          "calculator",
+          "planning",
+          "breakdown"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"Tuition",
+          "\"Tuition"
+        ],
+        "correct": false
+      },
+      {
+        "input": "breakdown",
+        "expected_words": [
+          "cost",
+          "fee",
+          "detailed",
+          "itemized",
+          "summary"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "demographic breakdown",
+          "demographic breakdown"
+        ],
+        "correct": false
+      },
+      {
+        "input": "cycle",
+        "expected_words": [
+          "billing",
+          "payment",
+          "academic",
+          "semester",
+          "annual"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Admissions cycle",
+          "Admissions cycle"
+        ],
+        "correct": false
+      },
+      {
+        "input": "advising",
+        "expected_words": [
+          "academic",
+          "appointment",
+          "advisor",
+          "planning",
+          "requirements"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Academic advising",
+          "Academic advising"
+        ],
+        "correct": true
+      },
+      {
+        "input": "tutoring",
+        "expected_words": [
+          "services",
+          "center",
+          "appointment",
+          "subjects",
+          "peer"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Academic support",
+          "Academic support"
+        ],
+        "correct": false
+      },
+      {
+        "input": "counseling",
+        "expected_words": [
+          "center",
+          "services",
+          "appointment",
+          "support",
+          "confidential"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Admissions counseling",
+          "Admissions counseling"
+        ],
+        "correct": false
+      },
+      {
+        "input": "career",
+        "expected_words": [
+          "services",
+          "counseling",
+          "planning",
+          "resources",
+          "placement"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "'Career Adv",
+          "'Career Adv"
+        ],
+        "correct": false
+      },
+      {
+        "input": "placement",
+        "expected_words": [
+          "office",
+          "services",
+          "job",
+          "internship",
+          "career"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"test placement",
+          "\"Test placement"
+        ],
+        "correct": false
+      },
+      {
+        "input": "alumni",
+        "expected_words": [
+          "network",
+          "services",
+          "events",
+          "mentoring",
+          "career"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "networking opportunities",
+          "networking opportunities"
+        ],
+        "correct": false
+      },
+      {
+        "input": "student",
+        "expected_words": [
+          "activities",
+          "services",
+          "life",
+          "organizations",
+          "support"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Here is the",
+          "Here is the"
+        ],
+        "correct": false
+      },
+      {
+        "input": "recreation",
+        "expected_words": [
+          "center",
+          "facilities",
+          "programs",
+          "membership",
+          "hours"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "\"extrac",
+          "Extracur"
+        ],
+        "correct": false
+      },
+      {
+        "input": "health",
+        "expected_words": [
+          "services",
+          "center",
+          "insurance",
+          "clinic",
+          "wellness"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "Public Health",
+          "Public Health"
+        ],
+        "correct": false
+      },
+      {
+        "input": "disability",
+        "expected_words": [
+          "services",
+          "accommodations",
+          "support",
+          "documentation",
+          "resources"
+        ],
+        "should_predict": true,
+        "test_type": "positive",
+        "predictions": [
+          "accommodation support",
+          "accommodation support"
+        ],
+        "correct": true
+      },
+      {
+        "input": "pizza",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "extracur",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "hamburger",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "I'm happy to",
+          "\"Personal Statement"
+        ],
+        "correct": true
+      },
+      {
+        "input": "spaghetti",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Italian cuisine",
+          "Culinary"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sandwich",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "placement year",
+          "placement year"
+        ],
+        "correct": true
+      },
+      {
+        "input": "chocolate",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Elective course",
+          "extracur"
+        ],
+        "correct": false
+      },
+      {
+        "input": "coffee",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "social event",
+          "'study break"
+        ],
+        "correct": false
+      },
+      {
+        "input": "restaurant",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"On-campus",
+          "\"On campus"
+        ],
+        "correct": true
+      },
+      {
+        "input": "kitchen",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "hands-on experience",
+          "Facility tour"
+        ],
+        "correct": true
+      },
+      {
+        "input": "recipe",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "for success",
+          "for success"
+        ],
+        "correct": true
+      },
+      {
+        "input": "cooking",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Culinary",
+          "'Culinary"
+        ],
+        "correct": true
+      },
+      {
+        "input": "weather",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "climate change",
+          "climate change"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sunshine",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"State of",
+          "State of"
+        ],
+        "correct": true
+      },
+      {
+        "input": "rainfall",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Average annual",
+          "Average annual"
+        ],
+        "correct": true
+      },
+      {
+        "input": "hurricane",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "relief efforts",
+          "relief efforts"
+        ],
+        "correct": true
+      },
+      {
+        "input": "mountain",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Challenge Accepted",
+          "challenge overcome"
+        ],
+        "correct": true
+      },
+      {
+        "input": "ocean",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Marine Science",
+          "Marine Science"
+        ],
+        "correct": true
+      },
+      {
+        "input": "forest",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'Ecological",
+          "'Ecological"
+        ],
+        "correct": true
+      },
+      {
+        "input": "desert",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Leave a",
+          "Sand dunes"
+        ],
+        "correct": true
+      },
+      {
+        "input": "clouds",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Behind the",
+          "\"Beyond the"
+        ],
+        "correct": true
+      },
+      {
+        "input": "temperature",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "control system",
+          "control system"
+        ],
+        "correct": true
+      },
+      {
+        "input": "football",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "extracur",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "basketball",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "extracur",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "baseball",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "extracur",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "tennis",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'extracur",
+          "'extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "movie",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Reel",
+          "film studies"
+        ],
+        "correct": true
+      },
+      {
+        "input": "television",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "media studies",
+          "media studies"
+        ],
+        "correct": true
+      },
+      {
+        "input": "music",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Theory audition",
+          "appreciation course"
+        ],
+        "correct": false
+      },
+      {
+        "input": "concert",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'of interest",
+          "'hall concert"
+        ],
+        "correct": true
+      },
+      {
+        "input": "theater",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "performance arts",
+          "\"Major in"
+        ],
+        "correct": true
+      },
+      {
+        "input": "gaming",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'esports management",
+          "'esports management"
+        ],
+        "correct": true
+      },
+      {
+        "input": "airplane",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Early Application",
+          "Here is the"
+        ],
+        "correct": true
+      },
+      {
+        "input": "automobile",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "engineering major",
+          "engineering major"
+        ],
+        "correct": true
+      },
+      {
+        "input": "bicycle",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "transportation mode",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "motorcycle",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "extracur",
+          "extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "train",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'train of",
+          "'train of"
+        ],
+        "correct": true
+      },
+      {
+        "input": "subway",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "transportation option",
+          "commuting options"
+        ],
+        "correct": true
+      },
+      {
+        "input": "highway",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"road construction",
+          "transportation engineering"
+        ],
+        "correct": true
+      },
+      {
+        "input": "traffic",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "congestion management",
+          "congestion management"
+        ],
+        "correct": true
+      },
+      {
+        "input": "airport",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "pickup",
+          "pickup"
+        ],
+        "correct": true
+      },
+      {
+        "input": "gasoline",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "energy sources",
+          "energy sources"
+        ],
+        "correct": true
+      },
+      {
+        "input": "furniture",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "campus equipment",
+          "campus"
+        ],
+        "correct": true
+      },
+      {
+        "input": "television",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "media studies",
+          "media studies"
+        ],
+        "correct": true
+      },
+      {
+        "input": "refrigerator",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Personal Statement",
+          "\"Personal Statement"
+        ],
+        "correct": true
+      },
+      {
+        "input": "microwave",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "oven",
+          "oven appliance"
+        ],
+        "correct": true
+      },
+      {
+        "input": "vacuum",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Here is the",
+          "Here is the"
+        ],
+        "correct": true
+      },
+      {
+        "input": "laundry",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Facilities available",
+          "Facilities available"
+        ],
+        "correct": true
+      },
+      {
+        "input": "carpet",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "'rolling out",
+          "'Stepping"
+        ],
+        "correct": true
+      },
+      {
+        "input": "curtains",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "The phrase could",
+          "\"Closing curtains"
+        ],
+        "correct": true
+      },
+      {
+        "input": "pillow",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Comfortable",
+          "comfort object"
+        ],
+        "correct": true
+      },
+      {
+        "input": "blanket",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Statement of",
+          "Statement of"
+        ],
+        "correct": true
+      },
+      {
+        "input": "xyzabc",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "qwerty",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Unrelated keyboard",
+          "UI Keyboard"
+        ],
+        "correct": true
+      },
+      {
+        "input": "asdfgh",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "zxcvbn",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "mnbvcx",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "poiuyt",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Reversed keyboard",
+          "Reversed keyboard"
+        ],
+        "correct": true
+      },
+      {
+        "input": "lkjhgf",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "wertyui",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Typo error",
+          "Typo error"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sdfghjk",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "xcvbnm",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Application Form",
+          "Application Form"
+        ],
+        "correct": true
+      },
+      {
+        "input": "elephant",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Conservation Biology",
+          "Conservation Biology"
+        ],
+        "correct": true
+      },
+      {
+        "input": "giraffe",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Extracur",
+          "Extracur"
+        ],
+        "correct": true
+      },
+      {
+        "input": "penguin",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Antarctic",
+          "Research Experience"
+        ],
+        "correct": true
+      },
+      {
+        "input": "butterfly",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Metamorphic",
+          "Transformative Experience"
+        ],
+        "correct": true
+      },
+      {
+        "input": "hamster",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Unlikely major",
+          "Unlikely Masc"
+        ],
+        "correct": true
+      },
+      {
+        "input": "goldfish",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Think outside",
+          "Memorable Anal"
+        ],
+        "correct": true
+      },
+      {
+        "input": "parrot",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Repeating phrases",
+          "Repeating phrases"
+        ],
+        "correct": true
+      },
+      {
+        "input": "rabbit",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Hutches",
+          "Hut habitat"
+        ],
+        "correct": true
+      },
+      {
+        "input": "turtle",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Conservation Biology",
+          "Conservation Biology"
+        ],
+        "correct": true
+      },
+      {
+        "input": "lizard",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Herpetology",
+          "Herpetology"
+        ],
+        "correct": true
+      },
+      {
+        "input": "fashion",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Design Merchandising",
+          "Design Management"
+        ],
+        "correct": true
+      },
+      {
+        "input": "jewelry",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Personal statement",
+          "Personal Statement"
+        ],
+        "correct": true
+      },
+      {
+        "input": "makeup",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Optional interview",
+          "\"Optional interview"
+        ],
+        "correct": true
+      },
+      {
+        "input": "perfume",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "scented",
+          "fragrance"
+        ],
+        "correct": true
+      },
+      {
+        "input": "handbag",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Irrelevant item",
+          "Irrelevant item"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sunglasses",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Not required",
+          "\"Not required"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sneakers",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Casual attire",
+          "Casual attire"
+        ],
+        "correct": true
+      },
+      {
+        "input": "jacket",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Varsity",
+          "\"Letter of"
+        ],
+        "correct": true
+      },
+      {
+        "input": "sweater",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "\"Business casual",
+          "winter clothing"
+        ],
+        "correct": true
+      },
+      {
+        "input": "scarf",
+        "expected_words": [],
+        "should_predict": false,
+        "test_type": "negative",
+        "predictions": [
+          "Cultural accessory",
+          "Cultural accessory"
+        ],
+        "correct": true
+      }
+    ]
+  },
+  "f1_metrics": {
+    "precision": 0.9026548672566371,
+    "recall": 0.6375,
+    "f1_score": 0.7472527472527473,
+    "accuracy": 0.780952380952381,
+    "total_samples": 315,
+    "positive_samples": 160,
+    "negative_samples": 155,
+    "true_positives": 102,
+    "false_positives": 11,
+    "true_negatives": 144,
+    "false_negatives": 58,
+    "typo_accuracy": 0.9483870967741935,
+    "prediction_accuracy": 0.61875
+  },
+  "target_f1": 0.7,
+  "target_achieved": true
+}
