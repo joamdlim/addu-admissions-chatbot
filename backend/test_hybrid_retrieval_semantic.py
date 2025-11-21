@@ -920,6 +920,12 @@ class HybridRetrievalSemanticEvaluator:
                 "expected_topics": ["fees"],
                 "expected_keywords": ["fee", "structures", "different", "programs", "ADDU"],
                 "semantic_category": "program_fees"
+            },
+            {
+                "query": "What is the minimum QPI required for admission to ADDU?",
+                "expected_topics": ["admissions_enrollment"],
+                "expected_keywords": ["minimum", "QPI", "required", "admission", "ADDU"],
+                "semantic_category": "academic_requirements"
             }
         ]
         
